@@ -16,11 +16,14 @@ public class ErrorClassifierTests
     [InlineData("remote: HTTP Basic: Access denied. Token is expired.", ErrorCategory.Authentication)]
     [InlineData("fatal: Invalid username or password", ErrorCategory.Authentication)]
     [InlineData("remote: Bad credentials", ErrorCategory.Authentication)]
+    [InlineData("git@github.com: Permission denied (publickey).", ErrorCategory.Authentication)]
+    [InlineData("git@gitlab.com: Permission denied (publickey,gssapi-keyex,password).", ErrorCategory.Authentication)]
 
     // 2. Permission
     [InlineData("error: The requested URL returned error: 403", ErrorCategory.Permission)]
     [InlineData("fatal: 403 Forbidden", ErrorCategory.Permission)]
-    [InlineData("Permission denied (publickey).", ErrorCategory.Permission)]
+    [InlineData("remote: Permission to user/repo.git denied to user.", ErrorCategory.Permission)]
+    [InlineData("fatal: Permission denied", ErrorCategory.Permission)]
     [InlineData("remote: Repository not found or access denied.", ErrorCategory.Permission)]
     [InlineData("remote: You are not allowed to push code to this project.", ErrorCategory.Permission)]
     [InlineData("fatal: write access required", ErrorCategory.Permission)]
@@ -61,6 +64,7 @@ public class ErrorClassifierTests
     [InlineData("fatal: cannot lock ref 'refs/heads/main': is at unexpected sha1", ErrorCategory.Path)]
     [InlineData("fatal: not a valid repository", ErrorCategory.Path)]
     [InlineData("error: Corrupt object file", ErrorCategory.Path)]
+    [InlineData("fatal: cannot create directory at 'D:/repos/test': Permission denied: unable to create", ErrorCategory.Path)]
 
     // 7. Other
     [InlineData("fatal: something unexpected happened completely unknown", ErrorCategory.Other)]

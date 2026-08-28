@@ -53,14 +53,13 @@ public static class ErrorClassifier
             "would be overwritten by merge",
             "would be overwritten by checkout",
             "refusing to merge unrelated histories",
-            "diverged",
             "needs merge",
             "CONFLICT ("))
         {
             return ErrorCategory.Conflict;
         }
 
-        // 4. Authentication (인증 - 토큰/비밀번호/계정 만료/오류 -> 재로그인으로 해결)
+        // 4. Authentication (인증 - 토큰/비밀번호/계정/SSH 키 만료/오류 -> 사용자 키/자격증명 갱신으로 해결)
         if (ContainsAny(error,
             "Authentication failed",
             "HTTP Basic: Access denied",
@@ -69,6 +68,7 @@ public static class ErrorClassifier
             "terminal prompts disabled",
             "Password for",
             "Invalid username or password",
+            "Permission denied (publickey",
             "401 Unauthorized",
             "error: 401",
             "The requested URL returned error: 401",
@@ -83,8 +83,9 @@ public static class ErrorClassifier
             "403 Forbidden",
             "error: 403",
             "The requested URL returned error: 403",
-            "Permission denied (publickey",
             "Permission denied",
+            "Permission to ",
+            "denied to ",
             "Access denied",
             "You are not allowed to",
             "Repository not found or access denied",
