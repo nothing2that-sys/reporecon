@@ -1,0 +1,23 @@
+## Build Results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio / IDE
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
+## SQLite database files
+*.db
+*.db-shm
+*.db-wal
+
+## OS Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
