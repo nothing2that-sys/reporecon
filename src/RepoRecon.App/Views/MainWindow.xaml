@@ -6,7 +6,7 @@
         xmlns:vm="clr-namespace:RepoRecon.App.ViewModels"
         xmlns:tree="clr-namespace:RepoRecon.App.ViewModels.Tree"
         mc:Ignorable="d"
-        Title="RepoRecon (Phase 2)"
+        Title="RepoRecon (Phase 3)"
         Height="800" Width="1200"
         MinHeight="600" MinWidth="900"
         WindowStartupLocation="CenterScreen"
@@ -63,6 +63,7 @@
             <RowDefinition Height="Auto" /> <!-- Skip Reasons Panel -->
             <RowDefinition Height="Auto" /> <!-- Inaccessible Paths Panel -->
             <RowDefinition Height="*" />    <!-- Main Hierarchical Tree View / Empty State -->
+            <RowDefinition Height="Auto" /> <!-- Execution Panel (Phase 3) -->
             <RowDefinition Height="Auto" /> <!-- Status Bar -->
         </Grid.RowDefinitions>
 
@@ -387,16 +388,17 @@
                                 Command="{Binding ToggleSkipDetailsCommand}"
                                 Visibility="{Binding HasSkipReasons, Converter={StaticResource BoolToVis}}" />
 
-                        <!-- Pull Button (Disabled in Phase 2 per §1, §4-3, §9) -->
-                        <Button Content="Pull (비활성)"
+                        <!-- Pull Button (Enabled in Phase 3) -->
+                        <Button Content="Pull"
                                 AutomationProperties.AutomationId="BtnPull"
                                 FontWeight="Bold"
                                 Padding="16,4"
-                                Background="#9CA3AF"
+                                Background="#1D4ED8"
                                 Foreground="White"
-                                BorderBrush="#9CA3AF"
-                                IsEnabled="False"
-                                ToolTip="일괄 Pull 실행은 Phase 3에서 활성화됩니다." />
+                                BorderBrush="#1D4ED8"
+                                IsEnabled="{Binding CanExecutePull}"
+                                Command="{Binding ExecutePullCommand}"
+                                ToolTip="선택된 대상 중 Pull 가능한 레포지토리에 대해 일괄 Pull(ff-only)을 실행합니다." />
                     </StackPanel>
 
                     <!-- Inaccessible Paths Warning Trigger -->
@@ -675,8 +677,137 @@
             </StackPanel>
         </Grid>
 
+        <!-- Bottom Execution & Results Panel (설계 §5.5, §7.3, §8-1) -->
+        <Border Grid.Row="6"
+                x:Name="PanelExecution"
+                AutomationProperties.AutomationId="PanelExecution"
+                Background="White"
+                BorderBrush="#CBD5E1"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="12"
+                Margin="0,8,0,4"
+                Visibility="{Binding IsPullPanelVisible, Converter={StaticResource BoolToVis}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="140" />
+                </Grid.RowDefinitions>
+
+                <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="취소"
+                                AutomationProperties.AutomationId="BtnCancelExecution"
+                                Padding="12,3"
+                                Margin="0,0,6,0"
+                                Background="#FEE2E2"
+                                Foreground="#991B1B"
+                                BorderBrush="#F87171"
+                                FontWeight="SemiBold"
+                                Visibility="{Binding IsPullExecuting, Converter={StaticResource BoolToVis}}"
+                                Command="{Binding CancelPullCommand}" />
+
+                        <Button Content="닫기"
+                                AutomationProperties.AutomationId="BtnCloseExecutionPanel"
+                                Padding="10,3"
+                                Background="#F3F4F6"
+                                BorderBrush="#D1D5DB"
+                                Command="{Binding ClosePullPanelCommand}" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="⚡ 일괄 Pull 실행 상태"
+                                   FontWeight="Bold"
+                                   FontSize="13"
+                                   Foreground="#1E293B"
+                                   Margin="0,0,12,0" />
+                        <TextBlock AutomationProperties.AutomationId="TxtExecutionProgress"
+                                   Text="{Binding PullProgressText}"
+                                   FontWeight="SemiBold"
+                                   Foreground="#2563EB" />
+                    </StackPanel>
+                </DockPanel>
+
+                <ProgressBar Grid.Row="1"
+                             AutomationProperties.AutomationId="ProgressPullBatch"
+                             Height="8"
+                             Minimum="0"
+                             Maximum="100"
+                             Value="{Binding PullProgressPercent}"
+                             Margin="0,0,0,8"
+                             Foreground="#2563EB"
+                             Background="#E2E8F0" />
+
+                <Border Grid.Row="2"
+                        AutomationProperties.AutomationId="CardPullSummaryReport"
+                        Background="#F0FDF4"
+                        BorderBrush="#86EFAC"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="8,6"
+                        Margin="0,0,0,8"
+                        Visibility="{Binding HasPullReport, Converter={StaticResource BoolToVis}}">
+                    <TextBlock AutomationProperties.AutomationId="TxtPullSummaryReport"
+                               Text="{Binding PullReportSummary}"
+                               FontWeight="Bold"
+                               Foreground="#166534"
+                               TextWrapping="Wrap" />
+                </Border>
+
+                <ListBox Grid.Row="3"
+                         AutomationProperties.AutomationId="ListPullResults"
+                         ItemsSource="{Binding PullExecutionItems}"
+                         BorderBrush="#E2E8F0"
+                         BorderThickness="1"
+                         Background="#F8FAFC"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="2,2" LastChildFill="True">
+                                <Border DockPanel.Dock="Left"
+                                        Background="{Binding StatusBadgeColor}"
+                                        CornerRadius="3"
+                                        Padding="6,1"
+                                        Margin="0,0,8,0"
+                                        MinWidth="50">
+                                    <TextBlock Text="{Binding StatusBadgeText}"
+                                               Foreground="White"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               HorizontalAlignment="Center" />
+                                </Border>
+
+                                <TextBlock DockPanel.Dock="Right"
+                                           Text="{Binding Detail}"
+                                           FontSize="11"
+                                           Foreground="#64748B"
+                                           VerticalAlignment="Center"
+                                           Margin="8,0,0,0"
+                                           MaxWidth="350"
+                                           TextTrimming="CharacterEllipsis" />
+
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding FolderName}"
+                                               FontWeight="SemiBold"
+                                               FontSize="12"
+                                               Foreground="#1E293B" />
+                                    <TextBlock Text="{Binding AbsPath}"
+                                               FontSize="11"
+                                               Foreground="#94A3B8"
+                                               Margin="6,0,0,0"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
+
         <!-- Bottom Status Bar -->
-        <StatusBar Grid.Row="6"
+        <StatusBar Grid.Row="7"
                    Background="#F3F4F6"
                    BorderBrush="#E5E7EB"
                    BorderThickness="0,1,0,0"

@@ -5,9 +5,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RepoRecon.App.ViewModels;
 using RepoRecon.App.Views;
+using RepoRecon.Core.Concurrency;
 using RepoRecon.Core.Data;
 using RepoRecon.Core.Fetch;
 using RepoRecon.Core.Git;
+using RepoRecon.Core.Pull;
 using RepoRecon.Core.Scanning;
 using RepoRecon.Core.Urls;
 using Serilog;
@@ -57,7 +59,7 @@ public partial class App : Application
                 outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
 
-        Log.Information("=== RepoRecon App Starting (Phase 1) === (DBG logging: {DebugLogging})", debugLoggingRequested ? "on (REPORECON_DEBUG_LOG=1)" : "off");
+        Log.Information("=== RepoRecon App Starting (Phase 3) === (DBG logging: {DebugLogging})", debugLoggingRequested ? "on (REPORECON_DEBUG_LOG=1)" : "off");
 
         // B-12: Explicit Content Root (exe directory)
         _host = Host.CreateDefaultBuilder()
@@ -67,6 +69,7 @@ public partial class App : Application
             {
                 services.AddSingleton(Log.Logger);
                 services.AddSingleton<IGitRunner, GitRunner>();
+                services.AddSingleton<IRepoLockManager, RepoLockManager>();
                 services.AddSingleton<SchemaMigrator>();
                 services.AddSingleton(sp =>
                 {
@@ -79,6 +82,7 @@ public partial class App : Application
                 services.AddSingleton<ScanRootManager>();
                 services.AddSingleton<RepoScanner>();
                 services.AddSingleton<IFetchEngine, FetchEngine>();
+                services.AddSingleton<IPullEngine, PullEngine>();
                 services.AddSingleton<MainViewModel>();
                 services.AddSingleton<MainWindow>();
             })

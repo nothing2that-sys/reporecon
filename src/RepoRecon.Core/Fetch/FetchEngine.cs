@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using RepoRecon.Core.Concurrency;
 using RepoRecon.Core.Data;
 using RepoRecon.Core.Git;
 using RepoRecon.Core.Models;
@@ -18,6 +19,7 @@ public class FetchEngine : IFetchEngine, IDisposable
 
     private readonly IGitRunner _gitRunner;
     private readonly SqliteIndexStore _indexStore;
+    private readonly IRepoLockManager _lockManager;
     private readonly ILogger<FetchEngine> _logger;
     private readonly FetchPriorityQueue _queue = new();
     private readonly SemaphoreSlim _networkPool;
@@ -56,6 +58,7 @@ public class FetchEngine : IFetchEngine, IDisposable
     public FetchEngine(
         IGitRunner gitRunner,
         SqliteIndexStore indexStore,
+        IRepoLockManager? lockManager = null,
         int maxConcurrency = DefaultMaxConcurrency,
         ILogger<FetchEngine>? logger = null,
         int maxConcurrencyPerHost = DefaultMaxConcurrencyPerHost,
@@ -65,6 +68,7 @@ public class FetchEngine : IFetchEngine, IDisposable
         if (maxConcurrencyPerHost <= 0) throw new ArgumentOutOfRangeException(nameof(maxConcurrencyPerHost));
         _gitRunner = gitRunner;
         _indexStore = indexStore;
+        _lockManager = lockManager ?? new RepoRecon.Core.Concurrency.RepoLockManager();
         _maxConcurrency = maxConcurrency;
         _maxConcurrencyPerHost = maxConcurrencyPerHost;
         _authenticationCooldown = authenticationCooldown ?? DefaultAuthenticationCooldown;
@@ -209,6 +213,7 @@ public class FetchEngine : IFetchEngine, IDisposable
 
     private async Task<RepoFetchResult> FetchSingleRepoCoreAsync(long repoId, string absPath, string? hostKey, CancellationToken cancellationToken)
     {
+        using var repoLock = await _lockManager.AcquireLockAsync(absPath, cancellationToken).ConfigureAwait(false);
         var stopwatch = Stopwatch.StartNew();
         _logger.LogInformation("Starting fetch for repo {RepoId} at {Path} (Host={Host})", repoId, absPath, hostKey ?? "direct");
         try

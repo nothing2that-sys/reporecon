@@ -124,4 +124,62 @@ public class SqliteIndexStoreTests
             if (File.Exists(shmPath)) try { File.Delete(shmPath); } catch { }
         }
     }
+
+    [Fact]
+    public async Task SqliteIndexStore_JobHistory_InsertsAndQueriesCorrectly()
+    {
+        var tempDbPath = Path.Combine(Path.GetTempPath(), "reporecon_jobhistory_test_" + Guid.NewGuid().ToString("N") + ".db");
+        try
+        {
+            var migrator = new SchemaMigrator();
+            migrator.EnsureInitialized(tempDbPath);
+
+            var store = new SqliteIndexStore(tempDbPath);
+
+            var entry1 = new JobHistoryEntry(
+                Id: 0,
+                JobType: "pull",
+                TargetPath: @"D:\Work\Repo1",
+                PreHead: "aaa111",
+                PostHead: "bbb222",
+                Result: "Success",
+                ErrorCategory: null,
+                CreatedAt: DateTime.UtcNow.AddMinutes(-5));
+
+            var entry2 = new JobHistoryEntry(
+                Id: 0,
+                JobType: "pull",
+                TargetPath: @"D:\Work\Repo2",
+                PreHead: "ccc333",
+                PostHead: "ccc333",
+                Result: "Failed",
+                ErrorCategory: "Authentication",
+                CreatedAt: DateTime.UtcNow);
+
+            var id1 = await store.InsertJobHistoryAsync(entry1);
+            var id2 = await store.InsertJobHistoryAsync(entry2);
+
+            Assert.True(id1 > 0);
+            Assert.True(id2 > 0);
+
+            var allHistory = await store.GetJobHistoryAsync();
+            Assert.Equal(2, allHistory.Count);
+
+            var repo1History = await store.GetJobHistoryAsync(@"D:\Work\Repo1");
+            Assert.Single(repo1History);
+            Assert.Equal("Success", repo1History[0].Result);
+            Assert.Equal("aaa111", repo1History[0].PreHead);
+            Assert.Equal("bbb222", repo1History[0].PostHead);
+
+            var repo2History = await store.GetJobHistoryAsync(@"D:\Work\Repo2");
+            Assert.Single(repo2History);
+            Assert.Equal("Failed", repo2History[0].Result);
+            Assert.Equal("Authentication", repo2History[0].ErrorCategory);
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            if (File.Exists(tempDbPath)) try { File.Delete(tempDbPath); } catch { }
+        }
+    }
 }

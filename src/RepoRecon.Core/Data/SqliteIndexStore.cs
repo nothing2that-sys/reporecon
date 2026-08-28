@@ -236,4 +236,62 @@ ON CONFLICT(local_repo_id) DO UPDATE SET
     }
 
     #endregion
+
+    #region Job History
+
+    public async Task<long> InsertJobHistoryAsync(JobHistoryEntry entry, CancellationToken cancellationToken = default)
+    {
+        using var conn = CreateConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+INSERT INTO job_history (job_type, target_path, pre_head, post_head, result, error_category, created_at)
+VALUES (@job_type, @target_path, @pre_head, @post_head, @result, @error_category, @created_at);
+SELECT last_insert_rowid();";
+        cmd.Parameters.AddWithValue("@job_type", entry.JobType);
+        cmd.Parameters.AddWithValue("@target_path", entry.TargetPath);
+        cmd.Parameters.AddWithValue("@pre_head", entry.PreHead ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@post_head", entry.PostHead ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@result", entry.Result);
+        cmd.Parameters.AddWithValue("@error_category", entry.ErrorCategory ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@created_at", entry.CreatedAt.ToString("o"));
+
+        var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return Convert.ToInt64(result, CultureInfo.InvariantCulture);
+    }
+
+    public async Task<IReadOnlyList<JobHistoryEntry>> GetJobHistoryAsync(string? targetPath = null, int limit = 100, CancellationToken cancellationToken = default)
+    {
+        using var conn = CreateConnection();
+        using var cmd = conn.CreateCommand();
+        if (string.IsNullOrWhiteSpace(targetPath))
+        {
+            cmd.CommandText = "SELECT id, job_type, target_path, pre_head, post_head, result, error_category, created_at FROM job_history ORDER BY id DESC LIMIT @limit;";
+        }
+        else
+        {
+            cmd.CommandText = "SELECT id, job_type, target_path, pre_head, post_head, result, error_category, created_at FROM job_history WHERE target_path = @target_path ORDER BY id DESC LIMIT @limit;";
+            cmd.Parameters.AddWithValue("@target_path", targetPath);
+        }
+        cmd.Parameters.AddWithValue("@limit", limit);
+
+        var list = new List<JobHistoryEntry>();
+        using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            var id = reader.GetInt64(0);
+            var jobType = reader.GetString(1);
+            var path = reader.GetString(2);
+            var preHead = reader.IsDBNull(3) ? null : reader.GetString(3);
+            var postHead = reader.IsDBNull(4) ? null : reader.GetString(4);
+            var result = reader.GetString(5);
+            var errorCat = reader.IsDBNull(6) ? null : reader.GetString(6);
+            var createdAt = DateTime.Parse(reader.GetString(7), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+
+            list.Add(new JobHistoryEntry(id, jobType, path, preHead, postHead, result, errorCat, createdAt));
+        }
+
+        return list;
+    }
+
+    #endregion
 }

@@ -6,10 +6,12 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using RepoRecon.App.ViewModels.Tree;
+using RepoRecon.App.Views;
 using RepoRecon.Core.Data;
 using RepoRecon.Core.Fetch;
 using RepoRecon.Core.Git;
 using RepoRecon.Core.Models;
+using RepoRecon.Core.Pull;
 using RepoRecon.Core.Scanning;
 using RepoRecon.Core.Tree;
 
@@ -22,8 +24,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly ScanRootManager _scanRootManager;
     private readonly RepoScanner _repoScanner;
     private readonly IFetchEngine _fetchEngine;
+    private readonly IPullEngine _pullEngine;
     private readonly ILogger<MainViewModel> _logger;
     private readonly DispatcherTimer _freshnessTimer;
+    private CancellationTokenSource? _pullCts;
 
     private readonly Dictionary<long, RepoTreeNodeViewModel> _repoViewModelMap = new();
 
@@ -116,6 +120,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private int _totalSelectedCount;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanExecutePull))]
     private int _pullableCount;
 
     [ObservableProperty]
@@ -133,6 +138,30 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isSkipDetailsExpanded;
 
+    // Pull Execution State & Panel (§8, §5.5, §7.3)
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanExecutePull))]
+    private bool _isPullExecuting;
+
+    public bool CanExecutePull => PullableCount > 0 && !IsPullExecuting;
+
+    [ObservableProperty]
+    private bool _isPullPanelVisible;
+
+    [ObservableProperty]
+    private int _pullProgressPercent;
+
+    [ObservableProperty]
+    private string _pullProgressText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasPullReport;
+
+    [ObservableProperty]
+    private string _pullReportSummary = string.Empty;
+
+    public ObservableCollection<PullExecutionItemViewModel> PullExecutionItems { get; } = new();
+
     public ObservableCollection<string> SkipReasonList { get; } = new();
 
     public ObservableCollection<string> InaccessiblePaths { get; } = new();
@@ -145,6 +174,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         ScanRootManager scanRootManager,
         RepoScanner repoScanner,
         IFetchEngine fetchEngine,
+        IPullEngine pullEngine,
         ILogger<MainViewModel>? logger = null)
     {
         _gitRunner = gitRunner;
@@ -152,6 +182,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _scanRootManager = scanRootManager;
         _repoScanner = repoScanner;
         _fetchEngine = fetchEngine;
+        _pullEngine = pullEngine;
         _logger = logger ?? NullLogger<MainViewModel>.Instance;
 
         _fetchEngine.RepoFetched += OnRepoFetched;
@@ -809,9 +840,130 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    #region Pull Execution (§8, §5.5, §7.3)
+
+    [RelayCommand]
+    public async Task ExecutePullAsync()
+    {
+        var selectedRepoVms = _repoViewModelMap.Values.Where(r => r.IsSelected == true).ToList();
+        if (selectedRepoVms.Count == 0)
+            return;
+
+        var targets = selectedRepoVms.Select(vm => (vm.Repo, vm.Status)).ToList();
+        var previewItems = _pullEngine.GeneratePreview(targets);
+
+        var previewVm = new PullPreviewViewModel(previewItems);
+        var previewWindow = new PullPreviewWindow(previewVm);
+        if (System.Windows.Application.Current?.MainWindow != null)
+        {
+            previewWindow.Owner = System.Windows.Application.Current.MainWindow;
+        }
+
+        var confirmed = previewWindow.ShowDialog();
+        if (confirmed != true)
+        {
+            _logger.LogInformation("일괄 Pull이 사용자에 의해 미리보기 단계에서 취소되었습니다.");
+            return;
+        }
+
+        _pullCts = new CancellationTokenSource();
+        IsPullPanelVisible = true;
+        IsPullExecuting = true;
+        HasPullReport = false;
+        PullProgressPercent = 0;
+        PullProgressText = $"일괄 Pull 시작 중 (총 {targets.Count}개)...";
+
+        PullExecutionItems.Clear();
+        foreach (var p in previewItems)
+        {
+            var initialStatus = p.IsEligible ? PullJobStatus.Pending : PullJobStatus.Skipped;
+            PullExecutionItems.Add(new PullExecutionItemViewModel(p.RepoId, p.AbsPath, initialStatus, p.SkipReason));
+        }
+
+        var progress = new Progress<PullProgressInfo>(info =>
+        {
+            System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
+            {
+                var percent = info.TotalCount > 0 ? (int)((info.CompletedCount / (double)info.TotalCount) * 100) : 0;
+                PullProgressPercent = percent;
+                PullProgressText = $"진행 중: {info.CompletedCount} / {info.TotalCount} ({percent}%)";
+
+                var itemVm = PullExecutionItems.FirstOrDefault(x => x.RepoId == info.CurrentRepoId);
+                if (itemVm != null)
+                {
+                    itemVm.Status = info.CurrentStatus;
+                    itemVm.Detail = info.StatusDetail;
+                }
+            });
+        });
+
+        try
+        {
+            var report = await _pullEngine.ExecuteBatchPullAsync(targets, progress, _pullCts.Token);
+            PullReportSummary = report.SummaryText;
+            HasPullReport = true;
+            StatusMessage = report.SummaryText;
+
+            // Update items with final results
+            foreach (var res in report.Results)
+            {
+                var itemVm = PullExecutionItems.FirstOrDefault(x => x.RepoId == res.RepoId);
+                if (itemVm != null)
+                {
+                    itemVm.Status = res.Status;
+                    itemVm.Detail = res.ErrorMessage ?? res.SkipReason ?? (res.Status == PullJobStatus.Success ? "성공" : null);
+                }
+            }
+
+            await LoadDataAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            PullReportSummary = "일괄 Pull 작업이 사용자에 의해 취소되었습니다.";
+            HasPullReport = true;
+            StatusMessage = PullReportSummary;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "일괄 Pull 실행 중 예외 발생");
+            PullReportSummary = $"일괄 Pull 중 오류 발생: {ex.Message}";
+            HasPullReport = true;
+            StatusMessage = PullReportSummary;
+        }
+        finally
+        {
+            IsPullExecuting = false;
+            _pullCts?.Dispose();
+            _pullCts = null;
+        }
+    }
+
+    [RelayCommand]
+    public void CancelPull()
+    {
+        if (IsPullExecuting && _pullCts != null)
+        {
+            _logger.LogInformation("사용자가 일괄 Pull 취소 요청을 전달했습니다.");
+            _pullCts.Cancel();
+        }
+    }
+
+    [RelayCommand]
+    public void ClosePullPanel()
+    {
+        if (!IsPullExecuting)
+        {
+            IsPullPanelVisible = false;
+        }
+    }
+
+    #endregion
+
     public void Dispose()
     {
         _freshnessTimer.Stop();
+        _pullCts?.Cancel();
+        _pullCts?.Dispose();
         _fetchEngine.RepoFetched -= OnRepoFetched;
         _fetchEngine.FetchingStateChanged -= OnFetchingStateChanged;
         _fetchEngine.CooldownsChanged -= OnCooldownsChanged;

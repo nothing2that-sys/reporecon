@@ -6,7 +6,7 @@ namespace RepoRecon.Core.Data;
 
 public class SchemaMigrator
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
     private readonly ILogger<SchemaMigrator> _logger;
 
     public SchemaMigrator(ILogger<SchemaMigrator>? logger = null)
@@ -52,7 +52,7 @@ public class SchemaMigrator
 
         if (existingVersion == 0)
         {
-            CreateSchemaV2(connection);
+            CreateSchemaV3(connection);
         }
         else if (existingVersion == CurrentSchemaVersion)
         {
@@ -80,7 +80,7 @@ public class SchemaMigrator
         return versionObj != null && int.TryParse(versionObj.ToString(), out var v) ? v : 0;
     }
 
-    private static void CreateSchemaV2(SqliteConnection connection)
+    private static void CreateSchemaV3(SqliteConnection connection)
     {
         using var transaction = connection.BeginTransaction();
         using var cmd = connection.CreateCommand();
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY
 );
 
-INSERT OR REPLACE INTO schema_version (version) VALUES (2);
+INSERT OR REPLACE INTO schema_version (version) VALUES (3);
 
 CREATE TABLE IF NOT EXISTS scan_roots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -129,8 +129,21 @@ CREATE TABLE IF NOT EXISTS local_status (
     FOREIGN KEY(local_repo_id) REFERENCES local_repos(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS job_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_type TEXT NOT NULL,
+    target_path TEXT NOT NULL,
+    pre_head TEXT,
+    post_head TEXT,
+    result TEXT NOT NULL,
+    error_category TEXT,
+    created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_local_repos_normalized_key ON local_repos(normalized_key);
 CREATE INDEX IF NOT EXISTS idx_local_repos_parent_id ON local_repos(parent_repo_id);
+CREATE INDEX IF NOT EXISTS idx_job_history_target ON job_history(target_path);
+CREATE INDEX IF NOT EXISTS idx_job_history_created ON job_history(created_at);
 ";
         cmd.ExecuteNonQuery();
         transaction.Commit();
@@ -154,7 +167,7 @@ CREATE INDEX IF NOT EXISTS idx_local_repos_parent_id ON local_repos(parent_repo_
 
         using var connection = new SqliteConnection($"Data Source={dbPath}");
         connection.Open();
-        CreateSchemaV2(connection);
+        CreateSchemaV3(connection);
     }
 
     private static void DeleteFileIfExists(string path)
