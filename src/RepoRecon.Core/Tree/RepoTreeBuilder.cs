@@ -6,15 +6,57 @@ public static class RepoTreeBuilder
 {
     public static List<TreeFolderNode> BuildTree(
         IReadOnlyList<ScanRoot> roots,
-        IReadOnlyList<(LocalRepo Repo, LocalStatus? Status)> reposWithStatus)
+        IReadOnlyList<(LocalRepo Repo, LocalStatus? Status)> reposWithStatus,
+        IReadOnlyList<ServerProfile>? serverProfiles = null,
+        IReadOnlyList<ServerRepo>? serverRepos = null)
     {
         var repoNodesMap = new Dictionary<long, TreeRepoNode>();
         var repoByPathMap = new Dictionary<string, TreeRepoNode>(StringComparer.OrdinalIgnoreCase);
+
+        // Catalog lookup map
+        var catalogMap = serverRepos != null
+            ? serverRepos.GroupBy(r => r.NormalizedKey, StringComparer.OrdinalIgnoreCase)
+                         .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, ServerRepo>(StringComparer.OrdinalIgnoreCase);
 
         // 1. Create all TreeRepoNodes
         foreach (var (repo, status) in reposWithStatus)
         {
             var node = new TreeRepoNode(repo, status);
+
+            // Reconcile server status (§6)
+            if (!string.IsNullOrWhiteSpace(repo.NormalizedKey))
+            {
+                var hostPart = node.HostName;
+                ServerProfile? matchedProfile = null;
+
+                if (serverProfiles != null && serverProfiles.Count > 0)
+                {
+                    matchedProfile = serverProfiles.FirstOrDefault(p =>
+                        p.Host.Equals(hostPart, StringComparison.OrdinalIgnoreCase) ||
+                        p.Aliases.Any(a => a.Equals(hostPart, StringComparison.OrdinalIgnoreCase)) ||
+                        repo.NormalizedKey.StartsWith(p.Host + ":", StringComparison.OrdinalIgnoreCase) ||
+                        repo.NormalizedKey.StartsWith(p.Host + "/", StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (matchedProfile != null)
+                {
+                    node.MatchedProfile = matchedProfile;
+                    if (catalogMap.TryGetValue(repo.NormalizedKey, out var sRepo))
+                    {
+                        node.MatchedServerRepo = sRepo;
+                    }
+                    else
+                    {
+                        node.IsOrphaned = true;
+                    }
+                }
+                else
+                {
+                    node.IsExternal = true;
+                }
+            }
+
             repoNodesMap[repo.Id] = node;
             repoByPathMap[repo.AbsPath] = node;
         }

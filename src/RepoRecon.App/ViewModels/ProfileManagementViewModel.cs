@@ -1,0 +1,249 @@
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using RepoRecon.Core.Adapters;
+using RepoRecon.Core.Data;
+using RepoRecon.Core.Models;
+using RepoRecon.Core.Security;
+
+namespace RepoRecon.App.ViewModels;
+
+public partial class ProfileManagementViewModel : ObservableObject
+{
+    private readonly SqliteIndexStore _indexStore;
+    private readonly ISecureTokenStore _tokenStore;
+    private readonly IServerAdapterFactory _adapterFactory;
+    private readonly ILogger<ProfileManagementViewModel> _logger;
+
+    public ObservableCollection<ServerProfile> Profiles { get; } = new();
+
+    public Array AvailableApiKinds => Enum.GetValues(typeof(ServerApiKind));
+
+    [ObservableProperty]
+    private ServerProfile? _selectedProfile;
+
+    [ObservableProperty]
+    private string _editHost = string.Empty;
+
+    [ObservableProperty]
+    private ServerApiKind _editApiKind = ServerApiKind.GitLab;
+
+    [ObservableProperty]
+    private string _editAliases = string.Empty;
+
+    [ObservableProperty]
+    private string _editToken = string.Empty;
+
+    [ObservableProperty]
+    private string _tokenStatusText = "토큰을 입력하세요";
+
+    [ObservableProperty]
+    private string? _editApiVersion;
+
+    [ObservableProperty]
+    private bool _isTesting;
+
+    [ObservableProperty]
+    private bool _isTestSuccess;
+
+    [ObservableProperty]
+    private string _testResultMessage = string.Empty;
+
+    [ObservableProperty]
+    private string _statusMessage = string.Empty;
+
+    public ProfileManagementViewModel(
+        SqliteIndexStore indexStore,
+        ISecureTokenStore tokenStore,
+        IServerAdapterFactory adapterFactory,
+        ILogger<ProfileManagementViewModel>? logger = null)
+    {
+        _indexStore = indexStore;
+        _tokenStore = tokenStore;
+        _adapterFactory = adapterFactory;
+        _logger = logger ?? NullLogger<ProfileManagementViewModel>.Instance;
+    }
+
+    public async Task InitializeAsync()
+    {
+        await LoadProfilesAsync();
+    }
+
+    [RelayCommand]
+    public async Task LoadProfilesAsync()
+    {
+        Profiles.Clear();
+        var list = await _indexStore.GetServerProfilesAsync();
+        foreach (var p in list)
+        {
+            Profiles.Add(p);
+        }
+    }
+
+    partial void OnSelectedProfileChanged(ServerProfile? value)
+    {
+        if (value != null)
+        {
+            EditHost = value.Host;
+            EditApiKind = value.ApiKind;
+            EditAliases = string.Join(", ", value.Aliases);
+            EditApiVersion = value.ApiVersion;
+            EditToken = string.Empty;
+            TokenStatusText = "기존 토큰이 등록되어 있습니다 (변경 시에만 새로 입력)";
+            TestResultMessage = string.Empty;
+        }
+        else
+        {
+            ResetForm();
+        }
+    }
+
+    [RelayCommand]
+    public void ResetForm()
+    {
+        SelectedProfile = null;
+        EditHost = string.Empty;
+        EditApiKind = ServerApiKind.GitLab;
+        EditAliases = string.Empty;
+        EditToken = string.Empty;
+        EditApiVersion = null;
+        TokenStatusText = "토큰을 입력하세요 (평문 저장 방지: Windows DPAPI 암호화)";
+        TestResultMessage = string.Empty;
+    }
+
+    [RelayCommand]
+    public async Task TestConnectionAsync()
+    {
+        if (string.IsNullOrWhiteSpace(EditHost))
+        {
+            TestResultMessage = "호스트 주소를 입력하세요.";
+            IsTestSuccess = false;
+            return;
+        }
+
+        IsTesting = true;
+        TestResultMessage = "연결 테스트 중...";
+
+        try
+        {
+            var tokenToUse = EditToken;
+            if (string.IsNullOrWhiteSpace(tokenToUse) && SelectedProfile != null && !string.IsNullOrWhiteSpace(SelectedProfile.TokenRef))
+            {
+                tokenToUse = await _tokenStore.GetTokenAsync(SelectedProfile.TokenRef);
+            }
+
+            var adapter = _adapterFactory.GetAdapter(EditApiKind);
+            var result = await adapter.TestConnectionAsync(EditHost, tokenToUse);
+
+            IsTestSuccess = result.IsSuccess;
+            if (result.IsSuccess)
+            {
+                EditApiVersion = result.ApiVersion;
+                TestResultMessage = $"✅ 연결 성공! (API 버전: {result.ApiVersion ?? "확인됨"})";
+            }
+            else
+            {
+                TestResultMessage = $"❌ 연결 실패: [{result.ErrorCategory ?? "Other"}] {result.ErrorMessage}";
+            }
+        }
+        catch (Exception ex)
+        {
+            IsTestSuccess = false;
+            TestResultMessage = $"❌ 오류: {ex.Message}";
+        }
+        finally
+        {
+            IsTesting = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task SaveProfileAsync()
+    {
+        if (string.IsNullOrWhiteSpace(EditHost))
+        {
+            StatusMessage = "호스트 주소는 필수입니다.";
+            return;
+        }
+
+        try
+        {
+            string tokenRef;
+
+            if (!string.IsNullOrWhiteSpace(EditToken))
+            {
+                // Encrypt token via DPAPI
+                tokenRef = await _tokenStore.SaveTokenAsync(EditToken);
+                _logger.LogInformation("Saved token for {Host}, tokenRef={TokenRef}, tokenLength={Len}", EditHost, tokenRef, EditToken.Length);
+                // Clear plain token from property
+                EditToken = string.Empty;
+            }
+            else if (SelectedProfile != null && !string.IsNullOrWhiteSpace(SelectedProfile.TokenRef))
+            {
+                tokenRef = SelectedProfile.TokenRef;
+                _logger.LogInformation("Reusing existing tokenRef={TokenRef} for {Host}", tokenRef, EditHost);
+            }
+            else
+            {
+                // Empty token ref
+                tokenRef = string.Empty;
+                _logger.LogWarning("No token provided for {Host}, tokenRef is empty", EditHost);
+            }
+
+            var aliasesList = EditAliases.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                                         .Select(a => a.Trim())
+                                         .Distinct(StringComparer.OrdinalIgnoreCase)
+                                         .ToList();
+
+            var profileToSave = new ServerProfile(
+                Id: SelectedProfile?.Id ?? 0,
+                Host: EditHost.Trim(),
+                ApiKind: EditApiKind,
+                Aliases: aliasesList,
+                TokenRef: tokenRef,
+                ApiVersion: EditApiVersion,
+                CreatedAt: SelectedProfile?.CreatedAt ?? DateTime.UtcNow,
+                LastSyncedAt: SelectedProfile?.LastSyncedAt);
+
+            var savedId = await _indexStore.UpsertServerProfileAsync(profileToSave);
+            StatusMessage = $"프로파일 '{EditHost}'이(가) 저장되었습니다.";
+
+            await LoadProfilesAsync();
+            SelectedProfile = Profiles.FirstOrDefault(p => p.Id == savedId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save server profile {Host}", EditHost);
+            StatusMessage = $"저장 실패: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    public async Task DeleteProfileAsync()
+    {
+        if (SelectedProfile == null) return;
+
+        try
+        {
+            var profileId = SelectedProfile.Id;
+            var tokenRef = SelectedProfile.TokenRef;
+
+            await _indexStore.DeleteServerProfileAsync(profileId);
+            if (!string.IsNullOrWhiteSpace(tokenRef))
+            {
+                await _tokenStore.DeleteTokenAsync(tokenRef);
+            }
+
+            StatusMessage = "프로파일이 삭제되었습니다.";
+            ResetForm();
+            await LoadProfilesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete server profile");
+            StatusMessage = $"삭제 실패: {ex.Message}";
+        }
+    }
+}

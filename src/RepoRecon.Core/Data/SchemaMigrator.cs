@@ -6,7 +6,7 @@ namespace RepoRecon.Core.Data;
 
 public class SchemaMigrator
 {
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
     private readonly ILogger<SchemaMigrator> _logger;
 
     public SchemaMigrator(ILogger<SchemaMigrator>? logger = null)
@@ -52,11 +52,16 @@ public class SchemaMigrator
 
         if (existingVersion == 0)
         {
-            CreateSchemaV3(connection);
+            CreateSchemaV4(connection);
         }
         else if (existingVersion == CurrentSchemaVersion)
         {
             // Already current
+        }
+        else if (existingVersion == 3)
+        {
+            _logger.LogInformation("Migrating database schema from v3 to v4.");
+            MigrateV3ToV4(connection);
         }
         else
         {
@@ -80,7 +85,48 @@ public class SchemaMigrator
         return versionObj != null && int.TryParse(versionObj.ToString(), out var v) ? v : 0;
     }
 
-    private static void CreateSchemaV3(SqliteConnection connection)
+    private static void MigrateV3ToV4(SqliteConnection connection)
+    {
+        using var transaction = connection.BeginTransaction();
+        using var cmd = connection.CreateCommand();
+        cmd.Transaction = transaction;
+
+        cmd.CommandText = @"
+CREATE TABLE IF NOT EXISTS server_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    host TEXT NOT NULL UNIQUE,
+    api_kind TEXT NOT NULL,
+    aliases_json TEXT NOT NULL DEFAULT '[]',
+    token_ref TEXT NOT NULL,
+    api_version TEXT,
+    created_at TEXT NOT NULL,
+    last_synced_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS server_repos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL,
+    namespace TEXT NOT NULL,
+    name TEXT NOT NULL,
+    clone_url TEXT NOT NULL,
+    normalized_key TEXT NOT NULL,
+    default_branch TEXT,
+    is_archived INTEGER NOT NULL DEFAULT 0,
+    collected_at TEXT NOT NULL,
+    FOREIGN KEY(profile_id) REFERENCES server_profiles(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_server_repos_profile_key ON server_repos(profile_id, normalized_key);
+CREATE INDEX IF NOT EXISTS idx_server_repos_normalized_key ON server_repos(normalized_key);
+CREATE INDEX IF NOT EXISTS idx_server_repos_namespace ON server_repos(namespace);
+
+UPDATE schema_version SET version = 4;
+";
+        cmd.ExecuteNonQuery();
+        transaction.Commit();
+    }
+
+    private static void CreateSchemaV4(SqliteConnection connection)
     {
         using var transaction = connection.BeginTransaction();
         using var cmd = connection.CreateCommand();
@@ -91,7 +137,7 @@ CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY
 );
 
-INSERT OR REPLACE INTO schema_version (version) VALUES (3);
+INSERT OR REPLACE INTO schema_version (version) VALUES (4);
 
 CREATE TABLE IF NOT EXISTS scan_roots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -140,10 +186,37 @@ CREATE TABLE IF NOT EXISTS job_history (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS server_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    host TEXT NOT NULL UNIQUE,
+    api_kind TEXT NOT NULL,
+    aliases_json TEXT NOT NULL DEFAULT '[]',
+    token_ref TEXT NOT NULL,
+    api_version TEXT,
+    created_at TEXT NOT NULL,
+    last_synced_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS server_repos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL,
+    namespace TEXT NOT NULL,
+    name TEXT NOT NULL,
+    clone_url TEXT NOT NULL,
+    normalized_key TEXT NOT NULL,
+    default_branch TEXT,
+    is_archived INTEGER NOT NULL DEFAULT 0,
+    collected_at TEXT NOT NULL,
+    FOREIGN KEY(profile_id) REFERENCES server_profiles(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_local_repos_normalized_key ON local_repos(normalized_key);
 CREATE INDEX IF NOT EXISTS idx_local_repos_parent_id ON local_repos(parent_repo_id);
 CREATE INDEX IF NOT EXISTS idx_job_history_target ON job_history(target_path);
 CREATE INDEX IF NOT EXISTS idx_job_history_created ON job_history(created_at);
+CREATE INDEX IF NOT EXISTS idx_server_repos_profile_key ON server_repos(profile_id, normalized_key);
+CREATE INDEX IF NOT EXISTS idx_server_repos_normalized_key ON server_repos(normalized_key);
+CREATE INDEX IF NOT EXISTS idx_server_repos_namespace ON server_repos(namespace);
 ";
         cmd.ExecuteNonQuery();
         transaction.Commit();
@@ -167,7 +240,7 @@ CREATE INDEX IF NOT EXISTS idx_job_history_created ON job_history(created_at);
 
         using var connection = new SqliteConnection($"Data Source={dbPath}");
         connection.Open();
-        CreateSchemaV3(connection);
+        CreateSchemaV4(connection);
     }
 
     private static void DeleteFileIfExists(string path)

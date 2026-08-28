@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using RepoRecon.App.ViewModels.Tree;
 using RepoRecon.App.Views;
+using RepoRecon.Core.Clone;
 using RepoRecon.Core.Data;
 using RepoRecon.Core.Fetch;
 using RepoRecon.Core.Git;
@@ -25,11 +26,24 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly RepoScanner _repoScanner;
     private readonly IFetchEngine _fetchEngine;
     private readonly IPullEngine _pullEngine;
+    private readonly ICloneEngine _cloneEngine;
     private readonly ILogger<MainViewModel> _logger;
     private readonly DispatcherTimer _freshnessTimer;
     private CancellationTokenSource? _pullCts;
 
     private readonly Dictionary<long, RepoTreeNodeViewModel> _repoViewModelMap = new();
+
+    public CloneTabViewModel CloneTab { get; }
+    public ProfileManagementViewModel ProfileManagement { get; }
+
+    [ObservableProperty]
+    private int _selectedTabIndex;
+
+    [ObservableProperty]
+    private bool _hasResidualTempFolders;
+
+    [ObservableProperty]
+    private string _residualTempFoldersNotice = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasGitDiagnosticError))]
@@ -175,6 +189,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         RepoScanner repoScanner,
         IFetchEngine fetchEngine,
         IPullEngine pullEngine,
+        ICloneEngine cloneEngine,
+        CloneTabViewModel cloneTab,
+        ProfileManagementViewModel profileManagement,
         ILogger<MainViewModel>? logger = null)
     {
         _gitRunner = gitRunner;
@@ -183,6 +200,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _repoScanner = repoScanner;
         _fetchEngine = fetchEngine;
         _pullEngine = pullEngine;
+        _cloneEngine = cloneEngine;
+        CloneTab = cloneTab;
+        ProfileManagement = profileManagement;
         _logger = logger ?? NullLogger<MainViewModel>.Instance;
 
         _fetchEngine.RepoFetched += OnRepoFetched;
@@ -196,6 +216,93 @@ public partial class MainViewModel : ObservableObject, IDisposable
             UpdateCooldownSummary();
         };
         _freshnessTimer.Start();
+
+        WireCloneTabEvents();
+    }
+
+    private void WireCloneTabEvents()
+    {
+        CloneTab.OnJumpToLocalRepoRequested = normKey =>
+        {
+            SelectedTabIndex = 0; // Switch to Local Management Tab
+            var target = _repoViewModelMap.Values.FirstOrDefault(r => string.Equals(r.Repo.NormalizedKey, normKey, StringComparison.OrdinalIgnoreCase));
+            if (target != null)
+            {
+                var p = target.Parent;
+                while (p != null)
+                {
+                    p.IsExpanded = true;
+                    p = p.Parent;
+                }
+                target.IsSelected = true;
+            }
+        };
+
+        CloneTab.ShowPreviewDialogFunc = (items, targetRoot) =>
+        {
+            var previewVm = new ClonePreviewViewModel();
+            previewVm.LoadPreview(items, targetRoot);
+            var dlg = new ClonePreviewWindow(previewVm);
+            if (System.Windows.Application.Current?.MainWindow != null)
+            {
+                dlg.Owner = System.Windows.Application.Current.MainWindow;
+            }
+            var result = dlg.ShowDialog();
+            return Task.FromResult(result == true);
+        };
+
+        CloneTab.PromptAddScanRootFunc = targetRoot =>
+        {
+            var res = System.Windows.MessageBox.Show(
+                $"클론 대상 경로 '{targetRoot}'이(가) 현재 스캔 루트에 포함되어 있지 않습니다.\n스캔 루트에 추가하시겠습니까?",
+                "스캔 루트 추가 확인",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Question);
+            return Task.FromResult(res == System.Windows.MessageBoxResult.Yes);
+        };
+
+        CloneTab.OpenProfileManagementFunc = () =>
+        {
+            var dlg = new ProfileManagementWindow(ProfileManagement);
+            if (System.Windows.Application.Current?.MainWindow != null)
+            {
+                dlg.Owner = System.Windows.Application.Current.MainWindow;
+            }
+            dlg.ShowDialog();
+            _ = CloneTab.LoadProfilesAsync();
+        };
+
+        CloneTab.OnCloneCompletedFunc = async () =>
+        {
+            await LoadDataAsync();
+        };
+
+        CloneTab.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(CloneTabViewModel.StatusMessage) && !string.IsNullOrWhiteSpace(CloneTab.StatusMessage))
+            {
+                StatusMessage = CloneTab.StatusMessage;
+            }
+        };
+    }
+
+    [RelayCommand]
+    public async Task CleanResidualTempFoldersAsync()
+    {
+        var allRoots = await _scanRootManager.GetRootsAsync();
+        var roots = allRoots.Where(r => r.IsActive).ToList();
+        var residuals = _cloneEngine.FindResidualTempFolders(roots.Select(r => r.Path));
+        var count = 0;
+        foreach (var res in residuals)
+        {
+            if (_cloneEngine.CleanResidualTempFolder(res.TempPath))
+            {
+                count++;
+            }
+        }
+        HasResidualTempFolders = false;
+        ResidualTempFoldersNotice = string.Empty;
+        StatusMessage = $"잔존 임시 폴더 {count}개가 정리되었습니다.";
     }
 
     public void NotifyDatabaseRecreated()
@@ -464,6 +571,24 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _logger.LogInformation("Git 환경 정상 확인: {Version}", GitVersionString);
 
         await LoadDataAsync();
+        await CloneTab.InitializeAsync();
+
+        // Check residual temp folders on startup (§7.3, §10 Criterion 21)
+        try
+        {
+            var allRoots = await _scanRootManager.GetRootsAsync();
+            var activeRoots = allRoots.Where(r => r.IsActive).ToList();
+            var residuals = _cloneEngine.FindResidualTempFolders(activeRoots.Select(r => r.Path));
+            if (residuals.Count > 0)
+            {
+                HasResidualTempFolders = true;
+                ResidualTempFoldersNotice = $"⚠️ 이전에 중단된 임시 클론 폴더 {residuals.Count}개가 발견되었습니다.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to check for residual temp folders on startup");
+        }
 
         // Start initial background fetch on startup (설계 §4.1)
         if (_repoViewModelMap.Count > 0)
@@ -495,13 +620,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
             var queryTimer = Stopwatch.StartNew();
             bulkQueryCount++;
             var reposWithStatus = await _indexStore.GetAllLocalReposWithStatusAsync();
+            var serverProfiles = await _indexStore.GetServerProfilesAsync();
+            var serverRepos = await _indexStore.GetAllServerReposAsync();
             queryTimer.Stop();
 
             var treeBuildTimer = Stopwatch.StartNew();
             _repoViewModelMap.Clear();
 
-            // Build hierarchical tree using Core RepoTreeBuilder
-            var treeFolders = RepoTreeBuilder.BuildTree(roots, reposWithStatus);
+            // Build hierarchical tree using Core RepoTreeBuilder with Server Profiles and Catalog
+            var treeFolders = RepoTreeBuilder.BuildTree(roots, reposWithStatus, serverProfiles, serverRepos);
 
             RootTreeNodes.Clear();
             var distinctHosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

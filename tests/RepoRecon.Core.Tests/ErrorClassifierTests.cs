@@ -76,4 +76,20 @@ public class ErrorClassifierTests
         Assert.Equal(expected, result);
         Assert.Equal(expected.ToString(), ErrorClassifier.ClassifyToString(errorMessage));
     }
+
+    [Theory]
+    [InlineData(System.Net.HttpStatusCode.Unauthorized, ErrorCategory.Authentication)]
+    [InlineData(System.Net.HttpStatusCode.Forbidden, ErrorCategory.Permission)]
+    [InlineData(System.Net.HttpStatusCode.RequestTimeout, ErrorCategory.Timeout)]
+    [InlineData(System.Net.HttpStatusCode.GatewayTimeout, ErrorCategory.Timeout)]
+    [InlineData(System.Net.HttpStatusCode.BadGateway, ErrorCategory.Network)]
+    [InlineData(System.Net.HttpStatusCode.ServiceUnavailable, ErrorCategory.Network)]
+    [InlineData(System.Net.HttpStatusCode.Conflict, ErrorCategory.Other)]
+    [InlineData(System.Net.HttpStatusCode.NotFound, ErrorCategory.Other)]
+    [InlineData(System.Net.HttpStatusCode.InternalServerError, ErrorCategory.Other)]
+    public void ClassifyHttpStatus_ReturnsExpectedCategory(System.Net.HttpStatusCode statusCode, ErrorCategory expected)
+    {
+        var result = ErrorClassifier.ClassifyHttpStatus(statusCode);
+        Assert.Equal(expected, result);
+    }
 }

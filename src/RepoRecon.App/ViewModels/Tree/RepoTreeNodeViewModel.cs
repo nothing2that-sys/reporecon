@@ -83,7 +83,25 @@ public partial class RepoTreeNodeViewModel : TreeNodeViewModelBase
     private bool _hasGitIgnoreWarning;
 
     [ObservableProperty]
+    private bool _isOrphaned;
+
+    [ObservableProperty]
+    private bool _isExternal;
+
+    [ObservableProperty]
+    private bool _isUntracked;
+
+    [ObservableProperty]
+    private bool _isArchived;
+
+    [ObservableProperty]
     private bool _isMissing;
+
+    [ObservableProperty]
+    private string? _serverStatusBadge;
+
+    [ObservableProperty]
+    private bool _hasServerStatusBadge;
 
     public override bool IsFolder => false;
 
@@ -109,6 +127,31 @@ public partial class RepoTreeNodeViewModel : TreeNodeViewModelBase
         IsNested = node.IsNested;
         HasGitIgnoreWarning = node.HasGitIgnoreWarning;
         IsMissing = node.Repo.IsMissing;
+
+        IsOrphaned = node.IsOrphaned;
+        IsExternal = node.IsExternal;
+        IsUntracked = node.IsUntracked;
+        IsArchived = node.IsArchived;
+
+        if (IsOrphaned)
+        {
+            ServerStatusBadge = "Orphaned";
+        }
+        else if (IsExternal)
+        {
+            ServerStatusBadge = "External";
+        }
+        else if (IsUntracked)
+        {
+            ServerStatusBadge = "Untracked";
+        }
+
+        if (IsArchived)
+        {
+            ServerStatusBadge = ServerStatusBadge != null ? $"{ServerStatusBadge} · 보관됨" : "보관됨";
+        }
+
+        HasServerStatusBadge = !string.IsNullOrWhiteSpace(ServerStatusBadge);
 
         HostDotColor = DetermineHostColor(node.HostName);
 

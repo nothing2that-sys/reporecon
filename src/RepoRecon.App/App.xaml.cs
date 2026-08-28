@@ -5,12 +5,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RepoRecon.App.ViewModels;
 using RepoRecon.App.Views;
+using RepoRecon.Core.Adapters;
+using RepoRecon.Core.Clone;
 using RepoRecon.Core.Concurrency;
 using RepoRecon.Core.Data;
 using RepoRecon.Core.Fetch;
 using RepoRecon.Core.Git;
 using RepoRecon.Core.Pull;
 using RepoRecon.Core.Scanning;
+using RepoRecon.Core.Security;
 using RepoRecon.Core.Urls;
 using Serilog;
 using Serilog.Core;
@@ -83,6 +86,12 @@ public partial class App : Application
                 services.AddSingleton<RepoScanner>();
                 services.AddSingleton<IFetchEngine, FetchEngine>();
                 services.AddSingleton<IPullEngine, PullEngine>();
+                services.AddSingleton<ISecureTokenStore, DpapiTokenStore>();
+                services.AddSingleton<IServerAdapterFactory, ServerAdapterFactory>();
+                services.AddSingleton<ICloneEngine, CloneEngine>();
+                services.AddSingleton<ProfileManagementViewModel>();
+                services.AddSingleton<CloneTabViewModel>();
+                services.AddSingleton<ClonePreviewViewModel>();
                 services.AddSingleton<MainViewModel>();
                 services.AddSingleton<MainWindow>();
             })

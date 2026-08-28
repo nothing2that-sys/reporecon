@@ -16,6 +16,13 @@ public class TreeRepoNode
     public List<TreeRepoNode> NestedChildRepos { get; } = new();
     public List<TreeFolderNode> SubFolders { get; } = new();
 
+    public ServerRepo? MatchedServerRepo { get; set; }
+    public ServerProfile? MatchedProfile { get; set; }
+    public bool IsOrphaned { get; set; }
+    public bool IsExternal { get; set; }
+    public bool IsUntracked => string.IsNullOrWhiteSpace(Repo.NormalizedKey);
+    public bool IsArchived => MatchedServerRepo?.IsArchived == true;
+
     public TreeRepoNode(LocalRepo repo, LocalStatus? status)
     {
         Repo = repo;

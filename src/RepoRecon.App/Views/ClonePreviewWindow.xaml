@@ -1,0 +1,123 @@
+<Window x:Class="RepoRecon.App.Views.ClonePreviewWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:RepoRecon.App.ViewModels"
+        mc:Ignorable="d"
+        Title="클론 미리보기"
+        Height="550" Width="850"
+        WindowStartupLocation="CenterOwner"
+        AutomationProperties.AutomationId="DialogClonePreview"
+        Background="#F8FAFC">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Summary Header -->
+        <Border Grid.Row="0"
+                Background="#EFF6FF"
+                BorderBrush="#BFDBFE"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="12"
+                Margin="0,0,0,12">
+            <StackPanel Orientation="Vertical">
+                <TextBlock Text="🚀 클론 실행 미리보기" FontWeight="Bold" FontSize="14" Foreground="#1E40AF" />
+                <TextBlock Text="{Binding SummaryText}" FontWeight="SemiBold" FontSize="12" Foreground="#2563EB" Margin="0,4,0,0" AutomationProperties.AutomationId="TxtCloneSummary" />
+                <TextBlock Text="{Binding TargetRoot, StringFormat='대상 기본 루트: {0}'}" FontSize="11" Foreground="#64748B" Margin="0,2,0,0" />
+            </StackPanel>
+        </Border>
+
+        <!-- Preview Grid -->
+        <Border Grid.Row="1"
+                Background="White"
+                BorderBrush="#E2E8F0"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="2">
+            <DataGrid ItemsSource="{Binding Items}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      IsReadOnly="True"
+                      GridLinesVisibility="Horizontal"
+                      HorizontalGridLinesBrush="#F1F5F9"
+                      RowHeaderWidth="0"
+                      BorderThickness="0"
+                      AutomationProperties.AutomationId="GridClonePreview">
+                <DataGrid.Columns>
+                    <!-- Status / Action Column -->
+                    <DataGridTemplateColumn Header="상태" Width="100">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Background="#DCFCE7" CornerRadius="3" Padding="6,2"
+                                            Visibility="{Binding HasCollision, Converter={StaticResource BoolToVis}, ConverterParameter=invert}">
+                                        <TextBlock Text="실행 가능" FontSize="11" FontWeight="Bold" Foreground="#166534" />
+                                    </Border>
+                                    <Border Background="#FEE2E2" CornerRadius="3" Padding="6,2"
+                                            Visibility="{Binding HasCollision, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="충돌 스킵" FontSize="11" FontWeight="Bold" Foreground="#991B1B" />
+                                    </Border>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- Repo Info -->
+                    <DataGridTextColumn Header="네임스페이스 / 저장소"
+                                        Binding="{Binding Repo.NormalizedKey}"
+                                        Width="220"
+                                        FontWeight="SemiBold" />
+
+                    <!-- Target Path -->
+                    <DataGridTemplateColumn Header="생성 대상 경로" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding TargetPath}" FontSize="11" Foreground="#0F172A" />
+                                    <TextBlock Text="{Binding CollisionReason}"
+                                               FontSize="10"
+                                               Foreground="#DC2626"
+                                               Visibility="{Binding HasCollision, Converter={StaticResource BoolToVis}}" />
+                                    <TextBlock Text="⚠️ 260자 초과 (Long Path 적용)"
+                                               FontSize="10"
+                                               Foreground="#D97706"
+                                               Visibility="{Binding ExceedsLongPath, Converter={StaticResource BoolToVis}}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <!-- Bottom Action Bar -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Content="취소"
+                    Padding="14,6"
+                    Margin="0,0,8,0"
+                    Background="#F1F5F9"
+                    BorderBrush="#CBD5E1"
+                    FontWeight="SemiBold"
+                    AutomationProperties.AutomationId="BtnCancelClone"
+                    Click="BtnCancel_Click" />
+            <Button Content="클론 실행"
+                    Padding="18,6"
+                    Background="#2563EB"
+                    BorderBrush="#1D4ED8"
+                    Foreground="White"
+                    FontWeight="Bold"
+                    AutomationProperties.AutomationId="BtnConfirmClone"
+                    Click="BtnConfirm_Click" />
+        </StackPanel>
+    </Grid>
+</Window>

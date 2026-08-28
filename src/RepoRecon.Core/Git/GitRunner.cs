@@ -19,11 +19,21 @@ public class GitRunner : IGitRunner
         _gitBinary = gitBinary;
     }
 
-    public async Task<GitCommandResult> ExecuteAsync(
+    public Task<GitCommandResult> ExecuteAsync(
         string workingDirectory,
         string arguments,
         TimeSpan? timeout = null,
         CancellationToken cancellationToken = default)
+    {
+        return ExecuteAsync(workingDirectory, arguments, timeout, cancellationToken, null);
+    }
+
+    public async Task<GitCommandResult> ExecuteAsync(
+        string workingDirectory,
+        string arguments,
+        TimeSpan? timeout,
+        CancellationToken cancellationToken,
+        IDictionary<string, string>? environmentVariables)
     {
         var effectiveTimeout = timeout ?? DefaultTimeout;
         var stopwatch = Stopwatch.StartNew();
@@ -51,6 +61,14 @@ public class GitRunner : IGitRunner
         startInfo.EnvironmentVariables["GIT_TERMINAL_PROMPT"] = "0";
         startInfo.EnvironmentVariables["SSH_ASKPASS"] = string.Empty;
         startInfo.EnvironmentVariables["GIT_ASKPASS"] = string.Empty;
+
+        if (environmentVariables != null)
+        {
+            foreach (var kvp in environmentVariables)
+            {
+                startInfo.EnvironmentVariables[kvp.Key] = kvp.Value;
+            }
+        }
 
         using var process = new Process { StartInfo = startInfo };
         var stdoutBuilder = new StringBuilder();

@@ -99,6 +99,9 @@ public static class ErrorClassifier
         // 6. Network (네트워크 - 일시적 연결 장애 -> 재시도 가능)
         if (ContainsAny(error,
             "Could not resolve host",
+            "No such host is known",
+            "The remote name could not be resolved",
+            "NameResolutionFailure",
             "Failed to connect",
             "Connection refused",
             "Connection reset",
@@ -113,6 +116,7 @@ public static class ErrorClassifier
             "RPC failed; curl 18",
             "RPC failed; curl 55",
             "The remote end hung up unexpectedly",
+            "unexpected disconnect while reading sideband packet",
             "early EOF",
             "fetch-pack: invalid index-pack output"))
         {
@@ -121,6 +125,18 @@ public static class ErrorClassifier
 
         // 7. Other (기타 미분류)
         return ErrorCategory.Other;
+    }
+
+    public static ErrorCategory ClassifyHttpStatus(System.Net.HttpStatusCode statusCode)
+    {
+        return statusCode switch
+        {
+            System.Net.HttpStatusCode.Unauthorized => ErrorCategory.Authentication,
+            System.Net.HttpStatusCode.Forbidden => ErrorCategory.Permission,
+            System.Net.HttpStatusCode.RequestTimeout or System.Net.HttpStatusCode.GatewayTimeout => ErrorCategory.Timeout,
+            System.Net.HttpStatusCode.BadGateway or System.Net.HttpStatusCode.ServiceUnavailable => ErrorCategory.Network,
+            _ => ErrorCategory.Other
+        };
     }
 
     public static string ClassifyToString(string? error) => Classify(error).ToString();

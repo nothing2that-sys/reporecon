@@ -6,9 +6,9 @@
         xmlns:vm="clr-namespace:RepoRecon.App.ViewModels"
         xmlns:tree="clr-namespace:RepoRecon.App.ViewModels.Tree"
         mc:Ignorable="d"
-        Title="RepoRecon (Phase 3)"
-        Height="800" Width="1200"
-        MinHeight="600" MinWidth="900"
+        Title="RepoRecon (Phase 4)"
+        Height="850" Width="1280"
+        MinHeight="600" MinWidth="950"
         WindowStartupLocation="CenterScreen"
         Background="#F4F5F7">
 
@@ -58,17 +58,12 @@
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" /> <!-- Notice Banners -->
-            <RowDefinition Height="Auto" /> <!-- Scan Roots Control Panel -->
-            <RowDefinition Height="Auto" /> <!-- Toolbar / Filters / Execution Bar -->
-            <RowDefinition Height="Auto" /> <!-- Skip Reasons Panel -->
-            <RowDefinition Height="Auto" /> <!-- Inaccessible Paths Panel -->
-            <RowDefinition Height="*" />    <!-- Main Hierarchical Tree View / Empty State -->
-            <RowDefinition Height="Auto" /> <!-- Execution Panel (Phase 3) -->
-            <RowDefinition Height="Auto" /> <!-- Status Bar -->
+            <RowDefinition Height="*" />    <!-- Main Tabs (Local Management & Clone) -->
+            <RowDefinition Height="Auto" /> <!-- Bottom Status Bar -->
         </Grid.RowDefinitions>
 
         <!-- Notification Banners -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,10">
+        <StackPanel Grid.Row="0" Margin="0,0,0,8">
             <!-- Git Diagnostic Alert Banner -->
             <Border Background="#FDE8E8"
                     BorderBrush="#F98080"
@@ -95,10 +90,41 @@
                     BorderThickness="1"
                     CornerRadius="6"
                     Padding="10"
+                    Margin="0,0,0,8"
                     Visibility="{Binding WasDatabaseRecreated, Converter={StaticResource BoolToVis}}">
                 <TextBlock Text="{Binding DatabaseRecreatedNotice}"
                            FontWeight="SemiBold"
                            Foreground="#713F12" />
+            </Border>
+
+            <!-- Residual Temp Folders Notice (§7.3, §10 Criterion 21) -->
+            <Border x:Name="PanelResidualTempFolders"
+                    AutomationProperties.AutomationId="PanelResidualTempFolders"
+                    Background="#FEF2F2"
+                    BorderBrush="#F87171"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="10"
+                    Margin="0,0,0,8"
+                    Visibility="{Binding HasResidualTempFolders, Converter={StaticResource BoolToVis}}">
+                <DockPanel LastChildFill="True">
+                    <Button DockPanel.Dock="Right"
+                            x:Name="BtnCleanResidualTempFolders"
+                            AutomationProperties.AutomationId="BtnCleanResidualTempFolders"
+                            Content="지금 정리하기"
+                            Command="{Binding CleanResidualTempFoldersCommand}"
+                            Padding="10,4"
+                            Margin="12,0,0,0"
+                            Background="#FEE2E2"
+                            BorderBrush="#FCA5A5"
+                            Foreground="#991B1B"
+                            FontWeight="Bold"
+                            VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ResidualTempFoldersNotice}"
+                               FontWeight="SemiBold"
+                               Foreground="#991B1B"
+                               VerticalAlignment="Center" />
+                </DockPanel>
             </Border>
 
             <!-- Authentication host cooldown notice (design v3 §8.4) -->
@@ -109,7 +135,7 @@
                     BorderThickness="1"
                     CornerRadius="6"
                     Padding="10"
-                    Margin="0,8,0,0"
+                    Margin="0,0,0,8"
                     Visibility="{Binding HasAuthenticationCooldowns, Converter={StaticResource BoolToVis}}">
                 <DockPanel LastChildFill="True">
                     <Button DockPanel.Dock="Right"
@@ -136,678 +162,802 @@
             </Border>
         </StackPanel>
 
-        <!-- Scan Roots Management Panel -->
-        <Border Grid.Row="1"
-                Background="White"
-                BorderBrush="#E5E7EB"
-                BorderThickness="1"
-                CornerRadius="6"
-                Padding="12"
-                Margin="0,0,0,10">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+        <!-- Main Tab Control -->
+        <TabControl Grid.Row="1"
+                    SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}"
+                    Background="Transparent"
+                    BorderThickness="0">
 
-                <!-- Top Add Row -->
-                <Grid Grid.Row="0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+            <!-- TAB 1: 로컬 관리 -->
+            <TabItem Header="📁 로컬 관리"
+                     FontSize="14"
+                     FontWeight="SemiBold"
+                     Padding="16,8"
+                     AutomationProperties.AutomationId="TabLocalManagement">
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" /> <!-- Scan Roots Control Panel -->
+                        <RowDefinition Height="Auto" /> <!-- Toolbar / Filters / Execution Bar -->
+                        <RowDefinition Height="Auto" /> <!-- Skip Reasons Panel -->
+                        <RowDefinition Height="Auto" /> <!-- Inaccessible Paths Panel -->
+                        <RowDefinition Height="*" />    <!-- Main Hierarchical Tree View / Empty State -->
+                        <RowDefinition Height="Auto" /> <!-- Execution Panel (Phase 3) -->
+                    </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Column="0"
-                               Text="스캔 루트:"
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center"
-                               Margin="0,0,8,0" />
+                    <!-- Scan Roots Management Panel -->
+                    <Border Grid.Row="0"
+                            Background="White"
+                            BorderBrush="#E5E7EB"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12"
+                            Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
 
-                    <TextBox Grid.Column="1"
-                             x:Name="TxtScanRootPath"
-                             AutomationProperties.AutomationId="TxtScanRootPath"
-                             Text="{Binding NewScanRootPath, UpdateSourceTrigger=PropertyChanged}"
-                             Padding="6,4"
-                             VerticalContentAlignment="Center"
-                             ToolTip="스캔할 로컬 폴더 절대 경로를 입력하거나 선택하세요." />
+                            <!-- Top Add Row -->
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="2"
-                            x:Name="BtnBrowseFolder"
-                            AutomationProperties.AutomationId="BtnBrowseFolder"
-                            Content="폴더 찾기..."
-                            Padding="10,4"
-                            Margin="6,0,0,0"
-                            Click="BrowseFolder_Click" />
+                                <TextBlock Grid.Column="0"
+                                           Text="스캔 경로:"
+                                           VerticalAlignment="Center"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,8,0" />
 
-                    <StackPanel Grid.Column="3"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center"
-                                Margin="12,0,0,0">
-                        <TextBlock Text="최대 깊이:" VerticalAlignment="Center" Margin="0,0,4,0" />
-                        <TextBox Text="{Binding NewScanRootDepth, UpdateSourceTrigger=PropertyChanged}"
-                                 Width="40"
-                                 Padding="4,2"
-                                 HorizontalContentAlignment="Center" />
-                    </StackPanel>
+                                <TextBox Grid.Column="1"
+                                         x:Name="TxtScanPath"
+                                         AutomationProperties.AutomationId="TxtScanPath"
+                                         Text="{Binding NewScanRootPath, UpdateSourceTrigger=PropertyChanged}"
+                                         VerticalContentAlignment="Center"
+                                         Padding="6,4"
+                                         Margin="0,0,8,0" />
 
-                    <Button Grid.Column="4"
-                            x:Name="BtnAddScanRoot"
-                            AutomationProperties.AutomationId="BtnAddScanRoot"
-                            Content="루트 추가"
-                            FontWeight="SemiBold"
-                            Padding="12,4"
-                            Margin="8,0,0,0"
-                            Background="#E1EFFE"
-                            BorderBrush="#76A9FA"
-                            Command="{Binding AddScanRootCommand}" />
-
-                    <Button Grid.Column="5"
-                            x:Name="BtnStartScan"
-                            AutomationProperties.AutomationId="BtnStartScan"
-                            Content="스캔 시작"
-                            FontWeight="Bold"
-                            Padding="16,4"
-                            Margin="12,0,0,0"
-                            Background="#1A56DB"
-                            Foreground="White"
-                            BorderBrush="#1A56DB"
-                            IsEnabled="{Binding IsNotScanning}"
-                            Command="{Binding StartScanCommand}" />
-                </Grid>
-
-                <!-- Roots List Display -->
-                <ItemsControl Grid.Row="1"
-                              ItemsSource="{Binding ScanRoots}"
-                              Margin="0,8,0,0">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel Orientation="Horizontal" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="#F3F4F6"
-                                    BorderBrush="#D1D5DB"
-                                    BorderThickness="1"
-                                    CornerRadius="4"
-                                    Padding="8,4"
-                                    Margin="0,2,8,2">
-                                <StackPanel Orientation="Horizontal">
-                                    <CheckBox IsChecked="{Binding IsActive}"
-                                              VerticalAlignment="Center"
-                                              Margin="0,0,6,0"
-                                              ToolTip="스캔 활성화 여부 (체크 해제 시 스캔 제외)" />
-                                    <TextBlock Text="{Binding Path}"
-                                               FontFamily="Consolas"
-                                               VerticalAlignment="Center" />
-                                    <TextBlock Text=" (오프라인)"
-                                               Foreground="#DC2626"
-                                               FontWeight="Bold"
-                                               VerticalAlignment="Center"
-                                               Visibility="{Binding IsOffline, Converter={StaticResource BoolToVis}}" />
-                                    <Button Content="✕"
-                                            Background="Transparent"
-                                            BorderThickness="0"
-                                            Foreground="#6B7280"
-                                            Margin="8,0,0,0"
-                                            Padding="4,0"
-                                            ToolTip="스캔 루트 제거"
-                                            Command="{Binding DataContext.RemoveScanRootCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}" />
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,8,0">
+                                    <TextBlock Text="깊이:" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                    <TextBox Text="{Binding NewScanRootDepth, UpdateSourceTrigger=PropertyChanged}"
+                                             Width="40"
+                                             VerticalContentAlignment="Center"
+                                             Padding="4,4" />
                                 </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </Grid>
-        </Border>
 
-        <!-- Toolbar, 3-Axis Filters & Execution Panel -->
-        <Border Grid.Row="2"
-                Background="White"
-                BorderBrush="#E5E7EB"
-                BorderThickness="1"
-                CornerRadius="6"
-                Padding="10"
-                Margin="0,0,0,8">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+                                <Button Grid.Column="3"
+                                        x:Name="BtnAddScanRoot"
+                                        AutomationProperties.AutomationId="BtnAddScanRoot"
+                                        Content="루트 추가"
+                                        Command="{Binding AddScanRootCommand}"
+                                        Padding="12,4"
+                                        Margin="0,0,8,0"
+                                        Background="#E5E7EB"
+                                        BorderBrush="#D1D5DB" />
 
-                <!-- Top Row: Refresh, Search, Host, Filters -->
-                <DockPanel Grid.Row="0" LastChildFill="True">
-                    <!-- F5 Refresh Button -->
-                    <Button DockPanel.Dock="Left"
-                            x:Name="BtnRefresh"
-                            AutomationProperties.AutomationId="BtnRefresh"
-                            Content="🔄 F5 새로고침"
-                            FontWeight="SemiBold"
-                            Padding="10,4"
-                            Margin="0,0,8,0"
-                            Background="#F3F4F6"
-                            BorderBrush="#D1D5DB"
-                            Command="{Binding RefreshAllCommand}"
-                            ToolTip="재스캔 및 최신 원격 변경사항을 Fetch합니다 (F5)" />
+                                <Button Grid.Column="4"
+                                        x:Name="BtnStartScan"
+                                        AutomationProperties.AutomationId="BtnStartScan"
+                                        Content="스캔 시작"
+                                        Command="{Binding StartScanCommand}"
+                                        IsEnabled="{Binding IsNotScanning}"
+                                        FontWeight="Bold"
+                                        Padding="16,4"
+                                        Background="#2563EB"
+                                        Foreground="White"
+                                        BorderBrush="#1D4ED8" />
+                            </Grid>
 
-                    <!-- Quick Search Box -->
-                    <TextBox DockPanel.Dock="Left"
-                             Width="220"
-                             AutomationProperties.AutomationId="TxtFilter"
-                             Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
-                             Padding="6,4"
-                             VerticalContentAlignment="Center"
-                             Margin="0,0,8,0"
-                             ToolTip="경로, 정규화 키, 브랜치명, 상태 요약으로 필터링" />
+                            <!-- Active Roots List -->
+                            <ItemsControl Grid.Row="1"
+                                          ItemsSource="{Binding ScanRoots}"
+                                          Margin="0,8,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#F3F4F6"
+                                                BorderBrush="#E5E7EB"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="6,2"
+                                                Margin="0,0,6,4">
+                                            <StackPanel Orientation="Horizontal">
+                                                <CheckBox IsChecked="{Binding IsActive, Mode=TwoWay}"
+                                                          VerticalAlignment="Center"
+                                                          Margin="0,0,4,0" />
+                                                <TextBlock Text="{Binding Path}"
+                                                           FontSize="12"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{Binding IsActive, Converter={StaticResource BoolToVis}}" />
+                                                <TextBlock Text="{Binding MaxDepth, StringFormat=' (깊이:{0})'}"
+                                                           FontSize="11"
+                                                           Foreground="#6B7280"
+                                                           VerticalAlignment="Center" />
+                                                <Button Content="✕"
+                                                        Command="{Binding DataContext.RemoveScanRootCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        Margin="6,0,0,0"
+                                                        Padding="2,0"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Foreground="#9CA3AF"
+                                                        Cursor="Hand" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </Border>
 
-                    <!-- Host Dropdown Filter -->
-                    <ComboBox DockPanel.Dock="Left"
-                              Width="140"
-                              AutomationProperties.AutomationId="CmbHostFilter"
-                              ItemsSource="{Binding AvailableHosts}"
-                              SelectedItem="{Binding SelectedHostFilter}"
-                              VerticalContentAlignment="Center"
-                              Margin="0,0,8,0"
-                              ToolTip="특정 호스트별 레포만 필터링" />
+                    <!-- Filter Toolbar & Selection / Execution Bar -->
+                    <Border Grid.Row="1"
+                            Background="White"
+                            BorderBrush="#E5E7EB"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="10,8"
+                            Margin="0,0,0,8">
+                        <DockPanel LastChildFill="True">
+                            <!-- Right Execution Summary & Pull Execution Button -->
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock x:Name="TxtExecutionSummary"
+                                           AutomationProperties.AutomationId="TxtExecutionSummary"
+                                           Text="{Binding ExecutionSummaryText}"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,12,0" />
 
-                    <!-- 3-Axis Multi-Filters -->
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="필터:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="4,0,4,0" Foreground="#4B5563" />
-                        <ToggleButton Content="Behind만"
-                                      AutomationProperties.AutomationId="FilterBehind"
-                                      IsChecked="{Binding FilterBehindOnly}"
-                                      Style="{StaticResource FilterToggleButtonStyle}"
-                                      ToolTip="원격에 새 커밋이 있는 레포만 표시" />
-                        <ToggleButton Content="Ahead만"
-                                      AutomationProperties.AutomationId="FilterAhead"
-                                      IsChecked="{Binding FilterAheadOnly}"
-                                      Style="{StaticResource FilterToggleButtonStyle}"
-                                      ToolTip="로컬에만 커밋이 있는 레포만 표시" />
-                        <ToggleButton Content="Diverged만"
-                                      AutomationProperties.AutomationId="FilterDiverged"
-                                      IsChecked="{Binding FilterDivergedOnly}"
-                                      Style="{StaticResource FilterToggleButtonStyle}"
-                                      ToolTip="로컬과 원격 모두 새 커밋이 있는 레포만 표시" />
-                        <ToggleButton Content="Dirty만"
-                                      AutomationProperties.AutomationId="FilterDirty"
-                                      IsChecked="{Binding FilterDirtyOnly}"
-                                      Style="{StaticResource FilterToggleButtonStyle}"
-                                      ToolTip="미커밋 변경사항이 있는 레포만 표시 (3축 분리)" />
-                        <ToggleButton Content="Conflicted만"
-                                      AutomationProperties.AutomationId="FilterConflicted"
-                                      IsChecked="{Binding FilterConflictedOnly}"
-                                      Style="{StaticResource FilterToggleButtonStyle}"
-                                      ToolTip="머지 충돌(unmerged) 상태인 레포만 표시 (3축 분리)" />
-                    </StackPanel>
-                </DockPanel>
+                                <Button x:Name="BtnExecutePull"
+                                        AutomationProperties.AutomationId="BtnExecutePull"
+                                        Content="일괄 Pull 실행"
+                                        Command="{Binding ExecutePullCommand}"
+                                        IsEnabled="{Binding CanExecutePull}"
+                                        Padding="14,6"
+                                        Background="#16A34A"
+                                        Foreground="White"
+                                        BorderBrush="#15803D"
+                                        FontWeight="Bold"
+                                        Cursor="Hand" />
+                            </StackPanel>
 
-                <!-- Bottom Row: Selection controls, Execution Counts, and Disabled Pull Button -->
-                <DockPanel Grid.Row="1" Margin="0,8,0,0" LastChildFill="True">
-                    <!-- Selection Buttons -->
-                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Content="화면 전체 선택"
-                                AutomationProperties.AutomationId="BtnSelectAllVisible"
-                                Padding="8,3"
-                                Margin="0,0,4,0"
-                                FontSize="12"
-                                Command="{Binding SelectAllVisibleCommand}"
-                                ToolTip="현재 필터로 화면에 보이는 레포만 전체 선택 (Ctrl+A)" />
-                        <Button Content="선택 해제"
-                                AutomationProperties.AutomationId="BtnDeselectAll"
-                                Padding="8,3"
-                                Margin="0,0,12,0"
-                                FontSize="12"
-                                Command="{Binding DeselectAllCommand}" />
-                    </StackPanel>
+                            <!-- Left: Filter Controls & Fast Actions -->
+                            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBox x:Name="TxtFilter"
+                                         AutomationProperties.AutomationId="TxtFilter"
+                                         Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                                         Width="140"
+                                         Padding="4,2"
+                                         Margin="0,0,6,0"
+                                         ToolTip="폴더명, 브랜치명, 원격 URL 검색" />
 
-                    <!-- Right Side: Execution Counts and Pull Button -->
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding ExecutionSummaryText}"
-                                   AutomationProperties.AutomationId="TxtExecutionSummary"
-                                   FontWeight="Bold"
-                                   FontSize="13"
-                                   Foreground="#1F2937"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,8,0" />
+                                <ToggleButton Content="Behind만"
+                                              x:Name="BtnFilterBehind"
+                                              AutomationProperties.AutomationId="BtnFilterBehind"
+                                              IsChecked="{Binding FilterBehindOnly, Mode=TwoWay}"
+                                              Style="{StaticResource FilterToggleButtonStyle}" />
 
-                        <!-- Skip Reasons Detail Button -->
-                        <Button Content="스킵 사유 내역 ▾"
-                                AutomationProperties.AutomationId="BtnToggleSkipReasons"
-                                Padding="6,2"
-                                FontSize="11"
-                                Margin="0,0,12,0"
-                                Background="#FEF2F2"
-                                Foreground="#991B1B"
-                                BorderBrush="#FCA5A5"
-                                Cursor="Hand"
-                                Command="{Binding ToggleSkipDetailsCommand}"
-                                Visibility="{Binding HasSkipReasons, Converter={StaticResource BoolToVis}}" />
+                                <ToggleButton Content="Ahead만"
+                                              IsChecked="{Binding FilterAheadOnly, Mode=TwoWay}"
+                                              Style="{StaticResource FilterToggleButtonStyle}" />
 
-                        <!-- Pull Button (Enabled in Phase 3) -->
-                        <Button Content="Pull"
-                                AutomationProperties.AutomationId="BtnPull"
-                                FontWeight="Bold"
-                                Padding="16,4"
-                                Background="#1D4ED8"
-                                Foreground="White"
-                                BorderBrush="#1D4ED8"
-                                IsEnabled="{Binding CanExecutePull}"
-                                Command="{Binding ExecutePullCommand}"
-                                ToolTip="선택된 대상 중 Pull 가능한 레포지토리에 대해 일괄 Pull(ff-only)을 실행합니다." />
-                    </StackPanel>
+                                <ToggleButton Content="Diverged만"
+                                              x:Name="BtnFilterDiverged"
+                                              AutomationProperties.AutomationId="BtnFilterDiverged"
+                                              IsChecked="{Binding FilterDivergedOnly, Mode=TwoWay}"
+                                              Style="{StaticResource FilterToggleButtonStyle}" />
 
-                    <!-- Inaccessible Paths Warning Trigger -->
-                    <Button DockPanel.Dock="Left"
-                            Content="⚠️ 접근 실패 목록"
-                            AutomationProperties.AutomationId="BtnInaccessiblePaths"
-                            Visibility="{Binding HasInaccessiblePaths, Converter={StaticResource BoolToVis}}"
-                            Command="{Binding ToggleInaccessiblePathsCommand}"
-                            Padding="8,2"
-                            Background="#FEE2E2"
-                            Foreground="#991B1B"
-                            BorderBrush="#F87171"
-                            Cursor="Hand"
-                            FontWeight="SemiBold"
-                            VerticalAlignment="Center" />
-                </DockPanel>
-            </Grid>
-        </Border>
+                                <ToggleButton Content="Dirty만"
+                                              x:Name="BtnFilterDirty"
+                                              AutomationProperties.AutomationId="BtnFilterDirty"
+                                              IsChecked="{Binding FilterDirtyOnly, Mode=TwoWay}"
+                                              Style="{StaticResource FilterToggleButtonStyle}" />
 
-        <!-- Skip Reasons Breakdown Panel (설계 §5.3-h, 지시서 §4-3) -->
-        <Border Grid.Row="3"
-                x:Name="PanelSkipReasons"
-                AutomationProperties.AutomationId="PanelSkipReasons"
-                Background="#FEF2F2"
-                BorderBrush="#FCA5A5"
-                BorderThickness="1"
-                CornerRadius="6"
-                Padding="10"
-                Margin="0,0,0,8"
-                Visibility="{Binding IsSkipDetailsExpanded, Converter={StaticResource BoolToVis}}">
-            <StackPanel>
-                <DockPanel Margin="0,0,0,6">
-                    <TextBlock Text="📋 선택된 레포 중 Pull 스킵 사유별 상세 내역"
-                               FontWeight="Bold"
-                               Foreground="#991B1B"
-                               VerticalAlignment="Center" />
-                    <Button Content="✕ 닫기"
-                            HorizontalAlignment="Right"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Foreground="#6B7280"
-                            Cursor="Hand"
-                            Command="{Binding ToggleSkipDetailsCommand}" />
-                </DockPanel>
-                <ItemsControl AutomationProperties.AutomationId="ListSkipReasons"
-                              AutomationProperties.Name="{Binding SkipReasonSummary}"
-                              ItemsSource="{Binding SkipReasonList}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding}"
-                                       FontWeight="SemiBold"
-                                       FontSize="12"
-                                       Foreground="#7F1D1D"
-                                       Margin="4,2" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-        </Border>
+                                <ToggleButton Content="Conflicted만"
+                                              IsChecked="{Binding FilterConflictedOnly, Mode=TwoWay}"
+                                              Style="{StaticResource FilterToggleButtonStyle}" />
 
-        <!-- Inaccessible Paths Expandable Panel -->
-        <Border Grid.Row="4"
-                AutomationProperties.AutomationId="PanelInaccessiblePaths"
-                Background="#FEF2F2"
-                BorderBrush="#FCA5A5"
-                BorderThickness="1"
-                CornerRadius="6"
-                Padding="10"
-                Margin="0,0,0,8"
-                Visibility="{Binding IsInaccessiblePathsExpanded, Converter={StaticResource BoolToVis}}">
-            <StackPanel>
-                <DockPanel Margin="0,0,0,6">
-                    <TextBlock Text="⚠️ 접근 실패 폴더 목록 (권한 거부 또는 경로 오류)"
-                               FontWeight="Bold"
-                               Foreground="#991B1B"
-                               VerticalAlignment="Center" />
-                    <Button Content="✕ 닫기"
-                            HorizontalAlignment="Right"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Foreground="#6B7280"
-                            Cursor="Hand"
-                            Command="{Binding ToggleInaccessiblePathsCommand}" />
-                </DockPanel>
-                <ItemsControl ItemsSource="{Binding InaccessiblePaths}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding}"
-                                       FontFamily="Consolas"
-                                       FontSize="12"
-                                       Foreground="#7F1D1D"
-                                       Margin="4,2" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-        </Border>
+                                <ComboBox ItemsSource="{Binding AvailableHosts}"
+                                          SelectedItem="{Binding SelectedHostFilter, Mode=TwoWay}"
+                                          Margin="6,0,6,0"
+                                          Padding="6,2"
+                                          FontSize="12"
+                                          Width="110" />
 
-        <!-- Main Hierarchical Virtualized Tree View (설계 §5.3, 지시서 §3, §5) -->
-        <Grid Grid.Row="5">
-            <TreeView x:Name="MainTreeView"
-                      AutomationProperties.AutomationId="MainTreeView"
-                      ItemsSource="{Binding RootTreeNodes}"
-                      Background="White"
-                      BorderBrush="#E5E7EB"
-                      BorderThickness="1"
-                      VirtualizingStackPanel.IsVirtualizing="True"
-                      VirtualizingStackPanel.VirtualizationMode="Recycling"
-                      ScrollViewer.IsDeferredScrollingEnabled="False"
-                      Padding="4">
-                <TreeView.ItemContainerStyle>
-                    <Style TargetType="{x:Type TreeViewItem}">
-                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
-                        <Setter Property="Visibility" Value="{Binding IsVisible, Converter={StaticResource BoolToVis}}" />
-                        <Setter Property="AutomationProperties.Name" Value="{Binding FullPath}" />
-                        <Setter Property="Padding" Value="2,1" />
-                    </Style>
-                </TreeView.ItemContainerStyle>
+                                <Button Content="전체 선택"
+                                        x:Name="BtnSelectAllVisible"
+                                        AutomationProperties.AutomationId="BtnSelectAllVisible"
+                                        Command="{Binding SelectAllVisibleCommand}"
+                                        Padding="8,3"
+                                        Margin="2,0"
+                                        Background="#F3F4F6"
+                                        BorderBrush="#D1D5DB" />
 
-                <TreeView.Resources>
-                    <!-- Template for FolderTreeNodeViewModel (Compressed Folders & Rollups) -->
-                    <HierarchicalDataTemplate DataType="{x:Type tree:FolderTreeNodeViewModel}"
-                                              ItemsSource="{Binding Children}">
-                        <DockPanel Margin="0,2" LastChildFill="True">
-                            <!-- Checkbox for cascade selection -->
-                            <CheckBox IsChecked="{Binding CascadeSelection, Mode=TwoWay}"
-                                      IsThreeState="True"
-                                      VerticalAlignment="Center"
-                                      Margin="0,0,6,0"
-                                      ToolTip="하위 레포 전체 선택/해제" />
+                                <Button Content="선택 해제"
+                                        Command="{Binding DeselectAllCommand}"
+                                        Padding="8,3"
+                                        Margin="2,0"
+                                        Background="#F3F4F6"
+                                        BorderBrush="#D1D5DB" />
 
-                            <!-- Folder Icon -->
-                            <TextBlock Text="📁"
-                                       FontSize="13"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,6,0" />
+                                <Button Content="새로고침 (F5)"
+                                        Command="{Binding RefreshAllCommand}"
+                                        Padding="8,3"
+                                        Margin="4,0,0,0"
+                                        Background="#F3F4F6"
+                                        BorderBrush="#D1D5DB" />
+                            </WrapPanel>
+                        </DockPanel>
+                    </Border>
 
-                            <!-- Status Rollup Badge (↓3 ↑1 ⚠2) (설계 §5.3-e) -->
-                            <Border DockPanel.Dock="Right"
-                                    Background="#FEF3C7"
-                                    BorderBrush="#FCD34D"
-                                    BorderThickness="1"
-                                    CornerRadius="4"
+                    <!-- Skip Reasons Notice Panel -->
+                    <Border Grid.Row="2"
+                            Background="#FEF3C7"
+                            BorderBrush="#F59E0B"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="8,4"
+                            Margin="0,0,0,6"
+                            Visibility="{Binding HasSkipReasons, Converter={StaticResource BoolToVis}}">
+                        <DockPanel LastChildFill="True">
+                            <Button DockPanel.Dock="Right"
+                                    Content="{Binding IsSkipDetailsExpanded, Converter={StaticResource BoolToVis}, ConverterParameter='접기|상세보기'}"
+                                    Command="{Binding ToggleSkipDetailsCommand}"
                                     Padding="6,1"
-                                    Margin="8,0,4,0"
-                                    VerticalAlignment="Center">
-                                <TextBlock Text="{Binding RollupSummaryText}"
-                                           FontWeight="Bold"
-                                           FontSize="11"
-                                           Foreground="#92400E" />
-                            </Border>
-
-                            <!-- Folder Path (with single-child chain compression display) -->
-                            <TextBlock Text="{Binding CompressedDisplayPath}"
-                                       FontWeight="Bold"
-                                       FontSize="13"
-                                       Foreground="#1F2937"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Foreground="#B45309"
+                                    FontWeight="Bold"
+                                    Cursor="Hand" />
+                            <TextBlock Text="{Binding SkipReasonSummary, StringFormat='ℹ️ 스킵 안내: {0}'}"
+                                       FontWeight="SemiBold"
+                                       Foreground="#92400E"
                                        VerticalAlignment="Center" />
                         </DockPanel>
-                    </HierarchicalDataTemplate>
+                    </Border>
 
-                    <!-- Template for RepoTreeNodeViewModel (Rich 3-Axis & Host dot & Freshness) -->
-                    <HierarchicalDataTemplate DataType="{x:Type tree:RepoTreeNodeViewModel}"
-                                              ItemsSource="{Binding Children}">
-                        <DockPanel Margin="0,3" LastChildFill="True">
-                            <!-- Checkbox for selection -->
-                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                      VerticalAlignment="Center"
-                                      Margin="0,0,6,0" />
-
-                            <!-- Host profile color dot (●) (설계 §5.3-b) -->
-                            <TextBlock Text="●"
-                                       Foreground="{Binding HostDotColor}"
-                                       FontSize="14"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,6,0"
-                                       ToolTip="{Binding HostName}" />
-
-                            <!-- Right-aligned Badges: Freshness, 3-Axis Summary, Duplicate, Nested Warning -->
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                <!-- Nested Repo Boundary / GitIgnore Warning Badge (설계 §5.3-c) -->
-                                <Border Background="#FEE2E2"
-                                        BorderBrush="#F87171"
-                                        BorderThickness="1"
-                                        CornerRadius="3"
-                                        Padding="4,1"
-                                        Margin="4,0"
-                                        Visibility="{Binding HasGitIgnoreWarning, Converter={StaticResource BoolToVis}}"
-                                        ToolTip="부모 레포의 .gitignore에 포함되지 않아 dirty 판정이 오염될 수 있습니다.">
-                                    <TextBlock Text="⚠️ .gitignore 누락"
-                                               FontSize="10"
-                                               FontWeight="Bold"
-                                               Foreground="#991B1B" />
-                                </Border>
-
-                                <!-- Duplicate Clones Badge & Jump Link (설계 §5.3-d) -->
-                                <Button Content="{Binding DuplicateBadgeText}"
-                                        Command="{Binding JumpToNextCloneCommand}"
-                                        Background="#EFF6FF"
-                                        BorderBrush="#93C5FD"
-                                        Foreground="#1D4ED8"
-                                        FontWeight="SemiBold"
-                                        FontSize="11"
+                    <!-- Inaccessible Paths Panel -->
+                    <Border Grid.Row="3"
+                            Background="#FFFBEB"
+                            BorderBrush="#FCD34D"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="8,4"
+                            Margin="0,0,0,6"
+                            Visibility="{Binding HasInaccessiblePaths, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <DockPanel LastChildFill="True">
+                                <Button DockPanel.Dock="Right"
+                                        Content="{Binding IsInaccessiblePathsExpanded, Converter={StaticResource BoolToVis}, ConverterParameter='접기|경로 목록 보기'}"
+                                        Command="{Binding ToggleInaccessiblePathsCommand}"
                                         Padding="6,1"
-                                        Margin="4,0"
-                                        Cursor="Hand"
-                                        Visibility="{Binding HasDuplicateClones, Converter={StaticResource BoolToVis}}"
-                                        ToolTip="클릭 시 다른 사본으로 이동합니다" />
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Foreground="#B45309"
+                                        FontWeight="Bold"
+                                        Cursor="Hand" />
+                                <TextBlock Text="⚠️ 접근 거부된 경로가 있어 일부 레포를 건너뛰었습니다."
+                                           FontWeight="SemiBold"
+                                           Foreground="#B45309"
+                                           VerticalAlignment="Center" />
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
 
-                                <!-- 3-Axis Status Badge (설계 §3.2.1) -->
-                                <Border Background="#F3F4F6"
-                                        BorderBrush="#D1D5DB"
-                                        BorderThickness="1"
-                                        CornerRadius="3"
-                                        Padding="6,2"
-                                        Margin="4,0">
-                                    <TextBlock Text="{Binding ThreeAxisSummary}"
-                                               FontWeight="SemiBold"
-                                               FontSize="11"
-                                               Foreground="#111827" />
-                                </Border>
+                    <!-- Main Hierarchical Tree View / Empty State -->
+                    <Grid Grid.Row="4">
+                        <Border Background="White"
+                                BorderBrush="#E5E7EB"
+                                BorderThickness="1"
+                                CornerRadius="6">
+                            <TreeView x:Name="MainTreeView"
+                                      AutomationProperties.AutomationId="TreeRepos"
+                                      ItemsSource="{Binding RootTreeNodes}"
+                                      BorderThickness="0"
+                                      Padding="4"
+                                      VirtualizingStackPanel.IsVirtualizing="True"
+                                      VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                      ScrollViewer.IsDeferredScrollingEnabled="False"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                      ScrollViewer.VerticalScrollBarVisibility="Auto">
 
-                                <!-- Freshness Label (설계 §4.1, 지시서 §2-3) -->
-                                <TextBlock Text="{Binding Freshness}"
+                                <TreeView.Resources>
+                                    <!-- Template for FolderTreeNodeViewModel -->
+                                    <HierarchicalDataTemplate DataType="{x:Type tree:FolderTreeNodeViewModel}"
+                                                              ItemsSource="{Binding Children}">
+                                        <DockPanel Margin="0,2" LastChildFill="True">
+                                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                      VerticalAlignment="Center"
+                                                      Margin="0,0,6,0" />
+
+                                            <!-- Rollup Status Summary Badge -->
+                                            <Border DockPanel.Dock="Right"
+                                                    Background="#FEF3C7"
+                                                    BorderBrush="#FCD34D"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    Padding="6,1"
+                                                    Margin="8,0,4,0"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding RollupSummaryText}"
+                                                           FontWeight="Bold"
+                                                           FontSize="11"
+                                                           Foreground="#92400E" />
+                                            </Border>
+
+                                            <!-- Folder Path -->
+                                            <TextBlock Text="{Binding CompressedDisplayPath}"
+                                                       FontWeight="Bold"
+                                                       FontSize="13"
+                                                       Foreground="#1F2937"
+                                                       VerticalAlignment="Center" />
+                                        </DockPanel>
+                                    </HierarchicalDataTemplate>
+
+                                    <!-- Template for RepoTreeNodeViewModel -->
+                                    <HierarchicalDataTemplate DataType="{x:Type tree:RepoTreeNodeViewModel}"
+                                                              ItemsSource="{Binding Children}">
+                                        <DockPanel Margin="0,3" LastChildFill="True">
+                                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                      VerticalAlignment="Center"
+                                                      Margin="0,0,6,0" />
+
+                                            <!-- Host profile color dot (●) -->
+                                            <TextBlock Text="●"
+                                                       Foreground="{Binding HostDotColor}"
+                                                       FontSize="14"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,6,0"
+                                                       ToolTip="{Binding HostName}" />
+
+                                            <!-- Right-aligned Badges: Server Status, Freshness, 3-Axis Summary, Duplicate, Nested Warning -->
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <!-- Server Status Badge (Orphaned / External / Untracked / Archived) (§3.2) -->
+                                                <Border Background="#FEF3C7"
+                                                        BorderBrush="#F59E0B"
+                                                        BorderThickness="1"
+                                                        CornerRadius="3"
+                                                        Padding="4,1"
+                                                        Margin="4,0"
+                                                        Visibility="{Binding HasServerStatusBadge, Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock Text="{Binding ServerStatusBadge}"
+                                                               FontWeight="Bold"
+                                                               FontSize="10"
+                                                               Foreground="#B45309" />
+                                                </Border>
+
+                                                <!-- Nested Repo Boundary Warning -->
+                                                <Border Background="#FEE2E2"
+                                                        BorderBrush="#F87171"
+                                                        BorderThickness="1"
+                                                        CornerRadius="3"
+                                                        Padding="4,1"
+                                                        Margin="4,0"
+                                                        Visibility="{Binding HasGitIgnoreWarning, Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock Text="⚠️ .gitignore 누락"
+                                                               FontSize="10"
+                                                               FontWeight="Bold"
+                                                               Foreground="#991B1B" />
+                                                </Border>
+
+                                                <!-- Duplicate Clones Badge -->
+                                                <Button Content="{Binding DuplicateBadgeText}"
+                                                        Command="{Binding JumpToNextCloneCommand}"
+                                                        Background="#EFF6FF"
+                                                        BorderBrush="#93C5FD"
+                                                        Foreground="#1D4ED8"
+                                                        FontWeight="SemiBold"
+                                                        FontSize="11"
+                                                        Padding="6,1"
+                                                        Margin="4,0"
+                                                        Cursor="Hand"
+                                                        Visibility="{Binding HasDuplicateClones, Converter={StaticResource BoolToVis}}" />
+
+                                                <!-- 3-Axis Status Badge -->
+                                                <Border Background="#F3F4F6"
+                                                        BorderBrush="#D1D5DB"
+                                                        BorderThickness="1"
+                                                        CornerRadius="3"
+                                                        Padding="6,2"
+                                                        Margin="4,0">
+                                                    <TextBlock Text="{Binding ThreeAxisSummary}"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="11"
+                                                               Foreground="#111827" />
+                                                </Border>
+
+                                                <!-- Freshness Label -->
+                                                <TextBlock Text="{Binding Freshness}"
+                                                           Foreground="#6B7280"
+                                                           FontSize="11"
+                                                           VerticalAlignment="Center"
+                                                           Margin="6,0,8,0"
+                                                           MinWidth="80"
+                                                           TextAlignment="Right" />
+                                            </StackPanel>
+
+                                            <!-- Repo Name, Remote Key, Branch -->
+                                            <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding FolderName}"
+                                                               FontWeight="Bold"
+                                                               FontSize="13"
+                                                               Foreground="#111827" />
+                                                    <TextBlock Text="{Binding DisplayRepoPath}"
+                                                               FontFamily="Consolas"
+                                                               FontSize="11"
+                                                               Foreground="#6B7280"
+                                                               Margin="8,0,0,0"
+                                                               VerticalAlignment="Center" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding BranchDisplay}"
+                                                           FontSize="11"
+                                                           Foreground="#4B5563"
+                                                           Margin="0,1,0,0" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </HierarchicalDataTemplate>
+                                </TreeView.Resources>
+                            </TreeView>
+                        </Border>
+
+                        <!-- Empty State Notice -->
+                        <Border Background="White"
+                                BorderBrush="#E5E7EB"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="32"
+                                Visibility="{Binding HasNoRepos, Converter={StaticResource BoolToVis}}">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="등록된 저장소가 없습니다"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           Foreground="#374151"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="상단에서 스캔할 폴더 경로를 입력하고 [루트 추가] 후 [스캔 시작]을 누르세요."
+                                           FontSize="12"
                                            Foreground="#6B7280"
-                                           FontSize="11"
-                                           VerticalAlignment="Center"
-                                           Margin="6,0,8,0"
-                                           MinWidth="80"
-                                           TextAlignment="Right" />
+                                           Margin="0,8,0,0"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Pull Execution Panel (Phase 3) -->
+                    <Border Grid.Row="5"
+                            x:Name="PanelPullExecution"
+                            AutomationProperties.AutomationId="PanelPullExecution"
+                            Background="#F8FAFC"
+                            BorderBrush="#CBD5E1"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12"
+                            Margin="0,8,0,0"
+                            Visibility="{Binding IsPullPanelVisible, Converter={StaticResource BoolToVis}}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="120" />
+                            </Grid.RowDefinitions>
+
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Button DockPanel.Dock="Right"
+                                        x:Name="BtnCancelPull"
+                                        AutomationProperties.AutomationId="BtnCancelPull"
+                                        Content="실행 취소"
+                                        Command="{Binding CancelPullCommand}"
+                                        IsEnabled="{Binding IsPullExecuting}"
+                                        Padding="10,3"
+                                        Background="#FEE2E2"
+                                        BorderBrush="#FCA5A5"
+                                        Foreground="#991B1B"
+                                        FontWeight="Bold" />
+                                <TextBlock Text="🚀 일괄 Pull 실행 진행 상황" FontWeight="Bold" FontSize="13" Foreground="#0F172A" />
+                            </DockPanel>
+
+                            <StackPanel Grid.Row="1" Margin="0,8,0,8">
+                                <ProgressBar Height="14"
+                                             Value="{Binding PullProgressPercent}"
+                                             Maximum="100"
+                                             Foreground="#2563EB"
+                                             Background="#E2E8F0" />
+                                <TextBlock Text="{Binding PullProgressText}" FontSize="11" Foreground="#475569" Margin="0,4,0,0" />
                             </StackPanel>
 
-                            <!-- Repo Name, Remote Key, Branch -->
-                            <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                <StackPanel Orientation="Horizontal">
-                                    <!-- Folder Name -->
-                                    <TextBlock Text="{Binding FolderName}"
-                                               FontWeight="Bold"
-                                               FontSize="13"
-                                               Foreground="#111827" />
+                            <ListBox Grid.Row="2"
+                                     x:Name="ListPullExecution"
+                                     AutomationProperties.AutomationId="ListPullExecution"
+                                     ItemsSource="{Binding PullExecutionItems}"
+                                     Background="White"
+                                     BorderBrush="#E2E8F0"
+                                     BorderThickness="1">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel Margin="2,1">
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding DurationMs, StringFormat='({0}ms)'}" FontSize="10" Foreground="#94A3B8" Margin="6,0,0,0" />
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding StatusText}" FontWeight="Bold" FontSize="11" Foreground="{Binding StatusColor}" />
+                                            <TextBlock Text="{Binding RepoPath}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
 
-                                    <!-- Normalized Remote Key -->
-                                    <TextBlock Text="{Binding DisplayRepoPath}"
-                                               FontFamily="Consolas"
-                                               FontSize="11"
-                                               Foreground="#6B7280"
-                                               Margin="8,0,0,0"
-                                               VerticalAlignment="Center" />
-                                </StackPanel>
+            <!-- TAB 2: 클론 (Phase 4) -->
+            <TabItem Header="📥 클론"
+                     FontSize="14"
+                     FontWeight="SemiBold"
+                     Padding="16,8"
+                     AutomationProperties.AutomationId="TabClone"
+                     DataContext="{Binding CloneTab}">
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" /> <!-- Profile Selection & Actions Bar -->
+                        <RowDefinition Height="Auto" /> <!-- Permanent Scan Root Banner -->
+                        <RowDefinition Height="Auto" /> <!-- Search, Filter & Multi-select Toolbar -->
+                        <RowDefinition Height="*" />    <!-- Catalog DataGrid -->
+                        <RowDefinition Height="Auto" /> <!-- Destination Root & Execute Bar -->
+                    </Grid.RowDefinitions>
 
-                                <!-- Branch -> Upstream -->
-                                <TextBlock Text="{Binding BranchDisplay}"
-                                           FontFamily="Consolas"
-                                           FontSize="11"
-                                           Foreground="#4B5563"
-                                           Margin="0,2,0,0" />
+                    <!-- Top Profile Selection & Management Bar -->
+                    <Border Grid.Row="0"
+                            Background="White"
+                            BorderBrush="#E5E7EB"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12,8"
+                            Margin="0,0,0,8">
+                        <DockPanel LastChildFill="True">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Content="⚙️ 프로파일 관리..."
+                                        x:Name="BtnOpenProfileManagement"
+                                        AutomationProperties.AutomationId="BtnOpenProfileManagement"
+                                        Command="{Binding OpenProfileManagementCommand}"
+                                        Padding="10,5"
+                                        Margin="0,0,8,0"
+                                        Background="#F1F5F9"
+                                        BorderBrush="#CBD5E1"
+                                        FontWeight="SemiBold" />
+
+                                <Button Content="🔄 카탈로그 동기화"
+                                        x:Name="BtnSyncCatalog"
+                                        AutomationProperties.AutomationId="BtnSyncCatalog"
+                                        Command="{Binding SyncCatalogCommand}"
+                                        IsEnabled="{Binding IsSyncing, Converter={StaticResource BoolToVis}, ConverterParameter=invert}"
+                                        Padding="12,5"
+                                        Background="#2563EB"
+                                        Foreground="White"
+                                        BorderBrush="#1D4ED8"
+                                        FontWeight="Bold" />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="서버 프로파일:"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,8,0" />
+                                <ComboBox ItemsSource="{Binding ServerProfiles}"
+                                          SelectedItem="{Binding SelectedProfile, Mode=TwoWay}"
+                                          DisplayMemberPath="Host"
+                                          Width="220"
+                                          Padding="6,4"
+                                          x:Name="CmbCloneProfile"
+                                          AutomationProperties.AutomationId="CmbCloneProfile" />
                             </StackPanel>
                         </DockPanel>
-                    </HierarchicalDataTemplate>
-                </TreeView.Resources>
-            </TreeView>
+                    </Border>
 
-            <!-- Empty State Display -->
-            <StackPanel HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Visibility="{Binding HasNoRepos, Converter={StaticResource BoolToVis}}">
-                <TextBlock Text="등록된 로컬 저장소가 없습니다."
-                           FontSize="16"
-                           FontWeight="SemiBold"
-                           Foreground="#6B7280"
-                           HorizontalAlignment="Center" />
-                <TextBlock Text="위에서 스캔 루트 폴더를 추가하고 [스캔 시작]을 눌러주세요."
-                           Margin="0,6,0,12"
-                           Foreground="#9CA3AF"
-                           HorizontalAlignment="Center" />
-            </StackPanel>
-        </Grid>
-
-        <!-- Bottom Execution & Results Panel (설계 §5.5, §7.3, §8-1) -->
-        <Border Grid.Row="6"
-                x:Name="PanelExecution"
-                AutomationProperties.AutomationId="PanelExecution"
-                Background="White"
-                BorderBrush="#CBD5E1"
-                BorderThickness="1"
-                CornerRadius="6"
-                Padding="12"
-                Margin="0,8,0,4"
-                Visibility="{Binding IsPullPanelVisible, Converter={StaticResource BoolToVis}}">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="140" />
-                </Grid.RowDefinitions>
-
-                <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="True">
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                        <Button Content="취소"
-                                AutomationProperties.AutomationId="BtnCancelExecution"
-                                Padding="12,3"
-                                Margin="0,0,6,0"
-                                Background="#FEE2E2"
-                                Foreground="#991B1B"
-                                BorderBrush="#F87171"
-                                FontWeight="SemiBold"
-                                Visibility="{Binding IsPullExecuting, Converter={StaticResource BoolToVis}}"
-                                Command="{Binding CancelPullCommand}" />
-
-                        <Button Content="닫기"
-                                AutomationProperties.AutomationId="BtnCloseExecutionPanel"
-                                Padding="10,3"
-                                Background="#F3F4F6"
-                                BorderBrush="#D1D5DB"
-                                Command="{Binding ClosePullPanelCommand}" />
-                    </StackPanel>
-
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="⚡ 일괄 Pull 실행 상태"
-                                   FontWeight="Bold"
-                                   FontSize="13"
-                                   Foreground="#1E293B"
-                                   Margin="0,0,12,0" />
-                        <TextBlock AutomationProperties.AutomationId="TxtExecutionProgress"
-                                   Text="{Binding PullProgressText}"
+                    <!-- Permanent Scan Root Banner (§7.5, §10 Criterion 24) -->
+                    <Border Grid.Row="1"
+                            Background="#F0FDF4"
+                            BorderBrush="#BBF7D0"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="10,6"
+                            Margin="0,0,0,8">
+                        <TextBlock x:Name="TxtScanRootBanner"
+                                   AutomationProperties.AutomationId="TxtScanRootBanner"
+                                   Text="{Binding ScanRootBannerText}"
                                    FontWeight="SemiBold"
-                                   Foreground="#2563EB" />
-                    </StackPanel>
-                </DockPanel>
+                                   FontSize="12"
+                                   Foreground="#15803D" />
+                    </Border>
 
-                <ProgressBar Grid.Row="1"
-                             AutomationProperties.AutomationId="ProgressPullBatch"
-                             Height="8"
-                             Minimum="0"
-                             Maximum="100"
-                             Value="{Binding PullProgressPercent}"
-                             Margin="0,0,0,8"
-                             Foreground="#2563EB"
-                             Background="#E2E8F0" />
-
-                <Border Grid.Row="2"
-                        AutomationProperties.AutomationId="CardPullSummaryReport"
-                        Background="#F0FDF4"
-                        BorderBrush="#86EFAC"
-                        BorderThickness="1"
-                        CornerRadius="4"
-                        Padding="8,6"
-                        Margin="0,0,0,8"
-                        Visibility="{Binding HasPullReport, Converter={StaticResource BoolToVis}}">
-                    <TextBlock AutomationProperties.AutomationId="TxtPullSummaryReport"
-                               Text="{Binding PullReportSummary}"
-                               FontWeight="Bold"
-                               Foreground="#166534"
-                               TextWrapping="Wrap" />
-                </Border>
-
-                <ListBox Grid.Row="3"
-                         AutomationProperties.AutomationId="ListPullResults"
-                         ItemsSource="{Binding PullExecutionItems}"
-                         BorderBrush="#E2E8F0"
-                         BorderThickness="1"
-                         Background="#F8FAFC"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <DockPanel Margin="2,2" LastChildFill="True">
-                                <Border DockPanel.Dock="Left"
-                                        Background="{Binding StatusBadgeColor}"
-                                        CornerRadius="3"
-                                        Padding="6,1"
-                                        Margin="0,0,8,0"
-                                        MinWidth="50">
-                                    <TextBlock Text="{Binding StatusBadgeText}"
-                                               Foreground="White"
-                                               FontSize="10"
-                                               FontWeight="Bold"
-                                               HorizontalAlignment="Center" />
-                                </Border>
-
-                                <TextBlock DockPanel.Dock="Right"
-                                           Text="{Binding Detail}"
-                                           FontSize="11"
-                                           Foreground="#64748B"
+                    <!-- Filter & Selection Bar -->
+                    <Border Grid.Row="2"
+                            Background="White"
+                            BorderBrush="#E5E7EB"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="10,8"
+                            Margin="0,0,0,8">
+                        <DockPanel LastChildFill="True">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock x:Name="TxtCloneSelectionSummary"
+                                           AutomationProperties.AutomationId="TxtCloneSelectionSummary"
+                                           Text="{Binding SelectionSummaryText}"
+                                           FontWeight="SemiBold"
                                            VerticalAlignment="Center"
-                                           Margin="8,0,0,0"
-                                           MaxWidth="350"
-                                           TextTrimming="CharacterEllipsis" />
+                                           Margin="0,0,10,0" />
+                            </StackPanel>
 
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding FolderName}"
-                                               FontWeight="SemiBold"
-                                               FontSize="12"
-                                               Foreground="#1E293B" />
-                                    <TextBlock Text="{Binding AbsPath}"
-                                               FontSize="11"
-                                               Foreground="#94A3B8"
-                                               Margin="6,0,0,0"
-                                               TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
-                            </DockPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </Grid>
-        </Border>
+                            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="검색:" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                <TextBox x:Name="TxtCloneFilter"
+                                         AutomationProperties.AutomationId="TxtCloneFilter"
+                                         Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                                         Width="180"
+                                         Padding="4,2"
+                                         Margin="0,0,12,0" />
+
+                                <CheckBox x:Name="ChkShowArchived"
+                                          AutomationProperties.AutomationId="ChkShowArchived"
+                                          Content="보관된(Archived) 레포 표시"
+                                          IsChecked="{Binding ShowArchived, Mode=TwoWay}"
+                                          VerticalAlignment="Center"
+                                          FontWeight="SemiBold"
+                                          Margin="0,0,12,0" />
+
+                                <Button Content="전체 선택"
+                                        x:Name="BtnSelectAllCatalog"
+                                        AutomationProperties.AutomationId="BtnSelectAllCatalog"
+                                        Command="{Binding SelectAllCommand}"
+                                        Padding="8,3"
+                                        Margin="2,0"
+                                        Background="#F3F4F6"
+                                        BorderBrush="#D1D5DB" />
+
+                                <Button Content="선택 해제"
+                                        x:Name="BtnUnselectAllCatalog"
+                                        AutomationProperties.AutomationId="BtnUnselectAllCatalog"
+                                        Command="{Binding UnselectAllCommand}"
+                                        Padding="8,3"
+                                        Margin="2,0"
+                                        Background="#F3F4F6"
+                                        BorderBrush="#D1D5DB" />
+                            </WrapPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Catalog DataGrid -->
+                    <Border Grid.Row="3"
+                            Background="White"
+                            BorderBrush="#E5E7EB"
+                            BorderThickness="1"
+                            CornerRadius="6">
+                        <DataGrid x:Name="GridCatalog"
+                                  AutomationProperties.AutomationId="GridCatalog"
+                                  ItemsSource="{Binding FilteredCatalogItems}"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  GridLinesVisibility="Horizontal"
+                                  HorizontalGridLinesBrush="#F1F5F9"
+                                  BorderThickness="0">
+                            <DataGrid.Columns>
+                                <!-- Checkbox Column -->
+                                <DataGridTemplateColumn Width="40">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Namespace / Name -->
+                                <DataGridTemplateColumn Header="네임스페이스 / 저장소" Width="260">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Repo.NormalizedKey}" FontWeight="Bold" Foreground="#0F172A" />
+                                                <TextBlock Text="{Binding Repo.Namespace, StringFormat='네임스페이스: {0}'}" FontSize="10" Foreground="#64748B" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Default Branch -->
+                                <DataGridTextColumn Header="기본 브랜치"
+                                                    Binding="{Binding Repo.DefaultBranch}"
+                                                    Width="110" />
+
+                                <!-- Status / Badges Column -->
+                                <DataGridTemplateColumn Header="상태 배지" Width="180">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <!-- Archived Badge -->
+                                                <Border Background="#FEF2F2" BorderBrush="#FCA5A5" BorderThickness="1"
+                                                        CornerRadius="3" Padding="4,1" Margin="0,0,4,0"
+                                                        Visibility="{Binding IsArchived, Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock Text="보관됨" FontSize="10" FontWeight="Bold" Foreground="#991B1B" />
+                                                </Border>
+
+                                                <!-- Already Cloned Jump Link/Badge (§5.2, §10 Criterion 24) -->
+                                                <Button Content="{Binding AlreadyClonedBadgeText}"
+                                                        Command="{Binding DataContext.JumpToLocalRepoCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        Background="#EFF6FF" BorderBrush="#93C5FD"
+                                                        Foreground="#1D4ED8" FontWeight="Bold" FontSize="11"
+                                                        Padding="6,2" Margin="0,0,4,0" Cursor="Hand"
+                                                        Visibility="{Binding IsAlreadyCloned, Converter={StaticResource BoolToVis}}"
+                                                        ToolTip="클릭 시 로컬 탭 해당 레포 노드로 이동합니다" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Clone URL -->
+                                <DataGridTextColumn Header="Clone URL (토큰 미포함)"
+                                                    Binding="{Binding Repo.CloneUrl}"
+                                                    Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <!-- Destination Directory Picker & Execution Bar -->
+                    <Border Grid.Row="4"
+                            Background="White"
+                            BorderBrush="#E5E7EB"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12,10"
+                            Margin="0,8,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       Text="클론 대상 기본 루트:"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0" />
+
+                            <TextBox Grid.Column="1"
+                                     x:Name="TxtTargetRoot"
+                                     AutomationProperties.AutomationId="TxtTargetRoot"
+                                     Text="{Binding TargetRootDirectory, UpdateSourceTrigger=PropertyChanged}"
+                                     Padding="6,4"
+                                     Margin="0,0,8,0"
+                                     VerticalContentAlignment="Center" />
+
+                            <Button Grid.Column="2"
+                                    x:Name="BtnPreviewClone"
+                                    AutomationProperties.AutomationId="BtnPreviewClone"
+                                    Content="클론 미리보기 및 실행..."
+                                    Command="{Binding PreviewAndExecuteCloneCommand}"
+                                    IsEnabled="{Binding IsCloning, Converter={StaticResource BoolToVis}, ConverterParameter=invert}"
+                                    Padding="16,6"
+                                    Background="#2563EB"
+                                    Foreground="White"
+                                    BorderBrush="#1D4ED8"
+                                    FontWeight="Bold"
+                                    Cursor="Hand" />
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
 
         <!-- Bottom Status Bar -->
-        <StatusBar Grid.Row="7"
+        <StatusBar Grid.Row="2"
                    Background="#F3F4F6"
                    BorderBrush="#E5E7EB"
                    BorderThickness="0,1,0,0"
