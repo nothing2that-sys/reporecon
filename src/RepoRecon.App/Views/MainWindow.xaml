@@ -6,7 +6,7 @@
         xmlns:vm="clr-namespace:RepoRecon.App.ViewModels"
         xmlns:tree="clr-namespace:RepoRecon.App.ViewModels.Tree"
         mc:Ignorable="d"
-        Title="RepoRecon (Phase 4)"
+        Title="RepoRecon (Phase 5)"
         Height="850" Width="1280"
         MinHeight="600" MinWidth="950"
         WindowStartupLocation="CenterScreen"
@@ -176,12 +176,14 @@
                      AutomationProperties.AutomationId="TabLocalManagement">
                 <Grid Margin="0,8,0,0">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" /> <!-- Scan Roots Control Panel -->
-                        <RowDefinition Height="Auto" /> <!-- Toolbar / Filters / Execution Bar -->
-                        <RowDefinition Height="Auto" /> <!-- Skip Reasons Panel -->
-                        <RowDefinition Height="Auto" /> <!-- Inaccessible Paths Panel -->
-                        <RowDefinition Height="*" />    <!-- Main Hierarchical Tree View / Empty State -->
-                        <RowDefinition Height="Auto" /> <!-- Execution Panel (Phase 3) -->
+                        <RowDefinition Height="Auto" /> <!-- Scan Roots Control Panel (0) -->
+                        <RowDefinition Height="Auto" /> <!-- Toolbar / Filters / Execution Bar (1) -->
+                        <RowDefinition Height="Auto" /> <!-- Pull Skip Reasons Panel (2) -->
+                        <RowDefinition Height="Auto" /> <!-- Push Skip Reasons Panel (3) -->
+                        <RowDefinition Height="Auto" /> <!-- Inaccessible Paths Panel (4) -->
+                        <RowDefinition Height="*" />    <!-- Main Hierarchical Tree View / Empty State (5) -->
+                        <RowDefinition Height="Auto" /> <!-- Pull Execution Panel (6) -->
+                        <RowDefinition Height="Auto" /> <!-- Push Execution Panel (7) -->
                     </Grid.RowDefinitions>
 
                     <!-- Scan Roots Management Panel -->
@@ -308,24 +310,44 @@
                             Padding="10,8"
                             Margin="0,0,0,8">
                         <DockPanel LastChildFill="True">
-                            <!-- Right Execution Summary & Pull Execution Button -->
+                            <!-- Right Execution Summary & Pull / Push Execution Buttons -->
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock x:Name="TxtExecutionSummary"
                                            AutomationProperties.AutomationId="TxtExecutionSummary"
                                            Text="{Binding ExecutionSummaryText}"
                                            FontWeight="SemiBold"
                                            VerticalAlignment="Center"
-                                           Margin="0,0,12,0" />
+                                           Margin="0,0,8,0" />
 
                                 <Button x:Name="BtnExecutePull"
                                         AutomationProperties.AutomationId="BtnExecutePull"
                                         Content="일괄 Pull 실행"
                                         Command="{Binding ExecutePullCommand}"
                                         IsEnabled="{Binding CanExecutePull}"
-                                        Padding="14,6"
+                                        Padding="12,6"
+                                        Margin="0,0,12,0"
                                         Background="#16A34A"
                                         Foreground="White"
                                         BorderBrush="#15803D"
+                                        FontWeight="Bold"
+                                        Cursor="Hand" />
+
+                                <TextBlock x:Name="TxtPushSelectionSummary"
+                                           AutomationProperties.AutomationId="TxtPushSelectionSummary"
+                                           Text="{Binding PushExecutionSummaryText}"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           Margin="4,0,8,0" />
+
+                                <Button x:Name="BtnExecutePush"
+                                        AutomationProperties.AutomationId="BtnExecutePush"
+                                        Content="🚀 일괄 Push 실행"
+                                        Command="{Binding ExecutePushCommand}"
+                                        IsEnabled="{Binding CanExecutePush}"
+                                        Padding="14,6"
+                                        Background="#2563EB"
+                                        Foreground="White"
+                                        BorderBrush="#1D4ED8"
                                         FontWeight="Bold"
                                         Cursor="Hand" />
                             </StackPanel>
@@ -399,7 +421,7 @@
                         </DockPanel>
                     </Border>
 
-                    <!-- Skip Reasons Notice Panel -->
+                    <!-- Pull Skip Reasons Notice Panel -->
                     <Border Grid.Row="2"
                             Background="#FEF3C7"
                             BorderBrush="#F59E0B"
@@ -418,15 +440,43 @@
                                     Foreground="#B45309"
                                     FontWeight="Bold"
                                     Cursor="Hand" />
-                            <TextBlock Text="{Binding SkipReasonSummary, StringFormat='ℹ️ 스킵 안내: {0}'}"
+                            <TextBlock Text="{Binding SkipReasonSummary, StringFormat='ℹ️ Pull 스킵 안내: {0}'}"
                                        FontWeight="SemiBold"
                                        Foreground="#92400E"
                                        VerticalAlignment="Center" />
                         </DockPanel>
                     </Border>
 
-                    <!-- Inaccessible Paths Panel -->
+                    <!-- Push Skip Reasons Notice Panel (§7.5, §7.6) -->
                     <Border Grid.Row="3"
+                            Background="#EFF6FF"
+                            BorderBrush="#93C5FD"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="8,4"
+                            Margin="0,0,0,6"
+                            Visibility="{Binding HasPushSkipReasons, Converter={StaticResource BoolToVis}}">
+                        <DockPanel LastChildFill="True">
+                            <Button DockPanel.Dock="Right"
+                                    Content="{Binding IsPushSkipDetailsExpanded, Converter={StaticResource BoolToVis}, ConverterParameter='접기|상세보기'}"
+                                    Command="{Binding TogglePushSkipDetailsCommand}"
+                                    Padding="6,1"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Foreground="#1E40AF"
+                                    FontWeight="Bold"
+                                    Cursor="Hand" />
+                            <TextBlock x:Name="TxtPushSkipBreakdown"
+                                       AutomationProperties.AutomationId="TxtPushSkipBreakdown"
+                                       Text="{Binding PushSkipReasonSummary, StringFormat='ℹ️ Push 스킵 안내: {0}'}"
+                                       FontWeight="SemiBold"
+                                       Foreground="#1E3A8A"
+                                       VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Inaccessible Paths Panel -->
+                    <Border Grid.Row="4"
                             Background="#FFFBEB"
                             BorderBrush="#FCD34D"
                             BorderThickness="1"
@@ -454,7 +504,7 @@
                     </Border>
 
                     <!-- Main Hierarchical Tree View / Empty State -->
-                    <Grid Grid.Row="4">
+                    <Grid Grid.Row="5">
                         <Border Background="White"
                                 BorderBrush="#E5E7EB"
                                 BorderThickness="1"
@@ -633,7 +683,7 @@
                     </Grid>
 
                     <!-- Pull Execution Panel (Phase 3) -->
-                    <Border Grid.Row="5"
+                    <Border Grid.Row="6"
                             x:Name="PanelPullExecution"
                             AutomationProperties.AutomationId="PanelPullExecution"
                             Background="#F8FAFC"
@@ -687,6 +737,68 @@
                                             <TextBlock DockPanel.Dock="Right" Text="{Binding DurationMs, StringFormat='({0}ms)'}" FontSize="10" Foreground="#94A3B8" Margin="6,0,0,0" />
                                             <TextBlock DockPanel.Dock="Right" Text="{Binding StatusText}" FontWeight="Bold" FontSize="11" Foreground="{Binding StatusColor}" />
                                             <TextBlock Text="{Binding RepoPath}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+
+                    <!-- Push Execution Panel (§8.2, §8.3) -->
+                    <Border Grid.Row="7"
+                            x:Name="PanelPushExecution"
+                            AutomationProperties.AutomationId="PanelPushExecution"
+                            Background="#F8FAFC"
+                            BorderBrush="#BFDBFE"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12"
+                            Margin="0,8,0,0"
+                            Visibility="{Binding IsPushPanelVisible, Converter={StaticResource BoolToVis}}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="120" />
+                            </Grid.RowDefinitions>
+
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <Button DockPanel.Dock="Right"
+                                        x:Name="BtnCancelPushExecution"
+                                        AutomationProperties.AutomationId="BtnCancelPushExecution"
+                                        Content="실행 취소"
+                                        Command="{Binding CancelPushCommand}"
+                                        IsEnabled="{Binding IsPushExecuting}"
+                                        Padding="10,3"
+                                        Background="#FEE2E2"
+                                        BorderBrush="#FCA5A5"
+                                        Foreground="#991B1B"
+                                        FontWeight="Bold" />
+                                <TextBlock Text="🚀 일괄 Push 실행 진행 상황" FontWeight="Bold" FontSize="13" Foreground="#1E3A8A" />
+                            </DockPanel>
+
+                            <StackPanel Grid.Row="1" Margin="0,8,0,8">
+                                <ProgressBar Height="14"
+                                             Value="{Binding PushProgressPercent}"
+                                             Maximum="100"
+                                             Foreground="#2563EB"
+                                             Background="#E2E8F0" />
+                                <TextBlock Text="{Binding PushProgressText}" FontSize="11" Foreground="#475569" Margin="0,4,0,0" />
+                            </StackPanel>
+
+                            <ListBox Grid.Row="2"
+                                     x:Name="ListPushExecution"
+                                     AutomationProperties.AutomationId="ListPushExecution"
+                                     ItemsSource="{Binding PushExecutionItems}"
+                                     Background="White"
+                                     BorderBrush="#E2E8F0"
+                                     BorderThickness="1">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel Margin="2,1">
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding StatusBadgeText}" FontWeight="Bold" FontSize="11" Foreground="{Binding StatusBadgeColor}" Margin="6,0,0,0" />
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding Detail}" FontSize="10" Foreground="#64748B" Margin="6,0,0,0" />
+                                            <TextBlock Text="{Binding AbsPath}" FontSize="11" TextTrimming="CharacterEllipsis" />
                                         </DockPanel>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>

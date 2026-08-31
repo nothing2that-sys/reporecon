@@ -57,10 +57,11 @@ public class GitRunner : IGitRunner
             StandardErrorEncoding = new UTF8Encoding(false)
         };
 
-        // Enforce prompt suppression (GIT_TERMINAL_PROMPT=0, SSH_ASKPASS="", GIT_ASKPASS="")
+        // Enforce prompt suppression (GIT_TERMINAL_PROMPT=0, SSH_ASKPASS="", GIT_ASKPASS="", GCM_INTERACTIVE=never)
         startInfo.EnvironmentVariables["GIT_TERMINAL_PROMPT"] = "0";
         startInfo.EnvironmentVariables["SSH_ASKPASS"] = string.Empty;
         startInfo.EnvironmentVariables["GIT_ASKPASS"] = string.Empty;
+        startInfo.EnvironmentVariables["GCM_INTERACTIVE"] = "never";
 
         if (environmentVariables != null)
         {

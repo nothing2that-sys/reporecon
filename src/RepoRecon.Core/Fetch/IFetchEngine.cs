@@ -13,6 +13,7 @@ public interface IFetchEngine
     Task EnqueueReposAsync(IEnumerable<(long RepoId, string AbsPath, string NormalizedKey)> repos, CancellationToken cancellationToken = default);
     void BoostVisibleRepos(IEnumerable<long> visibleRepoIds);
     Task<RepoFetchResult> FetchSingleRepoAsync(long repoId, string absPath, CancellationToken cancellationToken = default);
+    void SetAuthenticationCooldown(string hostKey, string reason);
     void ClearCooldowns();
     void Stop();
 }

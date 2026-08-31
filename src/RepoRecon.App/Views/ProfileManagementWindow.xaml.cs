@@ -9,7 +9,18 @@ public partial class ProfileManagementWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
-        Loaded += async (_, _) => await viewModel.InitializeAsync();
+        viewModel.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(ProfileManagementViewModel.SelectedProfile))
+            {
+                PbToken.Password = string.Empty;
+            }
+        };
+        Loaded += async (_, _) =>
+        {
+            await viewModel.InitializeAsync();
+            Activate();
+        };
     }
 
     private void PbToken_PasswordChanged(object sender, RoutedEventArgs e)
@@ -18,5 +29,10 @@ public partial class ProfileManagementWindow : Window
         {
             vm.EditToken = PbToken.Password;
         }
+    }
+
+    private void BtnClose_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
     }
 }

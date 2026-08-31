@@ -272,7 +272,7 @@ public class FetchEngine : IFetchEngine, IDisposable
     private static bool ContainsAny(string value, params string[] candidates) =>
         candidates.Any(candidate => value.Contains(candidate, StringComparison.OrdinalIgnoreCase));
 
-    private void SetAuthenticationCooldown(string hostKey, string reason)
+    public void SetAuthenticationCooldown(string hostKey, string reason)
     {
         var firstLine = reason.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "인증 실패";
         var cooldown = new HostFetchCooldown(hostKey, firstLine, DateTime.UtcNow + _authenticationCooldown);

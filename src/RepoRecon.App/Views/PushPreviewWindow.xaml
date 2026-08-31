@@ -1,0 +1,152 @@
+<Window x:Class="RepoRecon.App.Views.PushPreviewWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:RepoRecon.App.ViewModels"
+        mc:Ignorable="d"
+        Title="일괄 Push 실행 전 미리보기 (실서버 Dry-Run)"
+        AutomationProperties.AutomationId="DialogPushPreview"
+        Height="620" Width="920"
+        MinHeight="480" MinWidth="700"
+        WindowStartupLocation="CenterOwner"
+        Background="#F8FAFC">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /> <!-- Header & Summary -->
+            <RowDefinition Height="*" />    <!-- Content Lists -->
+            <RowDefinition Height="Auto" /> <!-- Action Buttons -->
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0"
+                Background="White"
+                BorderBrush="#E2E8F0"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="12"
+                Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="🚀 일괄 Push 실행 전 미리보기 (실서버 Dry-Run 검증 완료)"
+                           FontWeight="Bold"
+                           FontSize="16"
+                           Foreground="#1E3A8A" />
+                <TextBlock Text="현재 체크아웃된 브랜치의 커밋을 원격 서버로 전송합니다. 서버 dry-run을 통해 거부 여부를 사전에 검증했습니다."
+                           Foreground="#64748B"
+                           Margin="0,4,0,8" />
+
+                <!-- Summary Bar -->
+                <Border Background="#EFF6FF"
+                        BorderBrush="#BFDBFE"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="8,6">
+                    <TextBlock x:Name="TxtPushPreviewSummary"
+                               AutomationProperties.AutomationId="TxtPushPreviewSummary"
+                               Text="{Binding SummaryText}"
+                               FontWeight="SemiBold"
+                               Foreground="#1D4ED8" />
+                </Border>
+
+                <!-- Dirty Items Warning Banner (§3.3) -->
+                <Border Background="#FEF3C7"
+                        BorderBrush="#FDE68A"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="8,6"
+                        Margin="0,6,0,0"
+                        Visibility="{Binding HasDirtyItems, Converter={StaticResource BoolToVis}}">
+                    <TextBlock x:Name="TxtDirtyWarningNotice"
+                               AutomationProperties.AutomationId="TxtDirtyWarningNotice"
+                               Text="{Binding DirtyNoticeText}"
+                               FontWeight="SemiBold"
+                               Foreground="#B45309" />
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- Lists (TabControl) -->
+        <TabControl Grid.Row="1" Background="White" BorderBrush="#E2E8F0" Margin="0,0,0,12">
+            <!-- Eligible Tab -->
+            <TabItem Header="Push 실행 대상" AutomationProperties.AutomationId="TabEligibleRepos">
+                <Grid Margin="8">
+                    <DataGrid AutomationProperties.AutomationId="GridEligibleRepos"
+                              ItemsSource="{Binding EligibleItems}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              CanUserAddRows="False"
+                              GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#F1F5F9"
+                              BorderThickness="0"
+                              Background="White">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="로컬 경로" Binding="{Binding AbsPath}" Width="2*" />
+                            <DataGridTextColumn Header="브랜치 → Upstream" Binding="{Binding Branch, StringFormat='{}{0}'}" Width="150" />
+                            <DataGridTextColumn Header="Ahead" Binding="{Binding Ahead, StringFormat='↑{0}'}" Width="70" />
+                            <DataGridTextColumn Header="Dry-Run" Binding="{Binding DryRunStatus}" Width="80" />
+                            <DataGridTextColumn Header="미커밋 파일 제외" Binding="{Binding DirtyWarning}" Width="160" Foreground="#B45309" />
+                            <DataGridTextColumn Header="실행 명령" Binding="{Binding Command}" Width="2.5*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- Skipped Tab -->
+            <TabItem Header="스킵 대상" AutomationProperties.AutomationId="TabSkippedRepos">
+                <Grid Margin="8">
+                    <DataGrid AutomationProperties.AutomationId="GridSkippedRepos"
+                              ItemsSource="{Binding SkippedItems}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              CanUserAddRows="False"
+                              GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#F1F5F9"
+                              BorderThickness="0"
+                              Background="White">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="로컬 경로" Binding="{Binding AbsPath}" Width="2*" />
+                            <DataGridTextColumn Header="스킵 사유" Binding="{Binding SkipReason}" Width="2.5*" Foreground="#DC2626" />
+                            <DataGridTextColumn Header="Dry-Run" Binding="{Binding DryRunStatus}" Width="80" />
+                            <DataGridTextColumn Header="현재 브랜치" Binding="{Binding Branch}" Width="120" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Action Buttons -->
+        <DockPanel Grid.Row="2" LastChildFill="False">
+            <TextBlock Text="※ Push 실행 시 원격 저장소에 즉시 커밋이 반영됩니다 (체크아웃 브랜치 한정, Force 차단)."
+                       VerticalAlignment="Center"
+                       Foreground="#64748B"
+                       FontSize="11"
+                       DockPanel.Dock="Left" />
+
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                <Button Content="취소"
+                        AutomationProperties.AutomationId="BtnCancelPush"
+                        IsCancel="True"
+                        Padding="16,6"
+                        Margin="0,0,8,0"
+                        Background="#F1F5F9"
+                        BorderBrush="#CBD5E1"
+                        Command="{Binding CancelCommand}" />
+
+                <Button Content="🚀 일괄 Push 실행"
+                        AutomationProperties.AutomationId="BtnConfirmPush"
+                        IsDefault="True"
+                        Padding="18,6"
+                        FontWeight="Bold"
+                        Background="#2563EB"
+                        Foreground="White"
+                        BorderBrush="#1D4ED8"
+                        Command="{Binding ConfirmCommand}" />
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>

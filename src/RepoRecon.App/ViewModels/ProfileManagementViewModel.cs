@@ -28,7 +28,7 @@ public partial class ProfileManagementViewModel : ObservableObject
     private string _editHost = string.Empty;
 
     [ObservableProperty]
-    private ServerApiKind _editApiKind = ServerApiKind.GitLab;
+    private ServerApiKind _editApiKind = ServerApiKind.Gitea;
 
     [ObservableProperty]
     private string _editAliases = string.Empty;
@@ -105,7 +105,7 @@ public partial class ProfileManagementViewModel : ObservableObject
     {
         SelectedProfile = null;
         EditHost = string.Empty;
-        EditApiKind = ServerApiKind.GitLab;
+        EditApiKind = ServerApiKind.Gitea;
         EditAliases = string.Empty;
         EditToken = string.Empty;
         EditApiVersion = null;

@@ -7,6 +7,13 @@ public static class DatabasePathResolver
 
     public static string ResolveDatabasePath(string? baseAppDirectory = null)
     {
+        var envRoot = Environment.GetEnvironmentVariable("REPORECON_PORTABLE_ROOT");
+        if (!string.IsNullOrWhiteSpace(envRoot))
+        {
+            Directory.CreateDirectory(envRoot);
+            return Path.Combine(envRoot, DatabaseFileName);
+        }
+
         var appDir = baseAppDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
         var portableMarkerPath = Path.Combine(appDir, PortableMarkerFileName);
 

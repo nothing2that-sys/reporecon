@@ -12,6 +12,7 @@ using RepoRecon.Core.Data;
 using RepoRecon.Core.Fetch;
 using RepoRecon.Core.Git;
 using RepoRecon.Core.Pull;
+using RepoRecon.Core.Push;
 using RepoRecon.Core.Scanning;
 using RepoRecon.Core.Security;
 using RepoRecon.Core.Urls;
@@ -44,7 +45,10 @@ public partial class App : Application
         base.OnStartup(e);
 
         var dbPath = DatabasePathResolver.ResolveDatabasePath();
-        var baseDir = Path.GetDirectoryName(dbPath) ?? AppDomain.CurrentDomain.BaseDirectory;
+        var envRoot = Environment.GetEnvironmentVariable("REPORECON_PORTABLE_ROOT");
+        var baseDir = !string.IsNullOrWhiteSpace(envRoot) 
+            ? envRoot 
+            : Path.GetDirectoryName(dbPath) ?? AppDomain.CurrentDomain.BaseDirectory;
         var logDir = Path.Combine(baseDir, "logs");
         Directory.CreateDirectory(logDir);
 
@@ -62,7 +66,7 @@ public partial class App : Application
                 outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
 
-        Log.Information("=== RepoRecon App Starting (Phase 3) === (DBG logging: {DebugLogging})", debugLoggingRequested ? "on (REPORECON_DEBUG_LOG=1)" : "off");
+        Log.Information("=== RepoRecon App Starting (Phase 5) === (DBG logging: {DebugLogging})", debugLoggingRequested ? "on (REPORECON_DEBUG_LOG=1)" : "off");
 
         // B-12: Explicit Content Root (exe directory)
         _host = Host.CreateDefaultBuilder()
@@ -87,6 +91,13 @@ public partial class App : Application
                 services.AddSingleton<IFetchEngine, FetchEngine>();
                 services.AddSingleton<IPullEngine, PullEngine>();
                 services.AddSingleton<ISecureTokenStore, DpapiTokenStore>();
+                services.AddSingleton<IPushEngine>(sp => new PushEngine(
+                    sp.GetRequiredService<IGitRunner>(),
+                    sp.GetRequiredService<SqliteIndexStore>(),
+                    sp.GetService<IRepoLockManager>(),
+                    sp.GetService<IFetchEngine>(),
+                    sp.GetService<ISecureTokenStore>(),
+                    logger: sp.GetService<Microsoft.Extensions.Logging.ILogger<PushEngine>>()));
                 services.AddSingleton<IServerAdapterFactory, ServerAdapterFactory>();
                 services.AddSingleton<ICloneEngine, CloneEngine>();
                 services.AddSingleton<ProfileManagementViewModel>();

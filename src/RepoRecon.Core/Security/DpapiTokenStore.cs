@@ -18,18 +18,26 @@ public class DpapiTokenStore : ISecureTokenStore
         }
         else
         {
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var portableMarker = Path.Combine(baseDir, "reporecon.portable");
-            if (File.Exists(portableMarker))
+            var envRoot = Environment.GetEnvironmentVariable("REPORECON_PORTABLE_ROOT");
+            if (!string.IsNullOrWhiteSpace(envRoot))
             {
-                _credentialsDirectory = Path.Combine(baseDir, "credentials");
+                _credentialsDirectory = Path.Combine(envRoot, "credentials");
             }
             else
             {
-                _credentialsDirectory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "RepoRecon",
-                    "credentials");
+                var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                var portableMarker = Path.Combine(baseDir, "reporecon.portable");
+                if (File.Exists(portableMarker))
+                {
+                    _credentialsDirectory = Path.Combine(baseDir, "credentials");
+                }
+                else
+                {
+                    _credentialsDirectory = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "RepoRecon",
+                        "credentials");
+                }
             }
         }
 
@@ -95,7 +103,7 @@ public class DpapiTokenStore : ISecureTokenStore
     private static extern bool CryptProtectData(
         ref DATA_BLOB pDataIn,
         string? szDataDescr,
-        ref DATA_BLOB pOptionalEntropy,
+        IntPtr pOptionalEntropy,
         IntPtr pvReserved,
         IntPtr pPromptStruct,
         int dwFlags,
@@ -106,7 +114,7 @@ public class DpapiTokenStore : ISecureTokenStore
     private static extern bool CryptUnprotectData(
         ref DATA_BLOB pDataIn,
         StringBuilder? ppszDataDescr,
-        ref DATA_BLOB pOptionalEntropy,
+        IntPtr pOptionalEntropy,
         IntPtr pvReserved,
         IntPtr pPromptStruct,
         int dwFlags,
@@ -121,7 +129,6 @@ public class DpapiTokenStore : ISecureTokenStore
     {
         var inBlob = new DATA_BLOB();
         var outBlob = new DATA_BLOB();
-        var entropyBlob = new DATA_BLOB();
 
         try
         {
@@ -129,7 +136,7 @@ public class DpapiTokenStore : ISecureTokenStore
             inBlob.pbData = Marshal.AllocHGlobal(plainData.Length);
             Marshal.Copy(plainData, 0, inBlob.pbData, plainData.Length);
 
-            if (!CryptProtectData(ref inBlob, "RepoReconToken", ref entropyBlob, IntPtr.Zero, IntPtr.Zero, CRYPTPROTECT_UI_FORBIDDEN, ref outBlob))
+            if (!CryptProtectData(ref inBlob, "RepoReconToken", IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, CRYPTPROTECT_UI_FORBIDDEN, ref outBlob))
             {
                 var error = Marshal.GetLastWin32Error();
                 throw new InvalidOperationException($"DPAPI CryptProtectData failed with error code: {error}");
@@ -150,7 +157,6 @@ public class DpapiTokenStore : ISecureTokenStore
     {
         var inBlob = new DATA_BLOB();
         var outBlob = new DATA_BLOB();
-        var entropyBlob = new DATA_BLOB();
 
         try
         {
@@ -158,7 +164,7 @@ public class DpapiTokenStore : ISecureTokenStore
             inBlob.pbData = Marshal.AllocHGlobal(encryptedData.Length);
             Marshal.Copy(encryptedData, 0, inBlob.pbData, encryptedData.Length);
 
-            if (!CryptUnprotectData(ref inBlob, null, ref entropyBlob, IntPtr.Zero, IntPtr.Zero, CRYPTPROTECT_UI_FORBIDDEN, ref outBlob))
+            if (!CryptUnprotectData(ref inBlob, null, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, CRYPTPROTECT_UI_FORBIDDEN, ref outBlob))
             {
                 var error = Marshal.GetLastWin32Error();
                 throw new InvalidOperationException($"DPAPI CryptUnprotectData failed with error code: {error}");

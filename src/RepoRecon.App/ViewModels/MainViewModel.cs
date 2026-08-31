@@ -13,6 +13,7 @@ using RepoRecon.Core.Fetch;
 using RepoRecon.Core.Git;
 using RepoRecon.Core.Models;
 using RepoRecon.Core.Pull;
+using RepoRecon.Core.Push;
 using RepoRecon.Core.Scanning;
 using RepoRecon.Core.Tree;
 
@@ -26,10 +27,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly RepoScanner _repoScanner;
     private readonly IFetchEngine _fetchEngine;
     private readonly IPullEngine _pullEngine;
+    private readonly IPushEngine _pushEngine;
     private readonly ICloneEngine _cloneEngine;
     private readonly ILogger<MainViewModel> _logger;
     private readonly DispatcherTimer _freshnessTimer;
     private CancellationTokenSource? _pullCts;
+    private CancellationTokenSource? _pushCts;
 
     private readonly Dictionary<long, RepoTreeNodeViewModel> _repoViewModelMap = new();
 
@@ -152,6 +155,26 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isSkipDetailsExpanded;
 
+    // Push Execution Properties (§7.5, §7.6)
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanExecutePush))]
+    private int _pushableCount;
+
+    [ObservableProperty]
+    private int _pushSkippedCount;
+
+    [ObservableProperty]
+    private string _pushExecutionSummaryText = "선택 0개 (Push 가능 0 / 스킵 0)";
+
+    [ObservableProperty]
+    private string _pushSkipReasonSummary = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasPushSkipReasons;
+
+    [ObservableProperty]
+    private bool _isPushSkipDetailsExpanded;
+
     // Pull Execution State & Panel (§8, §5.5, §7.3)
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanExecutePull))]
@@ -175,8 +198,32 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private string _pullReportSummary = string.Empty;
 
     public ObservableCollection<PullExecutionItemViewModel> PullExecutionItems { get; } = new();
-
     public ObservableCollection<string> SkipReasonList { get; } = new();
+
+    // Push Execution State & Panel (§8.2, §8.3)
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanExecutePush))]
+    private bool _isPushExecuting;
+
+    public bool CanExecutePush => PushableCount > 0 && !IsPushExecuting;
+
+    [ObservableProperty]
+    private bool _isPushPanelVisible;
+
+    [ObservableProperty]
+    private int _pushProgressPercent;
+
+    [ObservableProperty]
+    private string _pushProgressText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasPushReport;
+
+    [ObservableProperty]
+    private string _pushReportSummary = string.Empty;
+
+    public ObservableCollection<PushExecutionItemViewModel> PushExecutionItems { get; } = new();
+    public ObservableCollection<string> PushSkipReasonList { get; } = new();
 
     public ObservableCollection<string> InaccessiblePaths { get; } = new();
     public ObservableCollection<ScanRootItemViewModel> ScanRoots { get; } = new();
@@ -189,6 +236,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         RepoScanner repoScanner,
         IFetchEngine fetchEngine,
         IPullEngine pullEngine,
+        IPushEngine pushEngine,
         ICloneEngine cloneEngine,
         CloneTabViewModel cloneTab,
         ProfileManagementViewModel profileManagement,
@@ -200,6 +248,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _repoScanner = repoScanner;
         _fetchEngine = fetchEngine;
         _pullEngine = pullEngine;
+        _pushEngine = pushEngine;
         _cloneEngine = cloneEngine;
         CloneTab = cloneTab;
         ProfileManagement = profileManagement;
@@ -268,8 +317,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
             {
                 dlg.Owner = System.Windows.Application.Current.MainWindow;
             }
-            dlg.ShowDialog();
-            _ = CloneTab.LoadProfilesAsync();
+            dlg.Closed += (_, _) =>
+            {
+                _ = CloneTab.LoadProfilesAsync();
+            };
+            dlg.Show();
         };
 
         CloneTab.OnCloneCompletedFunc = async () =>
@@ -433,8 +485,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var selectedRepos = _repoViewModelMap.Values.Where(r => r.IsSelected == true).ToList();
         TotalSelectedCount = selectedRepos.Count;
 
+        // Pull calculation
         var pullable = 0;
-        var skipped = 0;
+        var pullSkipped = 0;
 
         var dirtySkip = 0;
         var divergedSkip = 0;
@@ -448,89 +501,148 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var unfetchedSkip = 0;
         var otherSkip = 0;
 
+        // Push calculation (§7.5, §7.6)
+        var pushable = 0;
+        var pushSkipped = 0;
+
+        var pushMissingSkip = 0;
+        var pushConflictedSkip = 0;
+        var pushNoUpstreamSkip = 0;
+        var pushUpstreamGoneSkip = 0;
+        var pushDetachedHeadSkip = 0;
+        var pushDivergedSkip = 0;
+        var pushBehindSkip = 0;
+        var pushUpToDateSkip = 0;
+        var pushUntrackedSkip = 0;
+        var pushOtherSkip = 0;
+        var pushDirtyWarningCount = 0;
+
         foreach (var r in selectedRepos)
         {
+            // Pull evaluation
             if (r.IsMissing)
             {
-                skipped++;
+                pullSkipped++;
                 missingSkip++;
-                continue;
             }
-
-            if (r.ConflictedCount > 0 || r.StateCode == RepoStateCode.Conflicted)
+            else if (r.ConflictedCount > 0 || r.StateCode == RepoStateCode.Conflicted)
             {
-                skipped++;
+                pullSkipped++;
                 conflictedSkip++;
-                continue;
             }
-
-            if (r.DirtyCount > 0)
+            else if (r.DirtyCount > 0)
             {
-                skipped++;
+                pullSkipped++;
                 dirtySkip++;
-                continue;
             }
-
-            if (r.StateCode == RepoStateCode.Diverged)
+            else if (r.StateCode == RepoStateCode.Diverged)
             {
-                skipped++;
+                pullSkipped++;
                 divergedSkip++;
-                continue;
             }
-
-            if (r.StateCode == RepoStateCode.NoUpstream)
+            else if (r.StateCode == RepoStateCode.NoUpstream)
             {
-                skipped++;
+                pullSkipped++;
                 noUpstreamSkip++;
-                continue;
             }
-
-            if (r.StateCode == RepoStateCode.UpstreamGone)
+            else if (r.StateCode == RepoStateCode.UpstreamGone)
             {
-                skipped++;
+                pullSkipped++;
                 upstreamGoneSkip++;
-                continue;
             }
-
-            if (r.StateCode == RepoStateCode.DetachedHead)
+            else if (r.StateCode == RepoStateCode.DetachedHead)
             {
-                skipped++;
+                pullSkipped++;
                 detachedHeadSkip++;
-                continue;
             }
-
-            if (r.StateCode == RepoStateCode.Untracked)
+            else if (r.StateCode == RepoStateCode.Untracked)
             {
-                skipped++;
+                pullSkipped++;
                 untrackedSkip++;
-                continue;
             }
-
-            if (r.LastFetchedAt == null || r.HasFetchFailure)
+            else if (r.LastFetchedAt == null || r.HasFetchFailure)
             {
-                skipped++;
+                pullSkipped++;
                 unfetchedSkip++;
-                continue;
             }
-
-            if (r.Behind > 0 || r.StateCode == RepoStateCode.Behind)
+            else if (r.Behind > 0 || r.StateCode == RepoStateCode.Behind)
             {
                 pullable++;
             }
             else if (r.StateCode == RepoStateCode.UpToDate)
             {
-                skipped++;
+                pullSkipped++;
                 upToDateSkip++;
             }
             else
             {
-                skipped++;
+                pullSkipped++;
                 otherSkip++;
+            }
+
+            // Push evaluation (§7.5, §7.6)
+            if (r.IsMissing)
+            {
+                pushSkipped++;
+                pushMissingSkip++;
+            }
+            else if (r.Repo.GitDirKind != GitDirKind.Normal)
+            {
+                pushSkipped++;
+                pushOtherSkip++;
+            }
+            else if (r.ConflictedCount > 0 || r.StateCode == RepoStateCode.Conflicted)
+            {
+                pushSkipped++;
+                pushConflictedSkip++;
+            }
+            else if (r.StateCode == RepoStateCode.NoUpstream || string.IsNullOrWhiteSpace(r.Upstream))
+            {
+                pushSkipped++;
+                pushNoUpstreamSkip++;
+            }
+            else if (r.StateCode == RepoStateCode.UpstreamGone)
+            {
+                pushSkipped++;
+                pushUpstreamGoneSkip++;
+            }
+            else if (r.StateCode == RepoStateCode.DetachedHead || r.Branch == "(detached)" || string.IsNullOrWhiteSpace(r.Branch))
+            {
+                pushSkipped++;
+                pushDetachedHeadSkip++;
+            }
+            else if (r.StateCode == RepoStateCode.Untracked)
+            {
+                pushSkipped++;
+                pushUntrackedSkip++;
+            }
+            else if (r.StateCode == RepoStateCode.Diverged || (r.Ahead > 0 && r.Behind > 0))
+            {
+                pushSkipped++;
+                pushDivergedSkip++;
+            }
+            else if (r.StateCode == RepoStateCode.Behind || (r.Ahead == 0 && r.Behind > 0))
+            {
+                pushSkipped++;
+                pushBehindSkip++;
+            }
+            else if (r.Ahead > 0 && r.Behind == 0)
+            {
+                pushable++;
+                if (r.DirtyCount > 0)
+                {
+                    pushDirtyWarningCount++;
+                }
+            }
+            else
+            {
+                pushSkipped++;
+                pushUpToDateSkip++;
             }
         }
 
         PullableCount = pullable;
-        SkippedCount = skipped;
+        SkippedCount = pullSkipped;
         ExecutionSummaryText = $"선택 {TotalSelectedCount}개 (Pull 가능 {PullableCount} / 스킵 {SkippedCount})";
 
         SkipReasonList.Clear();
@@ -548,6 +660,31 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         HasSkipReasons = SkipReasonList.Count > 0;
         SkipReasonSummary = string.Join(" | ", SkipReasonList);
+
+        // Push Breakdown Summary
+        PushableCount = pushable;
+        PushSkippedCount = pushSkipped;
+        PushExecutionSummaryText = $"Push 가능 {PushableCount} / 스킵 {PushSkippedCount}";
+
+        PushSkipReasonList.Clear();
+        if (pushDivergedSkip > 0) PushSkipReasonList.Add($"• pull 먼저 필요 (Diverged): {pushDivergedSkip}건");
+        if (pushBehindSkip > 0) PushSkipReasonList.Add($"• pull 먼저 필요 (Behind): {pushBehindSkip}건");
+        if (pushUpToDateSkip > 0) PushSkipReasonList.Add($"• 올릴 커밋 없음 (Up-to-Date): {pushUpToDateSkip}건");
+        if (pushNoUpstreamSkip > 0) PushSkipReasonList.Add($"• 추적 브랜치 없음: {pushNoUpstreamSkip}건");
+        if (pushUpstreamGoneSkip > 0) PushSkipReasonList.Add($"• Upstream 삭제됨: {pushUpstreamGoneSkip}건");
+        if (pushDetachedHeadSkip > 0) PushSkipReasonList.Add($"• Detached HEAD: {pushDetachedHeadSkip}건");
+        if (pushConflictedSkip > 0) PushSkipReasonList.Add($"• 머지 충돌 (Conflicted): {pushConflictedSkip}건");
+        if (pushUntrackedSkip > 0) PushSkipReasonList.Add($"• Remote 없음 (Untracked): {pushUntrackedSkip}건");
+        if (pushMissingSkip > 0) PushSkipReasonList.Add($"• 디렉토리 미발견 (Missing): {pushMissingSkip}건");
+        if (pushOtherSkip > 0) PushSkipReasonList.Add($"• 기타 사유: {pushOtherSkip}건");
+
+        if (pushDirtyWarningCount > 0)
+        {
+            PushSkipReasonList.Add($"⚠️ Push 대상 중 {pushDirtyWarningCount}개에 미커밋 파일 있음 (미커밋 파일은 제외됨)");
+        }
+
+        HasPushSkipReasons = PushSkipReasonList.Count > 0;
+        PushSkipReasonSummary = string.Join(" | ", PushSkipReasonList);
     }
 
     [RelayCommand]
@@ -1086,11 +1223,150 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     #endregion
 
+    [RelayCommand]
+    public void TogglePushSkipDetails()
+    {
+        IsPushSkipDetailsExpanded = !IsPushSkipDetailsExpanded;
+    }
+
+    #region Push Execution (§8.2, §8.3, §7.5, §7.6)
+
+    [RelayCommand]
+    public async Task ExecutePushAsync()
+    {
+        var selectedRepoVms = _repoViewModelMap.Values.Where(r => r.IsSelected == true).ToList();
+        if (selectedRepoVms.Count == 0)
+            return;
+
+        var targets = selectedRepoVms.Select(vm => (vm.Repo, vm.Status)).ToList();
+
+        StatusMessage = "Push 미리보기 생성 중 (실서버 Dry-run 검증)...";
+        var previewItems = await _pushEngine.GeneratePreviewAsync(targets).ConfigureAwait(true);
+
+        var previewVm = new PushPreviewViewModel(previewItems);
+        var previewWindow = new PushPreviewWindow(previewVm);
+        if (System.Windows.Application.Current?.MainWindow != null)
+        {
+            previewWindow.Owner = System.Windows.Application.Current.MainWindow;
+        }
+
+        var tcs = new TaskCompletionSource<bool>();
+        previewWindow.Closed += (_, _) =>
+        {
+            tcs.TrySetResult(previewWindow.UserConfirmed == true);
+        };
+        previewWindow.Show();
+        var confirmed = await tcs.Task.ConfigureAwait(true);
+        if (!confirmed)
+        {
+            _logger.LogInformation("일괄 Push가 사용자에 의해 미리보기 단계에서 취소되었습니다.");
+            StatusMessage = "일괄 Push 미리보기 취소됨";
+            return;
+        }
+
+        _pushCts = new CancellationTokenSource();
+        IsPushPanelVisible = true;
+        IsPushExecuting = true;
+        HasPushReport = false;
+        PushProgressPercent = 0;
+        PushProgressText = $"일괄 Push 시작 중 (총 {previewItems.Count}개)...";
+
+        PushExecutionItems.Clear();
+        foreach (var p in previewItems)
+        {
+            var initialStatus = p.IsEligible ? PushItemUiStatus.Pending : PushItemUiStatus.Skipped;
+            PushExecutionItems.Add(new PushExecutionItemViewModel(p.RepoId, p.AbsPath, initialStatus, p.SkipReason, p.DirtyWarning));
+        }
+
+        var progress = new Progress<BatchPushProgress>(info =>
+        {
+            System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
+            {
+                var percent = info.TotalCount > 0 ? (int)((info.ProcessedCount / (double)info.TotalCount) * 100) : 0;
+                PushProgressPercent = percent;
+                PushProgressText = $"진행 중: {info.ProcessedCount} / {info.TotalCount} ({percent}%) — 성공: {info.SuccessCount}, 실패: {info.FailedCount}, 스킵: {info.SkippedCount}";
+
+                if (!string.IsNullOrWhiteSpace(info.CurrentRepoPath))
+                {
+                    var itemVm = PushExecutionItems.FirstOrDefault(x => string.Equals(x.AbsPath, info.CurrentRepoPath, StringComparison.OrdinalIgnoreCase));
+                    if (itemVm != null)
+                    {
+                        itemVm.Status = PushItemUiStatus.Running;
+                    }
+                }
+            });
+        });
+
+        try
+        {
+            var report = await _pushEngine.ExecuteAsync(previewItems, progress, _pushCts.Token).ConfigureAwait(true);
+            PushReportSummary = $"Push 완료: 총 {report.TotalCount}개 중 성공 {report.SuccessCount}개, 실패 {report.FailedCount}개, 스킵 {report.SkippedCount}개 (소요시간: {report.TotalDuration.TotalSeconds:F1}초)";
+            HasPushReport = true;
+            StatusMessage = PushReportSummary;
+
+            // Update items with final results
+            foreach (var res in report.Results)
+            {
+                var itemVm = PushExecutionItems.FirstOrDefault(x => x.RepoId == res.RepoId);
+                if (itemVm != null)
+                {
+                    itemVm.Status = res.Success ? PushItemUiStatus.Success : PushItemUiStatus.Failed;
+                    itemVm.Detail = res.ErrorMessage ?? (res.Success ? "성공" : null);
+                    itemVm.DirtyWarning = res.DirtyWarning;
+                }
+            }
+
+            await LoadDataAsync().ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            PushReportSummary = "일괄 Push 작업이 사용자에 의해 취소되었습니다.";
+            HasPushReport = true;
+            StatusMessage = PushReportSummary;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "일괄 Push 실행 중 예외 발생");
+            PushReportSummary = $"일괄 Push 중 오류 발생: {ex.Message}";
+            HasPushReport = true;
+            StatusMessage = PushReportSummary;
+        }
+        finally
+        {
+            IsPushExecuting = false;
+            _pushCts?.Dispose();
+            _pushCts = null;
+        }
+    }
+
+    [RelayCommand]
+    public void CancelPush()
+    {
+        if (IsPushExecuting && _pushCts != null)
+        {
+            _logger.LogInformation("사용자가 일괄 Push 취소 요청을 전달했습니다.");
+            _pushCts.Cancel();
+        }
+    }
+
+    [RelayCommand]
+    public void ClosePushPanel()
+    {
+        if (!IsPushExecuting)
+        {
+            IsPushPanelVisible = false;
+        }
+    }
+
+    #endregion
+
     public void Dispose()
     {
         _freshnessTimer.Stop();
         _pullCts?.Cancel();
         _pullCts?.Dispose();
+        _pushCts?.Cancel();
+        _pushCts?.Dispose();
         _fetchEngine.RepoFetched -= OnRepoFetched;
         _fetchEngine.FetchingStateChanged -= OnFetchingStateChanged;
         _fetchEngine.CooldownsChanged -= OnCooldownsChanged;

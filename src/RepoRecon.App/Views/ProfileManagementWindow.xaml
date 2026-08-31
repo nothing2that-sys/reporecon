@@ -136,10 +136,6 @@
                                      PasswordChanged="PbToken_PasswordChanged"
                                      Margin="0,4,0,4" Padding="6,4"
                                      AutomationProperties.AutomationId="PbProfileToken" />
-                        <TextBox x:Name="TxtTokenInput"
-                                 AutomationProperties.AutomationId="TxtProfileToken"
-                                 Text="{Binding EditToken, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
-                                 Width="0" Height="0" Opacity="0" />
                         <TextBlock Text="{Binding TokenStatusText}"
                                    FontSize="11" Foreground="#64748B" Margin="0,0,0,12"
                                    AutomationProperties.AutomationId="TxtTokenStatus" />
@@ -163,6 +159,14 @@
 
                         <!-- Action Buttons: Save & Delete -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                            <Button Content="닫기"
+                                    Margin="0,0,8,0"
+                                    Padding="12,6"
+                                    Background="#F1F5F9"
+                                    BorderBrush="#CBD5E1"
+                                    FontWeight="SemiBold"
+                                    AutomationProperties.AutomationId="BtnCloseProfileManagement"
+                                    Click="BtnClose_Click" />
                             <Button Content="삭제"
                                     Margin="0,0,8,0"
                                     Padding="12,6"
