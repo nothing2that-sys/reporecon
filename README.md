@@ -19,6 +19,7 @@ RepoRecon은 **다중 저장소의 상태 탐색·정합성 검증·일괄 동�
 
 모든 아키텍처와 구현 세부사항은 `docs/` 디렉터리에 체계적으로 문서화되어 있습니다.
 
+- **[CHANGELOG.md](CHANGELOG.md)**: 버전별 주요 변경 사항입니다.
 - **[RepoRecon-design.md](docs/RepoRecon-design.md)**: 시스템 아키텍처, 3축 모델, SQLite 스키마, 안전 정책, UI 레이아웃을 정의하는 **단일 진실 원천(Single Source of Truth, SSOT)** 문서입니다.
 - **[RepoRecon-impl-instructions.md](docs/RepoRecon-impl-instructions.md)**: 전체 개발 과정에 적용된 공통 구현 원칙 및 코딩 규칙입니다.
 - **`docs/RepoRecon-phase*-instructions.md`**: Phase 1(기반 구조)부터 Phase 6(안전 장치 및 편의 기능)까지의 단계별 세부 명세입니다.
