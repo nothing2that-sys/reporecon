@@ -8,7 +8,9 @@
         Height="300" Width="520"
         WindowStartupLocation="CenterOwner"
         AutomationProperties.AutomationId="DialogRollbackConfirm"
-        Background="#F8FAFC">
+        Background="{StaticResource NeutralSurface}"
+        FontFamily="{StaticResource FontFamilyDefault}"
+        Foreground="{StaticResource NeutralForeground}">
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -19,22 +21,22 @@
 
         <!-- Warning Header -->
         <Border Grid.Row="0"
-                Background="#FEF2F2"
-                BorderBrush="#FCA5A5"
+                Background="{StaticResource ErrorBackground}"
+                BorderBrush="{StaticResource ErrorBorder}"
                 BorderThickness="1"
                 CornerRadius="6"
                 Padding="12"
                 Margin="0,0,0,12">
             <StackPanel Orientation="Vertical">
-                <TextBlock Text="⚠️ 주의: 로컬 작업트리 하드 리셋 (git reset --hard)" FontWeight="Bold" FontSize="13" Foreground="#991B1B" />
-                <TextBlock Text="선택한 커밋 시점으로 HEAD 및 로컬 인덱스를 강제 복구합니다. 미커밋 변경 사항이 있으면 차단됩니다." FontSize="11" Foreground="#7F1D1D" Margin="0,3,0,0" TextWrapping="Wrap" />
+                <TextBlock Text="⚠️ 주의: 로컬 작업트리 하드 리셋 (git reset --hard)" FontWeight="Bold" FontSize="{StaticResource FontSizeSubtitle}" Foreground="{StaticResource ErrorForeground}" />
+                <TextBlock Text="선택한 커밋 시점으로 HEAD 및 로컬 인덱스를 강제 복구합니다. 미커밋 변경 사항이 있으면 차단됩니다." FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource ErrorForeground}" Margin="0,4,0,0" TextWrapping="Wrap" />
             </StackPanel>
         </Border>
 
         <!-- Commit & Path Details -->
         <Border Grid.Row="1"
-                Background="White"
-                BorderBrush="#E2E8F0"
+                Background="{StaticResource NeutralBackground}"
+                BorderBrush="{StaticResource NeutralBorder}"
                 BorderThickness="1"
                 CornerRadius="6"
                 Padding="12">
@@ -45,7 +47,7 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="대상 저장소:" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="1" x:Name="TxtTargetPath" AutomationProperties.AutomationId="TxtRollbackTargetPath" TextTrimming="CharacterEllipsis" Foreground="#1E293B" />
+                    <TextBlock Grid.Column="1" x:Name="TxtTargetPath" AutomationProperties.AutomationId="TxtRollbackTargetPath" FontFamily="{StaticResource FontFamilyMono}" Foreground="{StaticResource NeutralForeground}" />
                 </Grid>
 
                 <Grid Margin="0,0,0,8">
@@ -54,34 +56,31 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="되돌릴 커밋:" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="1" x:Name="TxtCommitHash" AutomationProperties.AutomationId="TxtRollbackCommitHash" FontFamily="Consolas" FontWeight="Bold" Foreground="#1D4ED8" />
+                    <TextBlock Grid.Column="1" x:Name="TxtCommitHash" AutomationProperties.AutomationId="TxtRollbackCommitHash" FontFamily="{StaticResource FontFamilyMono}" FontWeight="Bold" Foreground="{StaticResource InfoForeground}" />
                 </Grid>
             </StackPanel>
         </Border>
 
-        <!-- Bottom Buttons -->
+        <!-- Bottom Buttons: 위험 동작이므로 기본 버튼은 취소 쪽 (§5-1) -->
         <DockPanel Grid.Row="2" Margin="0,12,0,0" LastChildFill="False">
             <Button DockPanel.Dock="Right"
                     x:Name="BtnConfirmRollback"
                     AutomationProperties.AutomationId="BtnConfirmRollback"
                     Content="되돌리기 실행"
                     Click="BtnConfirm_Click"
-                    Padding="16,6"
-                    Background="#DC2626"
-                    Foreground="White"
-                    BorderBrush="#B91C1C"
-                    FontWeight="Bold"
-                    Cursor="Hand" />
+                    Padding="16,8"
+                    Style="{StaticResource DangerButtonStyle}" />
 
             <Button DockPanel.Dock="Right"
                     x:Name="BtnCancelRollback"
                     AutomationProperties.AutomationId="BtnCancelRollback"
                     Content="취소"
                     Click="BtnCancel_Click"
-                    Padding="14,6"
+                    IsCancel="True"
+                    IsDefault="True"
+                    Padding="16,8"
                     Margin="0,0,8,0"
-                    Background="#F1F5F9"
-                    BorderBrush="#CBD5E1" />
+                    Style="{StaticResource SecondaryButtonStyle}" />
         </DockPanel>
     </Grid>
 </Window>

@@ -24,6 +24,10 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
 
+        // §5-5: restore remembered window size/position/tab before first paint.
+        WindowStateStore.Restore(this, tabIndex => viewModel.SelectedTabIndex = tabIndex);
+        Closing += (_, _) => WindowStateStore.Save(this, viewModel.SelectedTabIndex);
+
         _scrollSamplingCompletionTimer = new DispatcherTimer
         {
             // Keep the measurement window long enough to collect at least
@@ -204,6 +208,11 @@ public partial class MainWindow : Window
             maximum,
             average,
             overBudget);
+    }
+
+    private void EmptyStateFocusScanPath_Click(object sender, RoutedEventArgs e)
+    {
+        TxtScanPath.Focus();
     }
 
     private void BrowseFolder_Click(object sender, RoutedEventArgs e)

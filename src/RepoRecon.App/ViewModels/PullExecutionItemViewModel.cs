@@ -32,13 +32,13 @@ public partial class PullExecutionItemViewModel : ObservableObject
 
     public string StatusBadgeColor => Status switch
     {
-        PullJobStatus.Pending => "#9CA3AF",
-        PullJobStatus.Running => "#3B82F6",
-        PullJobStatus.Success => "#10B981",
-        PullJobStatus.Failed => "#EF4444",
-        PullJobStatus.Skipped => "#F59E0B",
-        PullJobStatus.Canceled => "#6B7280",
-        _ => "#9CA3AF"
+        PullJobStatus.Pending => AppColors.NeutralMuted,
+        PullJobStatus.Running => AppColors.Info,
+        PullJobStatus.Success => AppColors.Success,
+        PullJobStatus.Failed => AppColors.Error,
+        PullJobStatus.Skipped => AppColors.Warning,
+        PullJobStatus.Canceled => AppColors.NeutralMuted,
+        _ => AppColors.NeutralMuted
     };
 
     public PullExecutionItemViewModel(long repoId, string absPath, PullJobStatus initialStatus, string? detail = null)

@@ -39,13 +39,13 @@ public partial class ChangeRemoteUrlViewModel : ObservableObject
     private string _reachabilityStatus = "검사 전";
 
     [ObservableProperty]
-    private string _reachabilityStatusColor = "#6B7280";
+    private string _reachabilityStatusColor = AppColors.NeutralMuted;
 
     [ObservableProperty]
     private string _reevaluatedMappingStatus = "미확인";
 
     [ObservableProperty]
-    private string _reevaluatedMappingColor = "#6B7280";
+    private string _reevaluatedMappingColor = AppColors.NeutralMuted;
 
     public bool CanSave => !string.IsNullOrWhiteSpace(NewUrl) && !string.Equals(NewUrl.Trim(), CurrentUrl.Trim(), StringComparison.OrdinalIgnoreCase);
 
@@ -76,7 +76,7 @@ public partial class ChangeRemoteUrlViewModel : ObservableObject
     {
         HasCheckedReachability = false;
         ReachabilityStatus = "검사 전";
-        ReachabilityStatusColor = "#6B7280";
+        ReachabilityStatusColor = AppColors.NeutralMuted;
         UpdateReevaluatedMapping(value);
     }
 
@@ -85,7 +85,7 @@ public partial class ChangeRemoteUrlViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(url))
         {
             ReevaluatedMappingStatus = "URL 없음 (Untracked)";
-            ReevaluatedMappingColor = "#6B7280";
+            ReevaluatedMappingColor = AppColors.NeutralMuted;
             return;
         }
 
@@ -93,7 +93,7 @@ public partial class ChangeRemoteUrlViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(normKey))
         {
             ReevaluatedMappingStatus = "정규화 불가 (로컬 경로 또는 파싱 실패)";
-            ReevaluatedMappingColor = "#B45309";
+            ReevaluatedMappingColor = AppColors.Warning;
             return;
         }
 
@@ -102,7 +102,7 @@ public partial class ChangeRemoteUrlViewModel : ObservableObject
         if (matchedRepo != null)
         {
             ReevaluatedMappingStatus = $"정상 (카탈로그 매칭: {matchedRepo.Namespace}/{matchedRepo.Name})";
-            ReevaluatedMappingColor = "#16A34A";
+            ReevaluatedMappingColor = AppColors.Success;
             return;
         }
 
@@ -115,12 +115,12 @@ public partial class ChangeRemoteUrlViewModel : ObservableObject
         if (matchedProfile != null)
         {
             ReevaluatedMappingStatus = $"Orphaned (프로파일 호스트 '{matchedProfile.Host}'이나 카탈로그에 없음)";
-            ReevaluatedMappingColor = "#D97706";
+            ReevaluatedMappingColor = AppColors.Warning;
         }
         else
         {
             ReevaluatedMappingStatus = "External (미등록 외부 호스트)";
-            ReevaluatedMappingColor = "#4B5563";
+            ReevaluatedMappingColor = AppColors.NeutralMuted;
         }
     }
 
@@ -131,7 +131,7 @@ public partial class ChangeRemoteUrlViewModel : ObservableObject
 
         IsCheckingReachability = true;
         ReachabilityStatus = "접근성 검사 중 (ls-remote)...";
-        ReachabilityStatusColor = "#2563EB";
+        ReachabilityStatusColor = AppColors.Info;
 
         try
         {
@@ -142,12 +142,12 @@ public partial class ChangeRemoteUrlViewModel : ObservableObject
             if (reachable)
             {
                 ReachabilityStatus = "✅ 연결 및 접근 검증 완료 (정상)";
-                ReachabilityStatusColor = "#16A34A";
+                ReachabilityStatusColor = AppColors.Success;
             }
             else
             {
                 ReachabilityStatus = $"⚠️ 접근 확인 실패: {error} (오프라인일 수 있으며 저장은 가능합니다)";
-                ReachabilityStatusColor = "#DC2626";
+                ReachabilityStatusColor = AppColors.Error;
             }
         }
         finally

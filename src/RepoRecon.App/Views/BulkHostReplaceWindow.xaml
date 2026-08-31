@@ -9,11 +9,9 @@
         Height="540" Width="820"
         WindowStartupLocation="CenterOwner"
         AutomationProperties.AutomationId="DialogBulkHostReplace"
-        Background="#F8FAFC">
-
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
-    </Window.Resources>
+        Background="{StaticResource NeutralSurface}"
+        FontFamily="{StaticResource FontFamilyDefault}"
+        Foreground="{StaticResource NeutralForeground}">
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -24,15 +22,15 @@
 
         <!-- Top Input & Guide Panel -->
         <Border Grid.Row="0"
-                Background="White"
-                BorderBrush="#E2E8F0"
+                Background="{StaticResource NeutralBackground}"
+                BorderBrush="{StaticResource NeutralBorder}"
                 BorderThickness="1"
                 CornerRadius="6"
                 Padding="12"
                 Margin="0,0,0,12">
             <StackPanel Orientation="Vertical">
-                <TextBlock Text="🌐 Git 서버 호스트 단위 일괄 치환 (설계 §10.7-b)" FontWeight="Bold" FontSize="14" Foreground="#0F172A" />
-                <TextBlock Text="서버 이전 시 네임스페이스와 프로젝트 경로를 유지한 채 호스트명만 안전하게 일괄 치환합니다." FontSize="11" Foreground="#64748B" Margin="0,3,0,10" />
+                <TextBlock Text="🌐 Git 서버 호스트 단위 일괄 치환 (설계 §10.7-b)" FontWeight="Bold" FontSize="{StaticResource FontSizeSubtitle}" Foreground="{StaticResource NeutralForeground}" />
+                <TextBlock Text="서버 이전 시 네임스페이스와 프로젝트 경로를 유지한 채 호스트명만 안전하게 일괄 치환합니다." FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource NeutralForegroundMuted}" Margin="0,4,0,12" />
 
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -43,21 +41,23 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0" Text="이전 호스트:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBlock Grid.Column="0" Text="이전 호스트:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" />
                     <TextBox Grid.Column="1"
                              x:Name="TxtOldHost"
                              AutomationProperties.AutomationId="TxtOldHost"
                              Text="{Binding OldHost, UpdateSourceTrigger=PropertyChanged}"
-                             Padding="6,4"
-                             Margin="0,0,12,0" />
+                             Padding="8,4"
+                             Margin="0,0,12,0"
+                             TabIndex="0" />
 
-                    <TextBlock Grid.Column="2" Text="새 호스트:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBlock Grid.Column="2" Text="새 호스트:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" />
                     <TextBox Grid.Column="3"
                              x:Name="TxtNewHost"
                              AutomationProperties.AutomationId="TxtNewHost"
                              Text="{Binding NewHost, UpdateSourceTrigger=PropertyChanged}"
-                             Padding="6,4"
-                             Margin="0,0,12,0" />
+                             Padding="8,4"
+                             Margin="0,0,12,0"
+                             TabIndex="1" />
 
                     <Button Grid.Column="4"
                             x:Name="BtnGenerateHostPreview"
@@ -65,29 +65,29 @@
                             Content="미리보기 (Dry-run)"
                             Command="{Binding GeneratePreviewCommand}"
                             IsEnabled="{Binding CanGeneratePreview}"
-                            Padding="12,5"
-                            Background="#2563EB"
-                            Foreground="White"
-                            BorderBrush="#1D4ED8"
-                            FontWeight="Bold" />
+                            Padding="12,8"
+                            Style="{StaticResource AccentButtonStyle}"
+                            TabIndex="2"
+                            ToolTipService.ShowOnDisabled="True"
+                            ToolTip="이전 호스트와 새 호스트를 모두 입력해야 활성화됩니다." />
                 </Grid>
             </StackPanel>
         </Border>
 
         <!-- Preview Grid (Dry-run preview required before execution) -->
         <Border Grid.Row="1"
-                Background="White"
-                BorderBrush="#E2E8F0"
+                Background="{StaticResource NeutralBackground}"
+                BorderBrush="{StaticResource NeutralBorder}"
                 BorderThickness="1"
                 CornerRadius="6">
             <DockPanel LastChildFill="True">
-                <Border DockPanel.Dock="Top" Background="#F1F5F9" Padding="10,6" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+                <Border DockPanel.Dock="Top" Background="{StaticResource NeutralSurface}" Padding="8,4" BorderBrush="{StaticResource NeutralBorder}" BorderThickness="0,0,0,1">
                     <TextBlock x:Name="TxtBulkPreviewSummary"
                                AutomationProperties.AutomationId="TxtBulkPreviewSummary"
                                Text="{Binding PreviewSummaryText}"
                                FontWeight="SemiBold"
-                               FontSize="12"
-                               Foreground="#1E293B" />
+                               FontSize="{StaticResource FontSizeBody}"
+                               Foreground="{StaticResource NeutralForeground}" />
                 </Border>
 
                 <DataGrid x:Name="GridBulkHostPreview"
@@ -96,33 +96,52 @@
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
                           GridLinesVisibility="Horizontal"
-                          HorizontalGridLinesBrush="#F1F5F9"
+                          HorizontalGridLinesBrush="{StaticResource NeutralSurface}"
                           BorderThickness="0">
                     <DataGrid.Columns>
                         <!-- Repo Path -->
                         <DataGridTextColumn Header="로컬 저장소 경로"
-                                            Binding="{Binding Repo.AbsPath}"
-                                            Width="220" />
+                                            Binding="{Binding Repo.AbsPath, Converter={StaticResource FrontEllipsis}, ConverterParameter=32}"
+                                            Width="220">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                    <Setter Property="ToolTip" Value="{Binding Repo.AbsPath}" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
 
                         <!-- Current URL -->
                         <DataGridTextColumn Header="변경 전 URL"
                                             Binding="{Binding CurrentUrl}"
-                                            Width="*" />
+                                            Width="*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
 
                         <!-- New URL -->
                         <DataGridTextColumn Header="변경 후 URL (Dry-run)"
                                             Binding="{Binding NewUrl}"
-                                            Width="*" />
+                                            Width="*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
 
                         <!-- Status / Skip Reason -->
                         <DataGridTemplateColumn Header="상태" Width="130">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Text="✅ 치환 대상" Foreground="#16A34A" FontWeight="Bold" FontSize="11"
+                                        <TextBlock Text="✅ 치환 대상" Foreground="{StaticResource SuccessForeground}" FontWeight="Bold" FontSize="{StaticResource FontSizeSecondary}"
                                                    Visibility="{Binding IsEligible, Converter={StaticResource BoolToVis}}" />
-                                        <TextBlock Text="{Binding SkipReason, StringFormat='스킵: {0}'}" Foreground="#94A3B8" FontSize="10"
-                                                   Visibility="{Binding IsEligible, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                                        <TextBlock Text="{Binding SkipReason, StringFormat='스킵: {0}'}" Foreground="{StaticResource NeutralForegroundMuted}" FontSize="{StaticResource FontSizeCaption}"
+                                                   Visibility="{Binding IsEligible, Converter={StaticResource InvertedBoolToVis}}" />
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -140,31 +159,31 @@
                            Text="{Binding SampleValidationStatus}"
                            Foreground="{Binding SampleValidationColor}"
                            FontWeight="SemiBold"
-                           FontSize="11" />
+                           FontSize="{StaticResource FontSizeSecondary}" />
             </StackPanel>
 
+            <!-- 위험 동작(일괄 치환 실행)이므로 기본 버튼은 취소 쪽 (§5-1) -->
             <Button DockPanel.Dock="Right"
                     x:Name="BtnExecuteHostReplace"
                     AutomationProperties.AutomationId="BtnExecuteHostReplace"
                     Content="일괄 치환 실행"
                     Click="BtnExecute_Click"
                     IsEnabled="{Binding IsPreviewGenerated}"
-                    Padding="16,6"
-                    Background="#2563EB"
-                    Foreground="White"
-                    BorderBrush="#1D4ED8"
-                    FontWeight="Bold"
-                    Cursor="Hand" />
+                    Padding="16,8"
+                    Style="{StaticResource DangerButtonStyle}"
+                    ToolTipService.ShowOnDisabled="True"
+                    ToolTip="먼저 [미리보기 (Dry-run)]으로 대상을 확인해야 활성화됩니다." />
 
             <Button DockPanel.Dock="Right"
                     x:Name="BtnCancelHostReplace"
                     AutomationProperties.AutomationId="BtnCancelHostReplace"
                     Content="취소"
                     Click="BtnCancel_Click"
-                    Padding="14,6"
+                    IsCancel="True"
+                    IsDefault="True"
+                    Padding="16,8"
                     Margin="0,0,8,0"
-                    Background="#F1F5F9"
-                    BorderBrush="#CBD5E1" />
+                    Style="{StaticResource SecondaryButtonStyle}" />
         </DockPanel>
     </Grid>
 </Window>

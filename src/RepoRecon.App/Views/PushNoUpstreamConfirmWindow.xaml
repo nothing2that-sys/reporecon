@@ -8,7 +8,9 @@
         Height="310" Width="540"
         WindowStartupLocation="CenterOwner"
         AutomationProperties.AutomationId="DialogPushNoUpstreamConfirm"
-        Background="#F8FAFC">
+        Background="{StaticResource NeutralSurface}"
+        FontFamily="{StaticResource FontFamilyDefault}"
+        Foreground="{StaticResource NeutralForeground}">
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -19,22 +21,22 @@
 
         <!-- Notice Header -->
         <Border Grid.Row="0"
-                Background="#EFF6FF"
-                BorderBrush="#BFDBFE"
+                Background="{StaticResource InfoBackground}"
+                BorderBrush="{StaticResource InfoBorder}"
                 BorderThickness="1"
                 CornerRadius="6"
                 Padding="12"
                 Margin="0,0,0,12">
             <StackPanel Orientation="Vertical">
-                <TextBlock Text="🚀 원격 추적 브랜치 생성 및 푸시 (git push -u)" FontWeight="Bold" FontSize="13" Foreground="#1E40AF" />
-                <TextBlock Text="로컬 체크아웃 브랜치를 원격 서버(origin)에 새 브랜치로 생성하고 업스트림을 연결합니다." FontSize="11" Foreground="#1E3A8A" Margin="0,3,0,0" TextWrapping="Wrap" />
+                <TextBlock Text="🚀 원격 추적 브랜치 생성 및 푸시 (git push -u)" FontWeight="Bold" FontSize="{StaticResource FontSizeSubtitle}" Foreground="{StaticResource InfoForeground}" />
+                <TextBlock Text="로컬 체크아웃 브랜치를 원격 서버(origin)에 새 브랜치로 생성하고 업스트림을 연결합니다." FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource InfoForeground}" Margin="0,4,0,0" TextWrapping="Wrap" />
             </StackPanel>
         </Border>
 
         <!-- Details -->
         <Border Grid.Row="1"
-                Background="White"
-                BorderBrush="#E2E8F0"
+                Background="{StaticResource NeutralBackground}"
+                BorderBrush="{StaticResource NeutralBorder}"
                 BorderThickness="1"
                 CornerRadius="6"
                 Padding="12">
@@ -45,7 +47,7 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="대상 저장소:" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="1" x:Name="TxtTargetPath" AutomationProperties.AutomationId="TxtPushNoUpstreamTargetPath" TextTrimming="CharacterEllipsis" Foreground="#1E293B" />
+                    <TextBlock Grid.Column="1" x:Name="TxtTargetPath" AutomationProperties.AutomationId="TxtPushNoUpstreamTargetPath" FontFamily="{StaticResource FontFamilyMono}" Foreground="{StaticResource NeutralForeground}" />
                 </Grid>
 
                 <Grid Margin="0,0,0,8">
@@ -54,7 +56,7 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="서버에 생성될 브랜치:" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="1" x:Name="TxtRemoteBranch" AutomationProperties.AutomationId="TxtPushNoUpstreamBranch" FontWeight="Bold" Foreground="#16A34A" />
+                    <TextBlock Grid.Column="1" x:Name="TxtRemoteBranch" AutomationProperties.AutomationId="TxtPushNoUpstreamBranch" FontFamily="{StaticResource FontFamilyMono}" FontWeight="Bold" Foreground="{StaticResource SuccessForeground}" />
                 </Grid>
             </StackPanel>
         </Border>
@@ -66,22 +68,19 @@
                     AutomationProperties.AutomationId="BtnConfirmPushNoUpstream"
                     Content="Push 및 업스트림 설정"
                     Click="BtnConfirm_Click"
-                    Padding="16,6"
-                    Background="#2563EB"
-                    Foreground="White"
-                    BorderBrush="#1D4ED8"
-                    FontWeight="Bold"
-                    Cursor="Hand" />
+                    IsDefault="True"
+                    Padding="16,8"
+                    Style="{StaticResource AccentButtonStyle}" />
 
             <Button DockPanel.Dock="Right"
                     x:Name="BtnCancelPushNoUpstream"
                     AutomationProperties.AutomationId="BtnCancelPushNoUpstream"
                     Content="취소"
                     Click="BtnCancel_Click"
-                    Padding="14,6"
+                    IsCancel="True"
+                    Padding="16,8"
                     Margin="0,0,8,0"
-                    Background="#F1F5F9"
-                    BorderBrush="#CBD5E1" />
+                    Style="{StaticResource SecondaryButtonStyle}" />
         </DockPanel>
     </Grid>
 </Window>

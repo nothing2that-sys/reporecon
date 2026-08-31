@@ -137,6 +137,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public bool HasNoRepos => TotalRepoCount == 0;
 
+    // §5-4 빈 상태 3종 중 "필터 결과 0건"
+    [ObservableProperty]
+    private bool _hasNoFilterResults;
+
     [ObservableProperty]
     private bool _hasInaccessiblePaths;
 
@@ -227,13 +231,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private string _pullHeaderTitle = "🚀 일괄 Pull 실행 진행 상황";
 
     [ObservableProperty]
-    private string _pullHeaderColor = "#0F172A";
+    private string _pullHeaderColor = AppColors.Neutral;
 
     [ObservableProperty]
-    private string _pullPanelBorderBrush = "#CBD5E1";
+    private string _pullPanelBorderBrush = AppColors.NeutralBorder;
 
     [ObservableProperty]
-    private string _pullPanelBackground = "#F8FAFC";
+    private string _pullPanelBackground = AppColors.NeutralSurface;
 
     [ObservableProperty]
     private int _pullProgressPercent;
@@ -267,13 +271,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private string _pushHeaderTitle = "🚀 일괄 Push 실행 진행 상황";
 
     [ObservableProperty]
-    private string _pushHeaderColor = "#1E3A8A";
+    private string _pushHeaderColor = AppColors.Info;
 
     [ObservableProperty]
-    private string _pushPanelBorderBrush = "#BFDBFE";
+    private string _pushPanelBorderBrush = AppColors.InfoBorder;
 
     [ObservableProperty]
-    private string _pushPanelBackground = "#F8FAFC";
+    private string _pushPanelBackground = AppColors.NeutralSurface;
 
     [ObservableProperty]
     private int _pushProgressPercent;
@@ -520,6 +524,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
             root.ApplyFilter(Predicate);
         }
 
+        var isAnyFilterActive = hasSearch || !isAllHosts || FilterBehindOnly || FilterAheadOnly ||
+                                 FilterDivergedOnly || FilterDirtyOnly || FilterConflictedOnly;
+        var visibleCount = _repoViewModelMap.Values.Count(r => r.IsVisible);
+        HasNoFilterResults = isAnyFilterActive && TotalRepoCount > 0 && visibleCount == 0;
+
         UpdateExecutionCounts();
 
         // Boost priority for visible repos in the fetch queue (§4.1)
@@ -528,6 +537,19 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             BoostVisibleRepoPriority(visibleIds);
         }
+    }
+
+    // §5-4: "필터 결과 0건" 빈 상태의 진입점("필터 해제" 버튼)
+    [RelayCommand]
+    public void ClearFilters()
+    {
+        FilterText = string.Empty;
+        FilterBehindOnly = false;
+        FilterAheadOnly = false;
+        FilterDivergedOnly = false;
+        FilterDirtyOnly = false;
+        FilterConflictedOnly = false;
+        SelectedHostFilter = "전체 호스트";
     }
 
     [RelayCommand]
@@ -1243,9 +1265,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         HasPullReport = false;
         PullProgressPercent = 0;
         PullHeaderTitle = "🚀 일괄 Pull 실행 진행 중...";
-        PullHeaderColor = "#0F172A";
-        PullPanelBorderBrush = "#CBD5E1";
-        PullPanelBackground = "#F8FAFC";
+        PullHeaderColor = AppColors.Neutral;
+        PullPanelBorderBrush = AppColors.NeutralBorder;
+        PullPanelBackground = AppColors.NeutralSurface;
         PullProgressText = $"일괄 Pull 시작 중 (총 {targets.Count}개)...";
 
         PullExecutionItems.Clear();
@@ -1285,23 +1307,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
             if (report.FailedCount > 0)
             {
                 PullHeaderTitle = $"⚠️ 일괄 Pull 완료 (실패 {report.FailedCount}건 발생)";
-                PullHeaderColor = "#DC2626";
-                PullPanelBorderBrush = "#FCA5A5";
-                PullPanelBackground = "#FEF2F2";
+                PullHeaderColor = AppColors.Error;
+                PullPanelBorderBrush = AppColors.ErrorBorder;
+                PullPanelBackground = AppColors.ErrorBackground;
             }
             else if (report.SkippedCount > 0)
             {
                 PullHeaderTitle = $"⚠️ 일괄 Pull 완료 (스킵 {report.SkippedCount}건 발생)";
-                PullHeaderColor = "#D97706";
-                PullPanelBorderBrush = "#FCD34D";
-                PullPanelBackground = "#FFFBEB";
+                PullHeaderColor = AppColors.Warning;
+                PullPanelBorderBrush = AppColors.WarningBorder;
+                PullPanelBackground = AppColors.WarningBackground;
             }
             else
             {
                 PullHeaderTitle = "✅ 일괄 Pull 완료 (모든 대상 성공)";
-                PullHeaderColor = "#16A34A";
-                PullPanelBorderBrush = "#86EFAC";
-                PullPanelBackground = "#F0FDF4";
+                PullHeaderColor = AppColors.Success;
+                PullPanelBorderBrush = AppColors.SuccessBorder;
+                PullPanelBackground = AppColors.SuccessBackground;
             }
 
             // Update items with final results
@@ -1327,9 +1349,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             IsPullCompleted = true;
             PullHeaderTitle = "🛑 일괄 Pull 취소됨";
-            PullHeaderColor = "#991B1B";
-            PullPanelBorderBrush = "#FCA5A5";
-            PullPanelBackground = "#FEF2F2";
+            PullHeaderColor = AppColors.Error;
+            PullPanelBorderBrush = AppColors.ErrorBorder;
+            PullPanelBackground = AppColors.ErrorBackground;
             PullProgressText = "일괄 Pull 작업이 사용자에 의해 취소되었습니다.";
             PullReportSummary = PullProgressText;
             HasPullReport = true;
@@ -1339,9 +1361,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             IsPullCompleted = true;
             PullHeaderTitle = "🚨 일괄 Pull 중 오류 발생";
-            PullHeaderColor = "#DC2626";
-            PullPanelBorderBrush = "#FCA5A5";
-            PullPanelBackground = "#FEF2F2";
+            PullHeaderColor = AppColors.Error;
+            PullPanelBorderBrush = AppColors.ErrorBorder;
+            PullPanelBackground = AppColors.ErrorBackground;
             _logger.LogError(ex, "일괄 Pull 실행 중 예외 발생");
             PullProgressText = $"일괄 Pull 중 오류 발생: {ex.Message}";
             PullReportSummary = PullProgressText;
@@ -1488,9 +1510,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         HasPushReport = false;
         PushProgressPercent = 0;
         PushHeaderTitle = "🚀 일괄 Push 실행 진행 중...";
-        PushHeaderColor = "#1E3A8A";
-        PushPanelBorderBrush = "#BFDBFE";
-        PushPanelBackground = "#F8FAFC";
+        PushHeaderColor = AppColors.Info;
+        PushPanelBorderBrush = AppColors.InfoBorder;
+        PushPanelBackground = AppColors.NeutralSurface;
         PushProgressText = $"일괄 Push 시작 중 (총 {previewItems.Count}개)...";
 
         PushExecutionItems.Clear();
@@ -1532,23 +1554,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
             if (report.FailedCount > 0)
             {
                 PushHeaderTitle = $"⚠️ 일괄 Push 완료 (실패 {report.FailedCount}건 발생)";
-                PushHeaderColor = "#DC2626";
-                PushPanelBorderBrush = "#FCA5A5";
-                PushPanelBackground = "#FEF2F2";
+                PushHeaderColor = AppColors.Error;
+                PushPanelBorderBrush = AppColors.ErrorBorder;
+                PushPanelBackground = AppColors.ErrorBackground;
             }
             else if (report.SkippedCount > 0)
             {
                 PushHeaderTitle = $"⚠️ 일괄 Push 완료 (스킵 {report.SkippedCount}건 발생)";
-                PushHeaderColor = "#D97706";
-                PushPanelBorderBrush = "#FCD34D";
-                PushPanelBackground = "#FFFBEB";
+                PushHeaderColor = AppColors.Warning;
+                PushPanelBorderBrush = AppColors.WarningBorder;
+                PushPanelBackground = AppColors.WarningBackground;
             }
             else
             {
                 PushHeaderTitle = "✅ 일괄 Push 완료 (모든 대상 성공)";
-                PushHeaderColor = "#16A34A";
-                PushPanelBorderBrush = "#86EFAC";
-                PushPanelBackground = "#F0FDF4";
+                PushHeaderColor = AppColors.Success;
+                PushPanelBorderBrush = AppColors.SuccessBorder;
+                PushPanelBackground = AppColors.SuccessBackground;
             }
 
             var previewEligibleMap = previewItems.ToDictionary(p => p.RepoId, p => p.IsEligible);
@@ -1588,9 +1610,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             IsPushCompleted = true;
             PushHeaderTitle = "🛑 일괄 Push 취소됨";
-            PushHeaderColor = "#991B1B";
-            PushPanelBorderBrush = "#FCA5A5";
-            PushPanelBackground = "#FEF2F2";
+            PushHeaderColor = AppColors.Error;
+            PushPanelBorderBrush = AppColors.ErrorBorder;
+            PushPanelBackground = AppColors.ErrorBackground;
             PushProgressText = "일괄 Push 작업이 사용자에 의해 취소되었습니다.";
             PushReportSummary = PushProgressText;
             HasPushReport = true;
@@ -1600,9 +1622,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             IsPushCompleted = true;
             PushHeaderTitle = "🚨 일괄 Push 중 오류 발생";
-            PushHeaderColor = "#DC2626";
-            PushPanelBorderBrush = "#FCA5A5";
-            PushPanelBackground = "#FEF2F2";
+            PushHeaderColor = AppColors.Error;
+            PushPanelBorderBrush = AppColors.ErrorBorder;
+            PushPanelBackground = AppColors.ErrorBackground;
             _logger.LogError(ex, "일괄 Push 실행 중 예외 발생");
             PushProgressText = $"일괄 Push 중 오류 발생: {ex.Message}";
             PushReportSummary = PushProgressText;
@@ -2096,18 +2118,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
             await _exportService.ExportToFileAsync(exportItems, dialog.FileName, isMarkdown);
             StatusMessage = $"상태 리포트가 저장되었습니다: {dialog.FileName}";
         }
-    }
-
-    [RelayCommand]
-    public void ClosePullPanel()
-    {
-        IsPullPanelVisible = false;
-    }
-
-    [RelayCommand]
-    public void ClosePushPanel()
-    {
-        IsPushPanelVisible = false;
     }
 
     private static string FormatDuration(TimeSpan duration)

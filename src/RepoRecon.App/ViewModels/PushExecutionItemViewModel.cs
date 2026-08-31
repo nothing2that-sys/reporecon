@@ -44,13 +44,13 @@ public partial class PushExecutionItemViewModel : ObservableObject
 
     public string StatusBadgeColor => Status switch
     {
-        PushItemUiStatus.Pending => "#94A3B8",
-        PushItemUiStatus.Running => "#2563EB",
-        PushItemUiStatus.Success => "#10B981",
-        PushItemUiStatus.Failed => "#EF4444",
-        PushItemUiStatus.Skipped => "#F59E0B",
-        PushItemUiStatus.Canceled => "#64748B",
-        _ => "#94A3B8"
+        PushItemUiStatus.Pending => AppColors.NeutralMuted,
+        PushItemUiStatus.Running => AppColors.Info,
+        PushItemUiStatus.Success => AppColors.Success,
+        PushItemUiStatus.Failed => AppColors.Error,
+        PushItemUiStatus.Skipped => AppColors.Warning,
+        PushItemUiStatus.Canceled => AppColors.NeutralMuted,
+        _ => AppColors.NeutralMuted
     };
 
     public PushExecutionItemViewModel(long repoId, string absPath, PushItemUiStatus initialStatus, string? detail = null, string? dirtyWarning = null)

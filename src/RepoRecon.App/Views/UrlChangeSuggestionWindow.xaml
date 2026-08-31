@@ -8,7 +8,9 @@
         Height="360" Width="600"
         WindowStartupLocation="CenterOwner"
         AutomationProperties.AutomationId="DialogUrlChangeSuggestion"
-        Background="#F8FAFC">
+        Background="{StaticResource NeutralSurface}"
+        FontFamily="{StaticResource FontFamilyDefault}"
+        Foreground="{StaticResource NeutralForeground}">
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -19,22 +21,22 @@
 
         <!-- Header -->
         <Border Grid.Row="0"
-                Background="#EFF6FF"
-                BorderBrush="#BFDBFE"
+                Background="{StaticResource InfoBackground}"
+                BorderBrush="{StaticResource InfoBorder}"
                 BorderThickness="1"
                 CornerRadius="6"
                 Padding="12"
                 Margin="0,0,0,12">
             <StackPanel Orientation="Vertical">
-                <TextBlock Text="🔄 URL 변경 감지 — 새 주소로 갱신 제안 (§3.5, §10.7)" FontWeight="Bold" FontSize="13" Foreground="#1E40AF" />
-                <TextBlock Text="Orphaned 저장소의 네임스페이스 및 프로젝트가 다른 서버 카탈로그에서 발견되었습니다. 새 서버 주소로 Remote URL을 갱신하시겠습니까?" FontSize="11" Foreground="#1E3A8A" Margin="0,3,0,0" TextWrapping="Wrap" />
+                <TextBlock Text="🔄 URL 변경 감지 — 새 주소로 갱신 제안 (§3.5, §10.7)" FontWeight="Bold" FontSize="{StaticResource FontSizeSubtitle}" Foreground="{StaticResource InfoForeground}" />
+                <TextBlock Text="Orphaned 저장소의 네임스페이스 및 프로젝트가 다른 서버 카탈로그에서 발견되었습니다. 새 서버 주소로 Remote URL을 갱신하시겠습니까?" FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource InfoForeground}" Margin="0,4,0,0" TextWrapping="Wrap" />
             </StackPanel>
         </Border>
 
         <!-- Details showing both old and new URLs (Criterion 16) -->
         <Border Grid.Row="1"
-                Background="White"
-                BorderBrush="#E2E8F0"
+                Background="{StaticResource NeutralBackground}"
+                BorderBrush="{StaticResource NeutralBorder}"
                 BorderThickness="1"
                 CornerRadius="6"
                 Padding="12">
@@ -45,7 +47,7 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="대상 저장소:" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="1" x:Name="TxtTargetPath" AutomationProperties.AutomationId="TxtUrlChangeTargetPath" TextTrimming="CharacterEllipsis" Foreground="#1E293B" />
+                    <TextBlock Grid.Column="1" x:Name="TxtTargetPath" AutomationProperties.AutomationId="TxtUrlChangeTargetPath" FontFamily="{StaticResource FontFamilyMono}" Foreground="{StaticResource NeutralForeground}" />
                 </Grid>
 
                 <Grid Margin="0,0,0,8">
@@ -54,7 +56,7 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="현재 이전 URL:" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="1" x:Name="TxtOldUrl" AutomationProperties.AutomationId="TxtUrlChangeOldUrl" Foreground="#DC2626" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="1" x:Name="TxtOldUrl" AutomationProperties.AutomationId="TxtUrlChangeOldUrl" FontFamily="{StaticResource FontFamilyMono}" Foreground="{StaticResource ErrorForeground}" TextWrapping="Wrap" />
                 </Grid>
 
                 <Grid Margin="0,0,0,8">
@@ -63,7 +65,7 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="감지된 새 URL:" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="1" x:Name="TxtNewUrl" AutomationProperties.AutomationId="TxtUrlChangeNewUrl" FontWeight="Bold" Foreground="#16A34A" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="1" x:Name="TxtNewUrl" AutomationProperties.AutomationId="TxtUrlChangeNewUrl" FontFamily="{StaticResource FontFamilyMono}" FontWeight="Bold" Foreground="{StaticResource SuccessForeground}" TextWrapping="Wrap" />
                 </Grid>
             </StackPanel>
         </Border>
@@ -75,22 +77,19 @@
                     AutomationProperties.AutomationId="BtnConfirmUrlChange"
                     Content="새 주소로 갱신"
                     Click="BtnConfirm_Click"
-                    Padding="16,6"
-                    Background="#2563EB"
-                    Foreground="White"
-                    BorderBrush="#1D4ED8"
-                    FontWeight="Bold"
-                    Cursor="Hand" />
+                    IsDefault="True"
+                    Padding="16,8"
+                    Style="{StaticResource AccentButtonStyle}" />
 
             <Button DockPanel.Dock="Right"
                     x:Name="BtnCancelUrlChange"
                     AutomationProperties.AutomationId="BtnCancelUrlChange"
                     Content="취소"
                     Click="BtnCancel_Click"
-                    Padding="14,6"
+                    IsCancel="True"
+                    Padding="16,8"
                     Margin="0,0,8,0"
-                    Background="#F1F5F9"
-                    BorderBrush="#CBD5E1" />
+                    Style="{StaticResource SecondaryButtonStyle}" />
         </DockPanel>
     </Grid>
 </Window>

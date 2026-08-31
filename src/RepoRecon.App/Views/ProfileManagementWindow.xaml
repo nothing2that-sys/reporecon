@@ -9,11 +9,9 @@
         Height="550" Width="750"
         WindowStartupLocation="CenterOwner"
         AutomationProperties.AutomationId="DialogProfileManagement"
-        Background="#F8FAFC">
-
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
-    </Window.Resources>
+        Background="{StaticResource NeutralSurface}"
+        FontFamily="{StaticResource FontFamilyDefault}"
+        Foreground="{StaticResource NeutralForeground}">
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -24,8 +22,8 @@
 
         <!-- Header Notice Banner -->
         <Border Grid.Row="0"
-                Background="#EFF6FF"
-                BorderBrush="#BFDBFE"
+                Background="{StaticResource InfoBackground}"
+                BorderBrush="{StaticResource InfoBorder}"
                 BorderThickness="1"
                 CornerRadius="6"
                 Padding="12"
@@ -33,19 +31,19 @@
             <StackPanel Orientation="Vertical">
                 <TextBlock Text="🔒 보안 및 포터블 모드 안내 (설계 §9.3)"
                            FontWeight="Bold"
-                           Foreground="#1E40AF" />
+                           Foreground="{StaticResource InfoForeground}" />
                 <TextBlock x:Name="TxtDpapiSecurityNotice"
                            AutomationProperties.AutomationId="TxtDpapiSecurityNotice"
                            Text="API 토큰은 Windows DPAPI(CurrentUser)로 암호화되어 로컬 계정 범위로만 안전하게 보관됩니다. DB/설정/로그/URL 어디에도 평문으로 저장되지 않습니다."
-                           FontSize="12"
-                           Foreground="#1E40AF"
-                           Margin="0,3,0,0" />
+                           FontSize="{StaticResource FontSizeBody}"
+                           Foreground="{StaticResource InfoForeground}"
+                           Margin="0,4,0,0" />
                 <TextBlock x:Name="TxtDpapiPortableNotice"
                            AutomationProperties.AutomationId="TxtDpapiPortableNotice"
                            Text="※ 포터블 모드 제약: 토큰 파일(credentials/*.dat)이 exe 옆에 위치하더라도 현재 Windows 사용자 계정으로 암호화되므로, 다른 PC로 이동 시 복호화되지 않아 토큰을 다시 입력해야 합니다."
-                           FontSize="11"
+                           FontSize="{StaticResource FontSizeSecondary}"
                            FontWeight="SemiBold"
-                           Foreground="#B45309"
+                           Foreground="{StaticResource WarningForeground}"
                            Margin="0,4,0,0" />
             </StackPanel>
         </Border>
@@ -54,14 +52,14 @@
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="260" />
-                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="16" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <!-- Left: Profile List -->
             <Border Grid.Column="0"
-                    Background="White"
-                    BorderBrush="#E2E8F0"
+                    Background="{StaticResource NeutralBackground}"
+                    BorderBrush="{StaticResource NeutralBorder}"
                     BorderThickness="1"
                     CornerRadius="6"
                     Padding="8">
@@ -69,10 +67,10 @@
                     <Button DockPanel.Dock="Bottom"
                             Content="+ 새 프로파일"
                             Margin="0,8,0,0"
-                            Padding="8,6"
+                            Padding="8,8"
                             FontWeight="SemiBold"
-                            Background="#F1F5F9"
-                            BorderBrush="#CBD5E1"
+                            Background="{StaticResource NeutralSurface}"
+                            BorderBrush="{StaticResource NeutralBorder}"
                             AutomationProperties.AutomationId="BtnNewProfile"
                             Command="{Binding ResetFormCommand}" />
 
@@ -83,14 +81,14 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border Padding="6,4" Margin="0,2">
+                                <Border Padding="8,4" Margin="0,4">
                                     <StackPanel Orientation="Vertical">
-                                        <TextBlock Text="{Binding Host}" FontWeight="Bold" Foreground="#0F172A" />
-                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                            <Border Background="#E0E7FF" CornerRadius="3" Padding="4,1" Margin="0,0,4,0">
-                                                <TextBlock Text="{Binding ApiKind}" FontSize="10" FontWeight="SemiBold" Foreground="#3730A3" />
+                                        <TextBlock Text="{Binding Host}" FontWeight="Bold" Foreground="{StaticResource NeutralForeground}" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                            <Border Background="{StaticResource InfoBackground}" CornerRadius="3" Padding="4,4" Margin="0,0,4,0">
+                                                <TextBlock Text="{Binding ApiKind}" FontSize="{StaticResource FontSizeCaption}" FontWeight="SemiBold" Foreground="{StaticResource InfoForeground}" />
                                             </Border>
-                                            <TextBlock Text="{Binding ApiVersion, StringFormat='({0})'}" FontSize="10" Foreground="#64748B" />
+                                            <TextBlock Text="{Binding ApiVersion, StringFormat='({0})'}" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource NeutralForegroundMuted}" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>
@@ -102,86 +100,92 @@
 
             <!-- Right: Edit Form -->
             <Border Grid.Column="2"
-                    Background="White"
-                    BorderBrush="#E2E8F0"
+                    Background="{StaticResource NeutralBackground}"
+                    BorderBrush="{StaticResource NeutralBorder}"
                     BorderThickness="1"
                     CornerRadius="6"
                     Padding="16">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Orientation="Vertical">
-                        <TextBlock Text="프로파일 설정" FontSize="16" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,12" />
+                        <TextBlock Text="프로파일 설정" FontSize="{StaticResource FontSizeTitle}" FontWeight="Bold" Foreground="{StaticResource NeutralForeground}" Margin="0,0,0,12" />
 
                         <!-- Host -->
-                        <TextBlock Text="호스트 주소 (예: github.com, gitlab.mycorp.test)" FontWeight="SemiBold" FontSize="12" Foreground="#334155" />
+                        <TextBlock Text="호스트 주소 (예: github.com, gitlab.mycorp.test)" FontWeight="SemiBold" FontSize="{StaticResource FontSizeBody}" Foreground="{StaticResource NeutralForeground}" />
                         <TextBox Text="{Binding EditHost, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,4,0,10" Padding="6,4"
-                                 AutomationProperties.AutomationId="TxtProfileHost" />
+                                 Margin="0,4,0,12" Padding="8,4"
+                                 TabIndex="0"
+                                 AutomationProperties.AutomationId="TxtProfileHost"
+                                 x:Name="TxtProfileHost" />
 
                         <!-- API Kind -->
-                        <TextBlock Text="서버 API 종류" FontWeight="SemiBold" FontSize="12" Foreground="#334155" />
+                        <TextBlock Text="서버 API 종류" FontWeight="SemiBold" FontSize="{StaticResource FontSizeBody}" Foreground="{StaticResource NeutralForeground}" />
                         <ComboBox ItemsSource="{Binding AvailableApiKinds}"
                                   SelectedItem="{Binding EditApiKind}"
-                                  Margin="0,4,0,10" Padding="6,4"
+                                  Margin="0,4,0,12" Padding="8,4"
+                                  TabIndex="1"
                                   AutomationProperties.AutomationId="CmbProfileApiKind" />
 
                         <!-- Aliases -->
-                        <TextBlock Text="호스트 별칭 목록 (쉼표 구분, 예: 192.0.2.11, gitlab.internal)" FontWeight="SemiBold" FontSize="12" Foreground="#334155" />
+                        <TextBlock Text="호스트 별칭 목록 (쉼표 구분, 예: 192.0.2.11, gitlab.internal)" FontWeight="SemiBold" FontSize="{StaticResource FontSizeBody}" Foreground="{StaticResource NeutralForeground}" />
                         <TextBox Text="{Binding EditAliases, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,4,0,10" Padding="6,4"
+                                 Margin="0,4,0,12" Padding="8,4"
+                                 TabIndex="2"
                                  AutomationProperties.AutomationId="TxtProfileAliases" />
 
                         <!-- Token -->
-                        <TextBlock Text="API 액세스 토큰" FontWeight="SemiBold" FontSize="12" Foreground="#334155" />
+                        <TextBlock Text="API 액세스 토큰" FontWeight="SemiBold" FontSize="{StaticResource FontSizeBody}" Foreground="{StaticResource NeutralForeground}" />
                         <PasswordBox x:Name="PbToken"
                                      PasswordChanged="PbToken_PasswordChanged"
-                                     Margin="0,4,0,4" Padding="6,4"
+                                     Margin="0,4,0,4" Padding="8,4"
+                                     TabIndex="3"
                                      AutomationProperties.AutomationId="PbProfileToken" />
                         <TextBlock Text="{Binding TokenStatusText}"
-                                   FontSize="11" Foreground="#64748B" Margin="0,0,0,12"
+                                   FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource NeutralForegroundMuted}" Margin="0,0,0,12"
                                    AutomationProperties.AutomationId="TxtTokenStatus" />
 
                         <!-- Test Connection Button & Result -->
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                             <Button Content="연결 테스트"
-                                    Padding="10,5"
+                                    Padding="12,4"
                                     FontWeight="SemiBold"
-                                    Background="#F1F5F9"
-                                    BorderBrush="#CBD5E1"
+                                    Background="{StaticResource NeutralSurface}"
+                                    BorderBrush="{StaticResource NeutralBorder}"
+                                    TabIndex="4"
                                     AutomationProperties.AutomationId="BtnTestConnection"
                                     Command="{Binding TestConnectionCommand}" />
                             <TextBlock Text="{Binding TestResultMessage}"
                                        VerticalAlignment="Center"
-                                       Margin="10,0,0,0"
+                                       Margin="12,0,0,0"
                                        FontWeight="SemiBold"
-                                       FontSize="12"
+                                       FontSize="{StaticResource FontSizeBody}"
                                        AutomationProperties.AutomationId="TxtTestResult" />
                         </StackPanel>
 
                         <!-- Action Buttons: Save & Delete -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
                             <Button Content="닫기"
+                                    x:Name="BtnCloseProfileManagement"
                                     Margin="0,0,8,0"
-                                    Padding="12,6"
-                                    Background="#F1F5F9"
-                                    BorderBrush="#CBD5E1"
+                                    Padding="12,8"
+                                    Background="{StaticResource NeutralSurface}"
+                                    BorderBrush="{StaticResource NeutralBorder}"
                                     FontWeight="SemiBold"
+                                    IsCancel="True"
+                                    TabIndex="5"
                                     AutomationProperties.AutomationId="BtnCloseProfileManagement"
                                     Click="BtnClose_Click" />
                             <Button Content="삭제"
                                     Margin="0,0,8,0"
-                                    Padding="12,6"
-                                    Background="#FEE2E2"
-                                    BorderBrush="#FCA5A5"
-                                    Foreground="#991B1B"
-                                    FontWeight="SemiBold"
+                                    Padding="12,8"
+                                    Style="{StaticResource DangerButtonStyle}"
+                                    TabIndex="6"
                                     AutomationProperties.AutomationId="BtnDeleteProfile"
                                     Command="{Binding DeleteProfileCommand}" />
                             <Button Content="저장"
-                                    Padding="16,6"
-                                    Background="#2563EB"
-                                    BorderBrush="#1D4ED8"
-                                    Foreground="White"
-                                    FontWeight="Bold"
+                                    Padding="16,8"
+                                    Style="{StaticResource AccentButtonStyle}"
+                                    IsDefault="True"
+                                    TabIndex="7"
                                     AutomationProperties.AutomationId="BtnSaveProfile"
                                     Command="{Binding SaveProfileCommand}" />
                         </StackPanel>
@@ -193,8 +197,8 @@
         <!-- Status Message Footer -->
         <TextBlock Grid.Row="2"
                    Text="{Binding StatusMessage}"
-                   FontSize="12"
-                   Foreground="#475569"
+                   FontSize="{StaticResource FontSizeBody}"
+                   Foreground="{StaticResource NeutralForegroundMuted}"
                    Margin="0,8,0,0"
                    AutomationProperties.AutomationId="TxtProfileStatus" />
     </Grid>

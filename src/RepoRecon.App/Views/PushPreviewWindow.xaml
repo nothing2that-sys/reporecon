@@ -10,11 +10,9 @@
         Height="620" Width="920"
         MinHeight="480" MinWidth="700"
         WindowStartupLocation="CenterOwner"
-        Background="#F8FAFC">
-
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
-    </Window.Resources>
+        Background="{StaticResource NeutralSurface}"
+        FontFamily="{StaticResource FontFamilyDefault}"
+        Foreground="{StaticResource NeutralForeground}">
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -25,8 +23,8 @@
 
         <!-- Header -->
         <Border Grid.Row="0"
-                Background="White"
-                BorderBrush="#E2E8F0"
+                Background="{StaticResource NeutralBackground}"
+                BorderBrush="{StaticResource NeutralBorder}"
                 BorderThickness="1"
                 CornerRadius="6"
                 Padding="12"
@@ -34,44 +32,44 @@
             <StackPanel>
                 <TextBlock Text="🚀 일괄 Push 실행 전 미리보기 (실서버 Dry-Run 검증 완료)"
                            FontWeight="Bold"
-                           FontSize="16"
-                           Foreground="#1E3A8A" />
+                           FontSize="{StaticResource FontSizeTitle}"
+                           Foreground="{StaticResource NeutralForeground}" />
                 <TextBlock Text="현재 체크아웃된 브랜치의 커밋을 원격 서버로 전송합니다. 서버 dry-run을 통해 거부 여부를 사전에 검증했습니다."
-                           Foreground="#64748B"
+                           Foreground="{StaticResource NeutralForegroundMuted}"
                            Margin="0,4,0,8" />
 
                 <!-- Summary Bar -->
-                <Border Background="#EFF6FF"
-                        BorderBrush="#BFDBFE"
+                <Border Background="{StaticResource InfoBackground}"
+                        BorderBrush="{StaticResource InfoBorder}"
                         BorderThickness="1"
                         CornerRadius="4"
-                        Padding="8,6">
+                        Padding="8">
                     <TextBlock x:Name="TxtPushPreviewSummary"
                                AutomationProperties.AutomationId="TxtPushPreviewSummary"
                                Text="{Binding SummaryText}"
                                FontWeight="SemiBold"
-                               Foreground="#1D4ED8" />
+                               Foreground="{StaticResource InfoForeground}" />
                 </Border>
 
                 <!-- Dirty Items Warning Banner (§3.3) -->
-                <Border Background="#FEF3C7"
-                        BorderBrush="#FDE68A"
+                <Border Background="{StaticResource WarningBackground}"
+                        BorderBrush="{StaticResource WarningBorder}"
                         BorderThickness="1"
                         CornerRadius="4"
-                        Padding="8,6"
-                        Margin="0,6,0,0"
+                        Padding="8"
+                        Margin="0,8,0,0"
                         Visibility="{Binding HasDirtyItems, Converter={StaticResource BoolToVis}}">
                     <TextBlock x:Name="TxtDirtyWarningNotice"
                                AutomationProperties.AutomationId="TxtDirtyWarningNotice"
                                Text="{Binding DirtyNoticeText}"
                                FontWeight="SemiBold"
-                               Foreground="#B45309" />
+                               Foreground="{StaticResource WarningForeground}" />
                 </Border>
             </StackPanel>
         </Border>
 
         <!-- Lists (TabControl) -->
-        <TabControl Grid.Row="1" Background="White" BorderBrush="#E2E8F0" Margin="0,0,0,12">
+        <TabControl Grid.Row="1" Background="{StaticResource NeutralBackground}" BorderBrush="{StaticResource NeutralBorder}" Margin="0,0,0,12">
             <!-- Eligible Tab -->
             <TabItem Header="Push 실행 대상" AutomationProperties.AutomationId="TabEligibleRepos">
                 <Grid Margin="8">
@@ -81,16 +79,35 @@
                               IsReadOnly="True"
                               CanUserAddRows="False"
                               GridLinesVisibility="Horizontal"
-                              HorizontalGridLinesBrush="#F1F5F9"
+                              HorizontalGridLinesBrush="{StaticResource NeutralSurface}"
                               BorderThickness="0"
-                              Background="White">
+                              Background="{StaticResource NeutralBackground}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="로컬 경로" Binding="{Binding AbsPath}" Width="2*" />
-                            <DataGridTextColumn Header="브랜치 → Upstream" Binding="{Binding Branch, StringFormat='{}{0}'}" Width="150" />
+                            <DataGridTextColumn Header="로컬 경로" Binding="{Binding AbsPath, Converter={StaticResource FrontEllipsis}, ConverterParameter=40}" Width="2*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                        <Setter Property="ToolTip" Value="{Binding AbsPath}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="브랜치 → Upstream" Binding="{Binding Branch, StringFormat='{}{0}'}" Width="150">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="Ahead" Binding="{Binding Ahead, StringFormat='↑{0}'}" Width="70" />
                             <DataGridTextColumn Header="Dry-Run" Binding="{Binding DryRunStatus}" Width="80" />
-                            <DataGridTextColumn Header="미커밋 파일 제외" Binding="{Binding DirtyWarning}" Width="160" Foreground="#B45309" />
-                            <DataGridTextColumn Header="실행 명령" Binding="{Binding Command}" Width="2.5*" />
+                            <DataGridTextColumn Header="미커밋 파일 제외" Binding="{Binding DirtyWarning}" Width="160" Foreground="{StaticResource WarningForeground}" />
+                            <DataGridTextColumn Header="실행 명령" Binding="{Binding Command}" Width="2.5*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -105,14 +122,27 @@
                               IsReadOnly="True"
                               CanUserAddRows="False"
                               GridLinesVisibility="Horizontal"
-                              HorizontalGridLinesBrush="#F1F5F9"
+                              HorizontalGridLinesBrush="{StaticResource NeutralSurface}"
                               BorderThickness="0"
-                              Background="White">
+                              Background="{StaticResource NeutralBackground}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="로컬 경로" Binding="{Binding AbsPath}" Width="2*" />
-                            <DataGridTextColumn Header="스킵 사유" Binding="{Binding SkipReason}" Width="2.5*" Foreground="#DC2626" />
+                            <DataGridTextColumn Header="로컬 경로" Binding="{Binding AbsPath, Converter={StaticResource FrontEllipsis}, ConverterParameter=40}" Width="2*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                        <Setter Property="ToolTip" Value="{Binding AbsPath}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="스킵 사유" Binding="{Binding SkipReason}" Width="2.5*" Foreground="{StaticResource ErrorForeground}" />
                             <DataGridTextColumn Header="Dry-Run" Binding="{Binding DryRunStatus}" Width="80" />
-                            <DataGridTextColumn Header="현재 브랜치" Binding="{Binding Branch}" Width="120" />
+                            <DataGridTextColumn Header="현재 브랜치" Binding="{Binding Branch}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -123,28 +153,24 @@
         <DockPanel Grid.Row="2" LastChildFill="False">
             <TextBlock Text="※ Push 실행 시 원격 저장소에 즉시 커밋이 반영됩니다 (체크아웃 브랜치 한정, Force 차단)."
                        VerticalAlignment="Center"
-                       Foreground="#64748B"
-                       FontSize="11"
+                       Foreground="{StaticResource NeutralForegroundMuted}"
+                       FontSize="{StaticResource FontSizeSecondary}"
                        DockPanel.Dock="Left" />
 
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
                 <Button Content="취소"
                         AutomationProperties.AutomationId="BtnCancelPush"
                         IsCancel="True"
-                        Padding="16,6"
+                        Padding="16,8"
                         Margin="0,0,8,0"
-                        Background="#F1F5F9"
-                        BorderBrush="#CBD5E1"
+                        Style="{StaticResource SecondaryButtonStyle}"
                         Command="{Binding CancelCommand}" />
 
                 <Button Content="🚀 일괄 Push 실행"
                         AutomationProperties.AutomationId="BtnConfirmPush"
                         IsDefault="True"
-                        Padding="18,6"
-                        FontWeight="Bold"
-                        Background="#2563EB"
-                        Foreground="White"
-                        BorderBrush="#1D4ED8"
+                        Padding="16,8"
+                        Style="{StaticResource AccentButtonStyle}"
                         Command="{Binding ConfirmCommand}" />
             </StackPanel>
         </DockPanel>

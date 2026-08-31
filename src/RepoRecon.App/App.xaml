@@ -1,7 +1,124 @@
 <Application x:Class="RepoRecon.App.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             xmlns:conv="clr-namespace:RepoRecon.App.Converters">
     <Application.Resources>
-         
+
+        <!-- ================================================================
+             색 토큰 (RepoRecon-ui-polish.md §2)
+             역할 6종(성공/경고/오류/정보/중립/강조) × 전경/배경/테두리.
+             hex 리터럴은 이 블록에만 존재해야 한다.
+             중립 역할에 두 개를 임의로 추가했다 — 이유는 각 Setter 옆 주석 참고.
+             ================================================================ -->
+
+        <!-- 성공 : 전부 성공 완료, Up-to-Date -->
+        <SolidColorBrush x:Key="SuccessForeground" Color="#166534" />
+        <SolidColorBrush x:Key="SuccessBackground" Color="#F0FDF4" />
+        <SolidColorBrush x:Key="SuccessBorder" Color="#BBF7D0" />
+
+        <!-- 경고 : 스킵, Dirty, 주의 필요 -->
+        <SolidColorBrush x:Key="WarningForeground" Color="#92400E" />
+        <SolidColorBrush x:Key="WarningBackground" Color="#FEF3C7" />
+        <SolidColorBrush x:Key="WarningBorder" Color="#F59E0B" />
+
+        <!-- 오류 : 실패, 차단 상태 -->
+        <SolidColorBrush x:Key="ErrorForeground" Color="#991B1B" />
+        <SolidColorBrush x:Key="ErrorBackground" Color="#FEF2F2" />
+        <SolidColorBrush x:Key="ErrorBorder" Color="#FCA5A5" />
+
+        <!-- 정보 : 진행 중, 안내. 버튼이 아닌 선택/하이라이트 표시(배지, 트리 선택 행)도 여기로 통합 -->
+        <SolidColorBrush x:Key="InfoForeground" Color="#1E40AF" />
+        <SolidColorBrush x:Key="InfoBackground" Color="#EFF6FF" />
+        <SolidColorBrush x:Key="InfoBorder" Color="#BFDBFE" />
+
+        <!-- 중립 : 기본 텍스트·테두리·배경 -->
+        <SolidColorBrush x:Key="NeutralForeground" Color="#0F172A" />
+        <!-- 임의 추가: 보조/캡션 텍스트(신선도, 배지 부가 설명, 안내 문구)용 흐린 전경.
+             전경 1종만으로는 §4가 요구하는 "굵기와 색으로 위계를 만든다"를 지킬 수 없어 추가했다. -->
+        <SolidColorBrush x:Key="NeutralForegroundMuted" Color="#475569" />
+        <SolidColorBrush x:Key="NeutralBackground" Color="#FFFFFF" />
+        <!-- 임의 추가: 카드(NeutralBackground=White)와 구분되는 창 바탕색.
+             기존에도 창 배경과 카드 배경이 분리돼 있었고, 하나로 합치면 카드 경계가
+             안 보이게 되어 오히려 시각 구조가 나빠진다고 판단했다. -->
+        <SolidColorBrush x:Key="NeutralSurface" Color="#F8FAFC" />
+        <SolidColorBrush x:Key="NeutralBorder" Color="#E2E8F0" />
+
+        <!-- 강조 : 주요 버튼, 선택 상태(버튼 자체의 강조색만; 선택 하이라이트 배경은 정보 역할 재사용) -->
+        <SolidColorBrush x:Key="AccentForeground" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="AccentBackground" Color="#2563EB" />
+        <SolidColorBrush x:Key="AccentBorder" Color="#1D4ED8" />
+
+        <!-- ================================================================
+             폰트 위계 (§4) — 5종 이내
+             ================================================================ -->
+        <sys:Double x:Key="FontSizeTitle">16</sys:Double>
+        <sys:Double x:Key="FontSizeSubtitle">14</sys:Double>
+        <sys:Double x:Key="FontSizeBody">12</sys:Double>
+        <sys:Double x:Key="FontSizeSecondary">11</sys:Double>
+        <sys:Double x:Key="FontSizeCaption">10</sys:Double>
+
+        <FontFamily x:Key="FontFamilyMono">Consolas, Malgun Gothic</FontFamily>
+        <FontFamily x:Key="FontFamilyDefault">Segoe UI, Malgun Gothic</FontFamily>
+
+        <!-- ================================================================
+             컨버터 (§2-2 인접 버그 수정 포함 — 아래 App.xaml.cs 참고 불필요,
+             내장 BooleanToVisibilityConverter는 ConverterParameter를 지원하지
+             않아 "invert"/"trueText|falseText" 파라미터가 무시되고 있었다)
+             ================================================================ -->
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <conv:InverseBooleanConverter x:Key="InverseBool" />
+        <conv:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVis" />
+        <conv:BoolToLabelConverter x:Key="BoolToLabel" />
+        <conv:FrontEllipsisConverter x:Key="FrontEllipsis" />
+        <conv:StateExplanationConverter x:Key="StateExplanation" />
+
+        <!-- ================================================================
+             공용 스타일
+             ================================================================ -->
+
+        <!-- 위험 동작 실행 버튼(Force Push 실행, 되돌리기 실행, 일괄 치환 실행) -->
+        <Style x:Key="DangerButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource ErrorForeground}" />
+            <Setter Property="Foreground" Value="{StaticResource AccentForeground}" />
+            <Setter Property="BorderBrush" Value="{StaticResource ErrorForeground}" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <!-- 보조(취소류) 버튼 -->
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource NeutralSurface}" />
+            <Setter Property="BorderBrush" Value="{StaticResource NeutralBorder}" />
+        </Style>
+
+        <!-- 주요 동작(강조) 버튼 -->
+        <Style x:Key="AccentButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource AccentBackground}" />
+            <Setter Property="Foreground" Value="{StaticResource AccentForeground}" />
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBorder}" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <!-- 필터 토글 버튼 (기존 MainWindow.xaml에서 이동) -->
+        <Style x:Key="FilterToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Background" Value="{StaticResource NeutralSurface}" />
+            <Setter Property="BorderBrush" Value="{StaticResource NeutralBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="{StaticResource InfoBackground}" />
+                    <Setter Property="BorderBrush" Value="{StaticResource InfoBorder}" />
+                    <Setter Property="Foreground" Value="{StaticResource InfoForeground}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
     </Application.Resources>
 </Application>

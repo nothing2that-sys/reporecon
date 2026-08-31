@@ -1,4 +1,5 @@
 using System.Windows;
+using RepoRecon.App.Converters;
 
 namespace RepoRecon.App.Views;
 
@@ -7,7 +8,8 @@ public partial class PushNoUpstreamConfirmWindow : Window
     public PushNoUpstreamConfirmWindow(string targetPath, string branch)
     {
         InitializeComponent();
-        TxtTargetPath.Text = targetPath;
+        TxtTargetPath.Text = PathDisplay.Truncate(targetPath);
+        TxtTargetPath.ToolTip = targetPath;
         TxtRemoteBranch.Text = $"origin/{branch}";
     }
 

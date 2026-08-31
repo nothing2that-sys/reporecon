@@ -32,7 +32,7 @@ public partial class BulkHostReplaceViewModel : ObservableObject
     private string _sampleValidationStatus = string.Empty;
 
     [ObservableProperty]
-    private string _sampleValidationColor = "#6B7280";
+    private string _sampleValidationColor = AppColors.NeutralMuted;
 
     public bool CanGeneratePreview => !string.IsNullOrWhiteSpace(OldHost) && !string.IsNullOrWhiteSpace(NewHost) && !string.Equals(OldHost.Trim(), NewHost.Trim(), StringComparison.OrdinalIgnoreCase);
 
@@ -69,7 +69,7 @@ public partial class BulkHostReplaceViewModel : ObservableObject
         if (firstEligible != null)
         {
             SampleValidationStatus = "새 호스트 표본 접근성 검사 중 (ls-remote)...";
-            SampleValidationColor = "#2563EB";
+            SampleValidationColor = AppColors.Info;
 
             var (reachable, error) = await _remoteUrlService.TestRemoteReachableAsync(
                 firstEligible.Repo.AbsPath,
@@ -78,18 +78,18 @@ public partial class BulkHostReplaceViewModel : ObservableObject
             if (reachable)
             {
                 SampleValidationStatus = $"✅ 표본 접근 검증 성공 ({firstEligible.Repo.AbsPath})";
-                SampleValidationColor = "#16A34A";
+                SampleValidationColor = AppColors.Success;
             }
             else
             {
                 SampleValidationStatus = $"⚠️ 표본 접근 검증 실패: {error} (오프라인 상태일 수 있음)";
-                SampleValidationColor = "#D97706";
+                SampleValidationColor = AppColors.Warning;
             }
         }
         else
         {
             SampleValidationStatus = "치환 가능한 대상이 없습니다.";
-            SampleValidationColor = "#6B7280";
+            SampleValidationColor = AppColors.NeutralMuted;
         }
     }
 

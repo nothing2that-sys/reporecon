@@ -9,11 +9,9 @@
         Height="550" Width="850"
         WindowStartupLocation="CenterOwner"
         AutomationProperties.AutomationId="DialogClonePreview"
-        Background="#F8FAFC">
-
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
-    </Window.Resources>
+        Background="{StaticResource NeutralSurface}"
+        FontFamily="{StaticResource FontFamilyDefault}"
+        Foreground="{StaticResource NeutralForeground}">
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -24,32 +22,32 @@
 
         <!-- Summary Header -->
         <Border Grid.Row="0"
-                Background="#EFF6FF"
-                BorderBrush="#BFDBFE"
+                Background="{StaticResource InfoBackground}"
+                BorderBrush="{StaticResource InfoBorder}"
                 BorderThickness="1"
                 CornerRadius="6"
                 Padding="12"
                 Margin="0,0,0,12">
             <StackPanel Orientation="Vertical">
-                <TextBlock Text="🚀 클론 실행 미리보기" FontWeight="Bold" FontSize="14" Foreground="#1E40AF" />
-                <TextBlock Text="{Binding SummaryText}" FontWeight="SemiBold" FontSize="12" Foreground="#2563EB" Margin="0,4,0,0" AutomationProperties.AutomationId="TxtCloneSummary" />
-                <TextBlock Text="{Binding TargetRoot, StringFormat='대상 기본 루트: {0}'}" FontSize="11" Foreground="#64748B" Margin="0,2,0,0" />
+                <TextBlock Text="🚀 클론 실행 미리보기" FontWeight="Bold" FontSize="{StaticResource FontSizeSubtitle}" Foreground="{StaticResource InfoForeground}" />
+                <TextBlock Text="{Binding SummaryText}" FontWeight="SemiBold" FontSize="{StaticResource FontSizeBody}" Foreground="{StaticResource InfoForeground}" Margin="0,4,0,0" AutomationProperties.AutomationId="TxtCloneSummary" />
+                <TextBlock Text="{Binding TargetRoot, StringFormat='대상 기본 루트: {0}'}" FontFamily="{StaticResource FontFamilyMono}" FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource NeutralForegroundMuted}" Margin="0,4,0,0" />
             </StackPanel>
         </Border>
 
         <!-- Preview Grid -->
         <Border Grid.Row="1"
-                Background="White"
-                BorderBrush="#E2E8F0"
+                Background="{StaticResource NeutralBackground}"
+                BorderBrush="{StaticResource NeutralBorder}"
                 BorderThickness="1"
                 CornerRadius="6"
-                Padding="2">
+                Padding="4">
             <DataGrid ItemsSource="{Binding Items}"
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
                       IsReadOnly="True"
                       GridLinesVisibility="Horizontal"
-                      HorizontalGridLinesBrush="#F1F5F9"
+                      HorizontalGridLinesBrush="{StaticResource NeutralSurface}"
                       RowHeaderWidth="0"
                       BorderThickness="0"
                       AutomationProperties.AutomationId="GridClonePreview">
@@ -59,13 +57,13 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Border Background="#DCFCE7" CornerRadius="3" Padding="6,2"
-                                            Visibility="{Binding HasCollision, Converter={StaticResource BoolToVis}, ConverterParameter=invert}">
-                                        <TextBlock Text="실행 가능" FontSize="11" FontWeight="Bold" Foreground="#166534" />
+                                    <Border Background="{StaticResource SuccessBackground}" CornerRadius="3" Padding="8,4"
+                                            Visibility="{Binding HasCollision, Converter={StaticResource InvertedBoolToVis}}">
+                                        <TextBlock Text="실행 가능" FontSize="{StaticResource FontSizeSecondary}" FontWeight="Bold" Foreground="{StaticResource SuccessForeground}" />
                                     </Border>
-                                    <Border Background="#FEE2E2" CornerRadius="3" Padding="6,2"
+                                    <Border Background="{StaticResource ErrorBackground}" CornerRadius="3" Padding="8,4"
                                             Visibility="{Binding HasCollision, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="충돌 스킵" FontSize="11" FontWeight="Bold" Foreground="#991B1B" />
+                                        <TextBlock Text="충돌 스킵" FontSize="{StaticResource FontSizeSecondary}" FontWeight="Bold" Foreground="{StaticResource ErrorForeground}" />
                                     </Border>
                                 </StackPanel>
                             </DataTemplate>
@@ -83,14 +81,17 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding TargetPath}" FontSize="11" Foreground="#0F172A" />
+                                    <TextBlock Text="{Binding TargetPath, Converter={StaticResource FrontEllipsis}, ConverterParameter=56}"
+                                               ToolTip="{Binding TargetPath}"
+                                               FontFamily="{StaticResource FontFamilyMono}"
+                                               FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource NeutralForeground}" />
                                     <TextBlock Text="{Binding CollisionReason}"
-                                               FontSize="10"
-                                               Foreground="#DC2626"
+                                               FontSize="{StaticResource FontSizeCaption}"
+                                               Foreground="{StaticResource ErrorForeground}"
                                                Visibility="{Binding HasCollision, Converter={StaticResource BoolToVis}}" />
                                     <TextBlock Text="⚠️ 260자 초과 (Long Path 적용)"
-                                               FontSize="10"
-                                               Foreground="#D97706"
+                                               FontSize="{StaticResource FontSizeCaption}"
+                                               Foreground="{StaticResource WarningForeground}"
                                                Visibility="{Binding ExceedsLongPath, Converter={StaticResource BoolToVis}}" />
                                 </StackPanel>
                             </DataTemplate>
@@ -103,19 +104,16 @@
         <!-- Bottom Action Bar -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
             <Button Content="취소"
-                    Padding="14,6"
+                    Padding="16,8"
                     Margin="0,0,8,0"
-                    Background="#F1F5F9"
-                    BorderBrush="#CBD5E1"
-                    FontWeight="SemiBold"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    IsCancel="True"
                     AutomationProperties.AutomationId="BtnCancelClone"
                     Click="BtnCancel_Click" />
             <Button Content="클론 실행"
-                    Padding="18,6"
-                    Background="#2563EB"
-                    BorderBrush="#1D4ED8"
-                    Foreground="White"
-                    FontWeight="Bold"
+                    Padding="16,8"
+                    Style="{StaticResource AccentButtonStyle}"
+                    IsDefault="True"
                     AutomationProperties.AutomationId="BtnConfirmClone"
                     Click="BtnConfirm_Click" />
         </StackPanel>

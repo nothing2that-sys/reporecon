@@ -35,7 +35,7 @@ public partial class RepoTreeNodeViewModel : TreeNodeViewModelBase
     private string _hostName = "Local";
 
     [ObservableProperty]
-    private string _hostDotColor = "#6B7280";
+    private string _hostDotColor = AppColors.NeutralMuted;
 
     [ObservableProperty]
     private string _branch = "(알 수 없음)";
@@ -453,10 +453,13 @@ public partial class RepoTreeNodeViewModel : TreeNodeViewModelBase
 
     private static string DetermineHostColor(string host)
     {
+        // Brand identity colors, not status colors — intentionally outside the
+        // 6-role semantic palette (§2). They distinguish *which server*, not
+        // *what state*, so folding them into e.g. "정보" would lose information.
         var h = host.ToLowerInvariant();
         if (h.Contains("gitlab")) return "#FC6D26"; // GitLab Orange
         if (h.Contains("github")) return "#24292F"; // GitHub Dark
         if (h.Contains("gitea")) return "#609926";  // Gitea Green
-        return "#6B7280";                           // Neutral Gray
+        return AppColors.NeutralMuted;
     }
 }

@@ -12,6 +12,8 @@ public partial class BulkHostReplaceWindow : Window
         _viewModel = viewModel;
         InitializeComponent();
         DataContext = viewModel;
+
+        Loaded += (_, _) => TxtOldHost.Focus();
     }
 
     private async void BtnExecute_Click(object sender, RoutedEventArgs e)

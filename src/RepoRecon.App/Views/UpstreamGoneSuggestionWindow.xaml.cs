@@ -1,4 +1,5 @@
 using System.Windows;
+using RepoRecon.App.Converters;
 
 namespace RepoRecon.App.Views;
 
@@ -7,7 +8,8 @@ public partial class UpstreamGoneSuggestionWindow : Window
     public UpstreamGoneSuggestionWindow(string targetPath, string defaultBranch)
     {
         InitializeComponent();
-        TxtTargetPath.Text = targetPath;
+        TxtTargetPath.Text = PathDisplay.Truncate(targetPath);
+        TxtTargetPath.ToolTip = targetPath;
         TxtSuggestedUpstream.Text = $"origin/{defaultBranch}";
     }
 

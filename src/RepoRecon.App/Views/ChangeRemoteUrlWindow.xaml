@@ -9,11 +9,9 @@
         Height="420" Width="640"
         WindowStartupLocation="CenterOwner"
         AutomationProperties.AutomationId="DialogChangeRemoteUrl"
-        Background="#F8FAFC">
-
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
-    </Window.Resources>
+        Background="{StaticResource NeutralSurface}"
+        FontFamily="{StaticResource FontFamilyDefault}"
+        Foreground="{StaticResource NeutralForeground}">
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -24,28 +22,31 @@
 
         <!-- Header / Path Info -->
         <Border Grid.Row="0"
-                Background="White"
-                BorderBrush="#E2E8F0"
+                Background="{StaticResource NeutralBackground}"
+                BorderBrush="{StaticResource NeutralBorder}"
                 BorderThickness="1"
                 CornerRadius="6"
                 Padding="12"
                 Margin="0,0,0,12">
             <StackPanel Orientation="Vertical">
-                <TextBlock Text="🔗 원격 저장소 Remote URL 변경" FontWeight="Bold" FontSize="14" Foreground="#0F172A" />
-                <TextBlock Text="{Binding RepoPath, StringFormat='대상 경로: {0}'}" FontSize="11" Foreground="#64748B" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="🔗 원격 저장소 Remote URL 변경" FontWeight="Bold" FontSize="{StaticResource FontSizeSubtitle}" Foreground="{StaticResource NeutralForeground}" />
+                <TextBlock Text="{Binding RepoPath, Converter={StaticResource FrontEllipsis}, ConverterParameter=60, StringFormat='대상 경로: {0}'}"
+                           ToolTip="{Binding RepoPath}"
+                           FontFamily="{StaticResource FontFamilyMono}"
+                           FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource NeutralForegroundMuted}" Margin="0,4,0,0" />
             </StackPanel>
         </Border>
 
         <!-- Main Form -->
         <Border Grid.Row="1"
-                Background="White"
-                BorderBrush="#E2E8F0"
+                Background="{StaticResource NeutralBackground}"
+                BorderBrush="{StaticResource NeutralBorder}"
                 BorderThickness="1"
                 CornerRadius="6"
-                Padding="14">
+                Padding="16">
             <StackPanel Orientation="Vertical">
                 <!-- Remote Name -->
-                <Grid Margin="0,0,0,10">
+                <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="110" />
                         <ColumnDefinition Width="*" />
@@ -55,11 +56,12 @@
                              x:Name="TxtRemoteName"
                              AutomationProperties.AutomationId="TxtRemoteName"
                              Text="{Binding RemoteName, UpdateSourceTrigger=PropertyChanged}"
-                             Padding="6,3" />
+                             Padding="8,4"
+                             TabIndex="0" />
                 </Grid>
 
                 <!-- Current URL -->
-                <Grid Margin="0,0,0,10">
+                <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="110" />
                         <ColumnDefinition Width="*" />
@@ -69,7 +71,8 @@
                                x:Name="TxtCurrentUrl"
                                AutomationProperties.AutomationId="TxtCurrentUrl"
                                Text="{Binding CurrentUrl}"
-                               Foreground="#475569"
+                               FontFamily="{StaticResource FontFamilyMono}"
+                               Foreground="{StaticResource NeutralForegroundMuted}"
                                VerticalAlignment="Center"
                                TextWrapping="Wrap" />
                 </Grid>
@@ -86,53 +89,58 @@
                              x:Name="TxtNewUrl"
                              AutomationProperties.AutomationId="TxtNewUrl"
                              Text="{Binding NewUrl, UpdateSourceTrigger=PropertyChanged}"
-                             Padding="6,4"
-                             Margin="0,0,8,0" />
+                             FontFamily="{StaticResource FontFamilyMono}"
+                             Padding="8,4"
+                             Margin="0,0,8,0"
+                             TabIndex="1" />
                     <Button Grid.Column="2"
                             x:Name="BtnCheckReachability"
                             AutomationProperties.AutomationId="BtnCheckReachability"
                             Content="접근성 검사"
                             Command="{Binding CheckReachabilityCommand}"
-                            IsEnabled="{Binding IsCheckingReachability, Converter={StaticResource BoolToVis}, ConverterParameter=invert}"
-                            Padding="10,4"
-                            Background="#F1F5F9"
-                            BorderBrush="#CBD5E1"
-                            FontWeight="SemiBold" />
+                            IsEnabled="{Binding IsCheckingReachability, Converter={StaticResource InverseBool}}"
+                            Padding="12,4"
+                            Background="{StaticResource NeutralSurface}"
+                            BorderBrush="{StaticResource NeutralBorder}"
+                            FontWeight="SemiBold"
+                            TabIndex="2"
+                            ToolTipService.ShowOnDisabled="True"
+                            ToolTip="이미 검사가 진행 중일 때는 비활성화됩니다." />
                 </Grid>
 
                 <!-- Pre-save Mapping Reevaluation Preview (§10.7-a, Criterion 18) -->
-                <Border Background="#F8FAFC"
-                        BorderBrush="#E2E8F0"
+                <Border Background="{StaticResource NeutralSurface}"
+                        BorderBrush="{StaticResource NeutralBorder}"
                         BorderThickness="1"
                         CornerRadius="4"
-                        Padding="10"
+                        Padding="8"
                         Margin="0,0,0,8">
                     <StackPanel Orientation="Vertical">
-                        <TextBlock Text="사전 매핑 재판정 결과 (저장 전 미리보기):" FontWeight="Bold" FontSize="11" Foreground="#334155" />
+                        <TextBlock Text="사전 매핑 재판정 결과 (저장 전 미리보기):" FontWeight="Bold" FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource NeutralForeground}" />
                         <TextBlock x:Name="TxtReevaluatedMapping"
                                    AutomationProperties.AutomationId="TxtReevaluatedMapping"
                                    Text="{Binding ReevaluatedMappingStatus}"
                                    Foreground="{Binding ReevaluatedMappingColor}"
                                    FontWeight="SemiBold"
-                                   FontSize="12"
-                                   Margin="0,3,0,0" />
+                                   FontSize="{StaticResource FontSizeBody}"
+                                   Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
 
                 <!-- Reachability Status -->
-                <Border Background="#F8FAFC"
-                        BorderBrush="#E2E8F0"
+                <Border Background="{StaticResource NeutralSurface}"
+                        BorderBrush="{StaticResource NeutralBorder}"
                         BorderThickness="1"
                         CornerRadius="4"
-                        Padding="10">
+                        Padding="8">
                     <StackPanel Orientation="Vertical">
-                        <TextBlock Text="원격 도달 가능성 검증 (ls-remote):" FontWeight="Bold" FontSize="11" Foreground="#334155" />
+                        <TextBlock Text="원격 도달 가능성 검증 (ls-remote):" FontWeight="Bold" FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource NeutralForeground}" />
                         <TextBlock x:Name="TxtReachabilityStatus"
                                    AutomationProperties.AutomationId="TxtReachabilityStatus"
                                    Text="{Binding ReachabilityStatus}"
                                    Foreground="{Binding ReachabilityStatusColor}"
-                                   FontSize="11"
-                                   Margin="0,3,0,0"
+                                   FontSize="{StaticResource FontSizeSecondary}"
+                                   Margin="0,4,0,0"
                                    TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
@@ -147,22 +155,21 @@
                     Content="저장 및 적용"
                     Click="BtnSave_Click"
                     IsEnabled="{Binding CanSave}"
-                    Padding="16,6"
-                    Background="#2563EB"
-                    Foreground="White"
-                    BorderBrush="#1D4ED8"
-                    FontWeight="Bold"
-                    Cursor="Hand" />
+                    IsDefault="True"
+                    Padding="16,8"
+                    Style="{StaticResource AccentButtonStyle}"
+                    ToolTipService.ShowOnDisabled="True"
+                    ToolTip="새 URL이 비어있거나 현재 URL과 같으면 비활성화됩니다." />
 
             <Button DockPanel.Dock="Right"
                     x:Name="BtnCancelRemoteUrl"
                     AutomationProperties.AutomationId="BtnCancelRemoteUrl"
                     Content="취소"
                     Click="BtnCancel_Click"
-                    Padding="14,6"
+                    IsCancel="True"
+                    Padding="16,8"
                     Margin="0,0,8,0"
-                    Background="#F1F5F9"
-                    BorderBrush="#CBD5E1" />
+                    Style="{StaticResource SecondaryButtonStyle}" />
         </DockPanel>
     </Grid>
 </Window>

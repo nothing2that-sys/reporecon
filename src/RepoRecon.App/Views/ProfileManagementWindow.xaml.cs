@@ -20,6 +20,7 @@ public partial class ProfileManagementWindow : Window
         {
             await viewModel.InitializeAsync();
             Activate();
+            TxtProfileHost.Focus();
         };
     }
 

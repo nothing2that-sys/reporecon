@@ -10,7 +10,10 @@
         Height="850" Width="1280"
         MinHeight="600" MinWidth="950"
         WindowStartupLocation="CenterScreen"
-        Background="#F4F5F7">
+        Icon="/Assets/reporecon.ico"
+        Background="{StaticResource NeutralSurface}"
+        FontFamily="{StaticResource FontFamilyDefault}"
+        Foreground="{StaticResource NeutralForeground}">
 
     <Window.InputBindings>
         <KeyBinding Key="F5" Command="{Binding RefreshAllCommand}" />
@@ -18,38 +21,17 @@
     </Window.InputBindings>
 
     <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
-
-        <!-- Style for Filter Toggle Buttons -->
-        <Style x:Key="FilterToggleButtonStyle" TargetType="ToggleButton">
-            <Setter Property="Padding" Value="8,3" />
-            <Setter Property="Margin" Value="2,0" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Background" Value="#F3F4F6" />
-            <Setter Property="BorderBrush" Value="#D1D5DB" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Style.Triggers>
-                <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Background" Value="#DBEAFE" />
-                    <Setter Property="BorderBrush" Value="#3B82F6" />
-                    <Setter Property="Foreground" Value="#1D4ED8" />
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
         <!-- Style for TreeViewItem to support custom selection & expansion -->
         <Style TargetType="TreeViewItem">
             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
             <Setter Property="Visibility" Value="{Binding IsVisible, Converter={StaticResource BoolToVis}}" />
             <Setter Property="AutomationProperties.Name" Value="{Binding FullPath}" />
-            <Setter Property="Padding" Value="2,3" />
+            <Setter Property="Padding" Value="4,4" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#E0E7FF" />
+                    <Setter Property="Background" Value="{StaticResource InfoBackground}" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -65,8 +47,8 @@
         <!-- Notification Banners -->
         <StackPanel Grid.Row="0" Margin="0,0,0,8">
             <!-- Git Diagnostic Alert Banner -->
-            <Border Background="#FDE8E8"
-                    BorderBrush="#F98080"
+            <Border Background="{StaticResource ErrorBackground}"
+                    BorderBrush="{StaticResource ErrorBorder}"
                     BorderThickness="1"
                     CornerRadius="6"
                     Padding="12"
@@ -75,36 +57,36 @@
                 <StackPanel Orientation="Vertical">
                     <TextBlock Text="⚠️ Git 환경 오류 — 기능이 제한됩니다"
                                FontWeight="Bold"
-                               FontSize="14"
-                               Foreground="#9B1C1C" />
+                               FontSize="{StaticResource FontSizeSubtitle}"
+                               Foreground="{StaticResource ErrorForeground}" />
                     <TextBlock Text="{Binding GitDiagnosticError}"
                                TextWrapping="Wrap"
                                Margin="0,4,0,0"
-                               Foreground="#771D1D" />
+                               Foreground="{StaticResource ErrorForeground}" />
                 </StackPanel>
             </Border>
 
             <!-- DB Recreated Notice -->
-            <Border Background="#FEF08A"
-                    BorderBrush="#EAB308"
+            <Border Background="{StaticResource WarningBackground}"
+                    BorderBrush="{StaticResource WarningBorder}"
                     BorderThickness="1"
                     CornerRadius="6"
-                    Padding="10"
+                    Padding="8"
                     Margin="0,0,0,8"
                     Visibility="{Binding WasDatabaseRecreated, Converter={StaticResource BoolToVis}}">
                 <TextBlock Text="{Binding DatabaseRecreatedNotice}"
                            FontWeight="SemiBold"
-                           Foreground="#713F12" />
+                           Foreground="{StaticResource WarningForeground}" />
             </Border>
 
             <!-- Residual Temp Folders Notice (§7.3, §10 Criterion 21) -->
             <Border x:Name="PanelResidualTempFolders"
                     AutomationProperties.AutomationId="PanelResidualTempFolders"
-                    Background="#FEF2F2"
-                    BorderBrush="#F87171"
+                    Background="{StaticResource ErrorBackground}"
+                    BorderBrush="{StaticResource ErrorBorder}"
                     BorderThickness="1"
                     CornerRadius="6"
-                    Padding="10"
+                    Padding="8"
                     Margin="0,0,0,8"
                     Visibility="{Binding HasResidualTempFolders, Converter={StaticResource BoolToVis}}">
                 <DockPanel LastChildFill="True">
@@ -113,16 +95,13 @@
                             AutomationProperties.AutomationId="BtnCleanResidualTempFolders"
                             Content="지금 정리하기"
                             Command="{Binding CleanResidualTempFoldersCommand}"
-                            Padding="10,4"
+                            Padding="8,4"
                             Margin="12,0,0,0"
-                            Background="#FEE2E2"
-                            BorderBrush="#FCA5A5"
-                            Foreground="#991B1B"
-                            FontWeight="Bold"
+                            Style="{StaticResource DangerButtonStyle}"
                             VerticalAlignment="Center" />
                     <TextBlock Text="{Binding ResidualTempFoldersNotice}"
                                FontWeight="SemiBold"
-                               Foreground="#991B1B"
+                               Foreground="{StaticResource ErrorForeground}"
                                VerticalAlignment="Center" />
                 </DockPanel>
             </Border>
@@ -130,11 +109,11 @@
             <!-- Authentication host cooldown notice (design v3 §8.4) -->
             <Border x:Name="PanelAuthCooldown"
                     AutomationProperties.AutomationId="PanelAuthCooldown"
-                    Background="#FFF7ED"
-                    BorderBrush="#FB923C"
+                    Background="{StaticResource WarningBackground}"
+                    BorderBrush="{StaticResource WarningBorder}"
                     BorderThickness="1"
                     CornerRadius="6"
-                    Padding="10"
+                    Padding="8"
                     Margin="0,0,0,8"
                     Visibility="{Binding HasAuthenticationCooldowns, Converter={StaticResource BoolToVis}}">
                 <DockPanel LastChildFill="True">
@@ -143,20 +122,21 @@
                             AutomationProperties.AutomationId="BtnRetryAuthCooldown"
                             Content="지금 재시도"
                             Command="{Binding RefreshAllCommand}"
-                            Padding="10,4"
+                            Padding="8,4"
                             Margin="12,0,0,0"
+                            Style="{StaticResource SecondaryButtonStyle}"
                             VerticalAlignment="Center"
                             ToolTip="인증 쿨오프를 즉시 해제하고 다시 스캔·Fetch합니다." />
                     <StackPanel>
                         <TextBlock Text="인증 실패 호스트 재시도 대기"
                                    FontWeight="Bold"
-                                   Foreground="#9A3412" />
+                                   Foreground="{StaticResource WarningForeground}" />
                         <TextBlock x:Name="TxtAuthCooldownSummary"
                                    AutomationProperties.AutomationId="TxtAuthCooldownSummary"
                                    Text="{Binding AuthenticationCooldownSummary}"
                                    TextWrapping="Wrap"
-                                   Margin="0,3,0,0"
-                                   Foreground="#7C2D12" />
+                                   Margin="0,4,0,0"
+                                   Foreground="{StaticResource WarningForeground}" />
                     </StackPanel>
                 </DockPanel>
             </Border>
@@ -170,7 +150,7 @@
 
             <!-- TAB 1: 로컬 관리 -->
             <TabItem Header="📁 로컬 관리"
-                     FontSize="14"
+                     FontSize="{StaticResource FontSizeSubtitle}"
                      FontWeight="SemiBold"
                      Padding="16,8"
                      AutomationProperties.AutomationId="TabLocalManagement">
@@ -189,12 +169,12 @@
 
                     <!-- Scan Roots Management Panel -->
                     <Border Grid.Row="0"
-                            Background="White"
-                            BorderBrush="#E5E7EB"
+                            Background="{StaticResource NeutralBackground}"
+                            BorderBrush="{StaticResource NeutralBorder}"
                             BorderThickness="1"
                             CornerRadius="6"
                             Padding="12"
-                            Margin="0,0,0,10">
+                            Margin="0,0,0,8">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -222,15 +202,17 @@
                                          AutomationProperties.AutomationId="TxtScanPath"
                                          Text="{Binding NewScanRootPath, UpdateSourceTrigger=PropertyChanged}"
                                          VerticalContentAlignment="Center"
-                                         Padding="6,4"
-                                         Margin="0,0,8,0" />
+                                         Padding="8,4"
+                                         Margin="0,0,8,0"
+                                         TabIndex="0" />
 
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,8,0">
                                     <TextBlock Text="깊이:" VerticalAlignment="Center" Margin="0,0,4,0" />
                                     <TextBox Text="{Binding NewScanRootDepth, UpdateSourceTrigger=PropertyChanged}"
                                              Width="40"
                                              VerticalContentAlignment="Center"
-                                             Padding="4,4" />
+                                             Padding="4,4"
+                                             TabIndex="1" />
                                 </StackPanel>
 
                                 <Button Grid.Column="3"
@@ -240,8 +222,8 @@
                                         Command="{Binding AddScanRootCommand}"
                                         Padding="12,4"
                                         Margin="0,0,8,0"
-                                        Background="#E5E7EB"
-                                        BorderBrush="#D1D5DB" />
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        TabIndex="2" />
 
                                 <Button Grid.Column="4"
                                         x:Name="BtnStartScan"
@@ -251,9 +233,10 @@
                                         IsEnabled="{Binding IsNotScanning}"
                                         FontWeight="Bold"
                                         Padding="16,4"
-                                        Background="#2563EB"
-                                        Foreground="White"
-                                        BorderBrush="#1D4ED8" />
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        TabIndex="3"
+                                        ToolTipService.ShowOnDisabled="True"
+                                        ToolTip="스캔이 이미 진행 중일 때는 비활성화됩니다." />
                             </Grid>
 
                             <!-- Active Roots List -->
@@ -267,33 +250,35 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="#F3F4F6"
-                                                BorderBrush="#E5E7EB"
+                                        <Border Background="{StaticResource NeutralSurface}"
+                                                BorderBrush="{StaticResource NeutralBorder}"
                                                 BorderThickness="1"
                                                 CornerRadius="4"
-                                                Padding="6,2"
-                                                Margin="0,0,6,4">
+                                                Padding="8,4"
+                                                Margin="0,0,8,4">
                                             <StackPanel Orientation="Horizontal">
                                                 <CheckBox IsChecked="{Binding IsActive, Mode=TwoWay}"
                                                           VerticalAlignment="Center"
                                                           Margin="0,0,4,0" />
                                                 <TextBlock Text="{Binding Path}"
-                                                           FontSize="12"
+                                                           FontSize="{StaticResource FontSizeBody}"
                                                            VerticalAlignment="Center"
-                                                           Foreground="{Binding IsActive, Converter={StaticResource BoolToVis}}" />
+                                                           Foreground="{Binding IsActive, Converter={StaticResource BoolToVis}}"
+                                                           ToolTip="{Binding Path, Converter={StaticResource FrontEllipsis}, ConverterParameter=80}" />
                                                 <TextBlock Text="{Binding MaxDepth, StringFormat=' (깊이:{0})'}"
-                                                           FontSize="11"
-                                                           Foreground="#6B7280"
+                                                           FontSize="{StaticResource FontSizeSecondary}"
+                                                           Foreground="{StaticResource NeutralForegroundMuted}"
                                                            VerticalAlignment="Center" />
                                                 <Button Content="✕"
                                                         Command="{Binding DataContext.RemoveScanRootCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                         CommandParameter="{Binding}"
-                                                        Margin="6,0,0,0"
-                                                        Padding="2,0"
+                                                        Margin="8,0,0,0"
+                                                        Padding="4,0"
                                                         Background="Transparent"
                                                         BorderThickness="0"
-                                                        Foreground="#9CA3AF"
-                                                        Cursor="Hand" />
+                                                        Foreground="{StaticResource NeutralForegroundMuted}"
+                                                        Cursor="Hand"
+                                                        ToolTip="이 스캔 루트 제거" />
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>
@@ -304,11 +289,11 @@
 
                     <!-- Filter Toolbar & Selection / Execution Bar -->
                     <Border Grid.Row="1"
-                            Background="White"
-                            BorderBrush="#E5E7EB"
+                            Background="{StaticResource NeutralBackground}"
+                            BorderBrush="{StaticResource NeutralBorder}"
                             BorderThickness="1"
                             CornerRadius="6"
-                            Padding="10,8"
+                            Padding="8"
                             Margin="0,0,0,8">
                         <DockPanel LastChildFill="True">
                             <!-- Right Execution Summary & Pull / Push Execution Buttons -->
@@ -325,13 +310,16 @@
                                         Content="일괄 Pull 실행"
                                         Command="{Binding ExecutePullCommand}"
                                         IsEnabled="{Binding CanExecutePull}"
-                                        Padding="12,6"
+                                        Padding="12,8"
                                         Margin="0,0,12,0"
-                                        Background="#16A34A"
-                                        Foreground="White"
-                                        BorderBrush="#15803D"
+                                        Background="{StaticResource SuccessForeground}"
+                                        Foreground="{StaticResource AccentForeground}"
+                                        BorderBrush="{StaticResource SuccessForeground}"
                                         FontWeight="Bold"
-                                        Cursor="Hand" />
+                                        Cursor="Hand"
+                                        TabIndex="13"
+                                        ToolTipService.ShowOnDisabled="True"
+                                        ToolTip="Pull 가능한 저장소가 없으면 비활성화됩니다(선택 대상이 Behind 상태여야 합니다)." />
 
                                 <TextBlock x:Name="TxtPushSelectionSummary"
                                            AutomationProperties.AutomationId="TxtPushSelectionSummary"
@@ -345,12 +333,11 @@
                                         Content="🚀 일괄 Push 실행"
                                         Command="{Binding ExecutePushCommand}"
                                         IsEnabled="{Binding CanExecutePush}"
-                                        Padding="14,6"
-                                        Background="#2563EB"
-                                        Foreground="White"
-                                        BorderBrush="#1D4ED8"
-                                        FontWeight="Bold"
-                                        Cursor="Hand" />
+                                        Padding="12,8"
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        TabIndex="14"
+                                        ToolTipService.ShowOnDisabled="True"
+                                        ToolTip="Push 가능한 저장소가 없으면 비활성화됩니다(선택 대상이 Ahead이고 Diverged가 아니어야 합니다)." />
                             </StackPanel>
 
                             <!-- Left: Filter Controls & Fast Actions -->
@@ -359,190 +346,238 @@
                                          AutomationProperties.AutomationId="TxtFilter"
                                          Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                                          Width="140"
-                                         Padding="4,2"
-                                         Margin="0,0,6,0"
+                                         Padding="4,4"
+                                         Margin="0,0,8,0"
+                                         TabIndex="0"
                                          ToolTip="폴더명, 브랜치명, 원격 URL 검색" />
 
                                 <ToggleButton Content="Behind만"
                                               x:Name="BtnFilterBehind"
                                               AutomationProperties.AutomationId="BtnFilterBehind"
                                               IsChecked="{Binding FilterBehindOnly, Mode=TwoWay}"
-                                              Style="{StaticResource FilterToggleButtonStyle}" />
+                                              Style="{StaticResource FilterToggleButtonStyle}"
+                                              TabIndex="1" />
 
                                 <ToggleButton Content="Ahead만"
                                               IsChecked="{Binding FilterAheadOnly, Mode=TwoWay}"
-                                              Style="{StaticResource FilterToggleButtonStyle}" />
+                                              Style="{StaticResource FilterToggleButtonStyle}"
+                                              TabIndex="2" />
 
                                 <ToggleButton Content="Diverged만"
                                               x:Name="BtnFilterDiverged"
                                               AutomationProperties.AutomationId="BtnFilterDiverged"
                                               IsChecked="{Binding FilterDivergedOnly, Mode=TwoWay}"
-                                              Style="{StaticResource FilterToggleButtonStyle}" />
+                                              Style="{StaticResource FilterToggleButtonStyle}"
+                                              TabIndex="3" />
 
                                 <ToggleButton Content="Dirty만"
                                               x:Name="BtnFilterDirty"
                                               AutomationProperties.AutomationId="BtnFilterDirty"
                                               IsChecked="{Binding FilterDirtyOnly, Mode=TwoWay}"
-                                              Style="{StaticResource FilterToggleButtonStyle}" />
+                                              Style="{StaticResource FilterToggleButtonStyle}"
+                                              TabIndex="4" />
 
                                 <ToggleButton Content="Conflicted만"
                                               IsChecked="{Binding FilterConflictedOnly, Mode=TwoWay}"
-                                              Style="{StaticResource FilterToggleButtonStyle}" />
+                                              Style="{StaticResource FilterToggleButtonStyle}"
+                                              TabIndex="5" />
 
                                 <ComboBox ItemsSource="{Binding AvailableHosts}"
                                           SelectedItem="{Binding SelectedHostFilter, Mode=TwoWay}"
-                                          Margin="6,0,6,0"
-                                          Padding="6,2"
-                                          FontSize="12"
-                                          Width="110" />
+                                          Margin="8,0,8,0"
+                                          Padding="8,4"
+                                          FontSize="{StaticResource FontSizeBody}"
+                                          Width="110"
+                                          TabIndex="6"
+                                          AutomationProperties.AutomationId="CmbHostFilter" />
 
                                 <Button Content="전체 선택"
                                         x:Name="BtnSelectAllVisible"
                                         AutomationProperties.AutomationId="BtnSelectAllVisible"
                                         Command="{Binding SelectAllVisibleCommand}"
-                                        Padding="8,3"
-                                        Margin="2,0"
-                                        Background="#F3F4F6"
-                                        BorderBrush="#D1D5DB" />
+                                        Padding="8,4"
+                                        Margin="4,0"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        TabIndex="7" />
 
                                 <Button Content="선택 해제"
+                                        AutomationProperties.AutomationId="BtnDeselectAll"
                                         Command="{Binding DeselectAllCommand}"
-                                        Padding="8,3"
-                                        Margin="2,0"
-                                        Background="#F3F4F6"
-                                        BorderBrush="#D1D5DB" />
+                                        Padding="8,4"
+                                        Margin="4,0"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        TabIndex="8" />
 
                                 <Button Content="새로고침 (F5)"
                                         x:Name="BtnRefreshAll"
                                         AutomationProperties.AutomationId="BtnRefreshAll"
                                         Command="{Binding RefreshAllCommand}"
-                                        Padding="8,3"
-                                        Margin="4,0,0,0"
-                                        Background="#F3F4F6"
-                                        BorderBrush="#D1D5DB" />
+                                        Padding="8,4"
+                                        Margin="4,0"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        TabIndex="9" />
 
-                                <Separator Margin="4,2" />
+                                <Separator Margin="4,4" />
 
                                 <Button Content="호스트 일괄 치환..."
                                         x:Name="BtnOpenBulkHostReplace"
                                         AutomationProperties.AutomationId="BtnOpenBulkHostReplace"
                                         Command="{Binding OpenBulkHostReplaceCommand}"
-                                        Padding="8,3"
-                                        Margin="2,0"
-                                        Background="#F1F5F9"
-                                        BorderBrush="#CBD5E1"
-                                        FontWeight="SemiBold" />
+                                        Padding="8,4"
+                                        Margin="4,0"
+                                        Background="{StaticResource NeutralSurface}"
+                                        BorderBrush="{StaticResource NeutralBorder}"
+                                        FontWeight="SemiBold"
+                                        TabIndex="10"
+                                        ToolTipService.ShowOnDisabled="True"
+                                        ToolTip="대상 저장소의 Remote URL을 불러오는 동안 일시적으로 비활성화됩니다." />
 
                                 <Button Content="상태 내보내기"
                                         x:Name="BtnExportState"
                                         AutomationProperties.AutomationId="BtnExportState"
                                         Command="{Binding ExportStateCommand}"
-                                        Padding="8,3"
-                                        Margin="2,0"
-                                        Background="#F1F5F9"
-                                        BorderBrush="#CBD5E1"
-                                        FontWeight="SemiBold" />
+                                        Padding="8,4"
+                                        Margin="4,0"
+                                        Background="{StaticResource NeutralSurface}"
+                                        BorderBrush="{StaticResource NeutralBorder}"
+                                        FontWeight="SemiBold"
+                                        TabIndex="11" />
 
                                 <Button Content="📋 작업 이력"
                                         x:Name="BtnToggleJobHistory"
                                         AutomationProperties.AutomationId="BtnToggleJobHistory"
                                         Command="{Binding ToggleHistoryPanelCommand}"
-                                        Padding="8,3"
-                                        Margin="2,0"
-                                        Background="#EFF6FF"
-                                        BorderBrush="#BFDBFE"
-                                        Foreground="#1D4ED8"
-                                        FontWeight="Bold" />
+                                        Padding="8,4"
+                                        Margin="4,0"
+                                        Background="{StaticResource InfoBackground}"
+                                        BorderBrush="{StaticResource InfoBorder}"
+                                        Foreground="{StaticResource InfoForeground}"
+                                        FontWeight="Bold"
+                                        TabIndex="12" />
                             </WrapPanel>
                         </DockPanel>
                     </Border>
 
                     <!-- Pull Skip Reasons Notice Panel -->
                     <Border Grid.Row="2"
-                            Background="#FEF3C7"
-                            BorderBrush="#F59E0B"
+                            Background="{StaticResource WarningBackground}"
+                            BorderBrush="{StaticResource WarningBorder}"
                             BorderThickness="1"
                             CornerRadius="4"
                             Padding="8,4"
-                            Margin="0,0,0,6"
+                            Margin="0,0,0,8"
                             Visibility="{Binding HasSkipReasons, Converter={StaticResource BoolToVis}}">
-                        <DockPanel LastChildFill="True">
-                            <Button DockPanel.Dock="Right"
-                                    Content="{Binding IsSkipDetailsExpanded, Converter={StaticResource BoolToVis}, ConverterParameter='접기|상세보기'}"
-                                    Command="{Binding ToggleSkipDetailsCommand}"
-                                    Padding="6,1"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Foreground="#B45309"
-                                    FontWeight="Bold"
-                                    Cursor="Hand" />
-                            <TextBlock Text="{Binding SkipReasonSummary, StringFormat='ℹ️ Pull 스킵 안내: {0}'}"
-                                       FontWeight="SemiBold"
-                                       Foreground="#92400E"
-                                       VerticalAlignment="Center" />
-                        </DockPanel>
+                        <StackPanel Orientation="Vertical">
+                            <DockPanel LastChildFill="True">
+                                <Button DockPanel.Dock="Right"
+                                        AutomationProperties.AutomationId="BtnToggleSkipReasons"
+                                        Content="{Binding IsSkipDetailsExpanded, Converter={StaticResource BoolToLabel}, ConverterParameter='접기|상세보기'}"
+                                        Command="{Binding ToggleSkipDetailsCommand}"
+                                        Padding="8,4"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Foreground="{StaticResource WarningForeground}"
+                                        FontWeight="Bold"
+                                        Cursor="Hand" />
+                                <TextBlock Text="{Binding SkipReasonSummary, StringFormat='ℹ️ Pull 스킵 안내: {0}'}"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource WarningForeground}"
+                                           VerticalAlignment="Center" />
+                            </DockPanel>
+                            <!-- 사유별 개별 내역 (건수 요약이 아니라 항목별 행) -->
+                            <ItemsControl AutomationProperties.AutomationId="ListSkipReasons"
+                                          ItemsSource="{Binding SkipReasonList}"
+                                          Margin="0,4,0,0"
+                                          Visibility="{Binding IsSkipDetailsExpanded, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}"
+                                                   FontSize="{StaticResource FontSizeSecondary}"
+                                                   Foreground="{StaticResource WarningForeground}"
+                                                   Margin="12,1,0,1" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                     </Border>
 
                     <!-- Push Skip Reasons Notice Panel (§7.5, §7.6) -->
                     <Border Grid.Row="3"
-                            Background="#EFF6FF"
-                            BorderBrush="#93C5FD"
+                            Background="{StaticResource InfoBackground}"
+                            BorderBrush="{StaticResource InfoBorder}"
                             BorderThickness="1"
                             CornerRadius="4"
                             Padding="8,4"
-                            Margin="0,0,0,6"
+                            Margin="0,0,0,8"
                             Visibility="{Binding HasPushSkipReasons, Converter={StaticResource BoolToVis}}">
-                        <DockPanel LastChildFill="True">
-                            <Button DockPanel.Dock="Right"
-                                    Content="{Binding IsPushSkipDetailsExpanded, Converter={StaticResource BoolToVis}, ConverterParameter='접기|상세보기'}"
-                                    Command="{Binding TogglePushSkipDetailsCommand}"
-                                    Padding="6,1"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Foreground="#1E40AF"
-                                    FontWeight="Bold"
-                                    Cursor="Hand" />
-                            <TextBlock x:Name="TxtPushSkipBreakdown"
-                                       AutomationProperties.AutomationId="TxtPushSkipBreakdown"
-                                       Text="{Binding PushSkipReasonSummary, StringFormat='ℹ️ Push 스킵 안내: {0}'}"
-                                       FontWeight="SemiBold"
-                                       Foreground="#1E3A8A"
-                                       VerticalAlignment="Center" />
-                        </DockPanel>
+                        <StackPanel Orientation="Vertical">
+                            <DockPanel LastChildFill="True">
+                                <Button DockPanel.Dock="Right"
+                                        AutomationProperties.AutomationId="BtnTogglePushSkipReasons"
+                                        Content="{Binding IsPushSkipDetailsExpanded, Converter={StaticResource BoolToLabel}, ConverterParameter='접기|상세보기'}"
+                                        Command="{Binding TogglePushSkipDetailsCommand}"
+                                        Padding="8,4"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Foreground="{StaticResource InfoForeground}"
+                                        FontWeight="Bold"
+                                        Cursor="Hand" />
+                                <TextBlock x:Name="TxtPushSkipBreakdown"
+                                           AutomationProperties.AutomationId="TxtPushSkipBreakdown"
+                                           Text="{Binding PushSkipReasonSummary, StringFormat='ℹ️ Push 스킵 안내: {0}'}"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource InfoForeground}"
+                                           VerticalAlignment="Center" />
+                            </DockPanel>
+                            <!-- 사유별 개별 내역 (건수 요약이 아니라 항목별 행) -->
+                            <ItemsControl AutomationProperties.AutomationId="ListPushSkipReasons"
+                                          ItemsSource="{Binding PushSkipReasonList}"
+                                          Margin="0,4,0,0"
+                                          Visibility="{Binding IsPushSkipDetailsExpanded, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}"
+                                                   FontSize="{StaticResource FontSizeSecondary}"
+                                                   Foreground="{StaticResource InfoForeground}"
+                                                   Margin="12,1,0,1" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                     </Border>
 
                     <!-- Inaccessible Paths Panel -->
                     <Border Grid.Row="4"
-                            Background="#FFFBEB"
-                            BorderBrush="#FCD34D"
+                            Background="{StaticResource WarningBackground}"
+                            BorderBrush="{StaticResource WarningBorder}"
                             BorderThickness="1"
                             CornerRadius="4"
                             Padding="8,4"
-                            Margin="0,0,0,6"
+                            Margin="0,0,0,8"
                             Visibility="{Binding HasInaccessiblePaths, Converter={StaticResource BoolToVis}}">
                         <StackPanel>
                             <DockPanel LastChildFill="True">
                                 <Button DockPanel.Dock="Right"
-                                        Content="{Binding IsInaccessiblePathsExpanded, Converter={StaticResource BoolToVis}, ConverterParameter='접기|경로 목록 보기'}"
+                                        Content="{Binding IsInaccessiblePathsExpanded, Converter={StaticResource BoolToLabel}, ConverterParameter='접기|경로 목록 보기'}"
                                         Command="{Binding ToggleInaccessiblePathsCommand}"
-                                        Padding="6,1"
+                                        Padding="8,4"
                                         Background="Transparent"
                                         BorderThickness="0"
-                                        Foreground="#B45309"
+                                        Foreground="{StaticResource WarningForeground}"
                                         FontWeight="Bold"
                                         Cursor="Hand" />
                                 <TextBlock Text="⚠️ 접근 거부된 경로가 있어 일부 레포를 건너뛰었습니다."
                                            FontWeight="SemiBold"
-                                           Foreground="#B45309"
+                                           Foreground="{StaticResource WarningForeground}"
                                            VerticalAlignment="Center" />
                             </DockPanel>
                         </StackPanel>
                     </Border>
 
-                    <!-- Main Hierarchical Tree View / Empty State -->
+                    <!-- Main Hierarchical Tree View / Empty States -->
                     <Grid Grid.Row="5">
-                        <Border Background="White"
-                                BorderBrush="#E5E7EB"
+                        <Border Background="{StaticResource NeutralBackground}"
+                                BorderBrush="{StaticResource NeutralBorder}"
                                 BorderThickness="1"
                                 CornerRadius="6">
                             <TreeView x:Name="MainTreeView"
@@ -560,7 +595,7 @@
                                     <!-- Template for FolderTreeNodeViewModel -->
                                     <HierarchicalDataTemplate DataType="{x:Type tree:FolderTreeNodeViewModel}"
                                                               ItemsSource="{Binding Children}">
-                                        <DockPanel Margin="0,2" LastChildFill="True">
+                                        <DockPanel Margin="0,4" LastChildFill="True">
                                             <DockPanel.ContextMenu>
                                                 <ContextMenu AutomationProperties.AutomationId="ContextMenuFolderNode">
                                                     <MenuItem Header="탐색기에서 열기" Command="{Binding OpenInExplorerCommand}" ToolTip="Shift+클릭: 상위 폴더에서 선택" AutomationProperties.AutomationId="MenuFolderOpenInExplorer" />
@@ -570,30 +605,31 @@
                                                 </ContextMenu>
                                             </DockPanel.ContextMenu>
 
-                                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                            <CheckBox IsChecked="{Binding CascadeSelection, Mode=TwoWay}"
                                                       VerticalAlignment="Center"
-                                                      Margin="0,0,6,0" />
+                                                      Margin="0,0,8,0" />
 
                                             <!-- Rollup Status Summary Badge -->
                                             <Border DockPanel.Dock="Right"
-                                                    Background="#FEF3C7"
-                                                    BorderBrush="#FCD34D"
+                                                    Background="{StaticResource WarningBackground}"
+                                                    BorderBrush="{StaticResource WarningBorder}"
                                                     BorderThickness="1"
                                                     CornerRadius="4"
-                                                    Padding="6,1"
+                                                    Padding="8,4"
                                                     Margin="8,0,4,0"
-                                                    VerticalAlignment="Center">
+                                                    VerticalAlignment="Center"
+                                                    ToolTip="하위 저장소 상태 롤업: ↓ Behind 합, ↑ Ahead 합, ⚠ 확인 필요 합">
                                                 <TextBlock Text="{Binding RollupSummaryText}"
                                                            FontWeight="Bold"
-                                                           FontSize="11"
-                                                           Foreground="#92400E" />
+                                                           FontSize="{StaticResource FontSizeSecondary}"
+                                                           Foreground="{StaticResource WarningForeground}" />
                                             </Border>
 
                                             <!-- Folder Path -->
                                             <TextBlock Text="{Binding CompressedDisplayPath}"
                                                        FontWeight="Bold"
-                                                       FontSize="13"
-                                                       Foreground="#1F2937"
+                                                       FontSize="{StaticResource FontSizeSubtitle}"
+                                                       Foreground="{StaticResource NeutralForeground}"
                                                        VerticalAlignment="Center" />
                                         </DockPanel>
                                     </HierarchicalDataTemplate>
@@ -601,7 +637,7 @@
                                     <!-- Template for RepoTreeNodeViewModel -->
                                     <HierarchicalDataTemplate DataType="{x:Type tree:RepoTreeNodeViewModel}"
                                                               ItemsSource="{Binding Children}">
-                                        <DockPanel Margin="0,3" LastChildFill="True">
+                                        <DockPanel Margin="0,4" LastChildFill="True">
                                             <DockPanel.ContextMenu>
                                                 <ContextMenu AutomationProperties.AutomationId="ContextMenuRepoNode">
                                                     <MenuItem Header="탐색기에서 열기" Command="{Binding OpenInExplorerCommand}" ToolTip="Shift+클릭: 상위 폴더에서 선택" AutomationProperties.AutomationId="MenuRepoOpenInExplorer" />
@@ -620,64 +656,67 @@
 
                                             <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
                                                       VerticalAlignment="Center"
-                                                      Margin="0,0,6,0" />
+                                                      Margin="0,0,8,0" />
 
                                             <!-- Host profile color dot (●) -->
                                             <TextBlock Text="●"
                                                        Foreground="{Binding HostDotColor}"
-                                                       FontSize="14"
+                                                       FontSize="{StaticResource FontSizeSubtitle}"
                                                        VerticalAlignment="Center"
-                                                       Margin="0,0,6,0"
-                                                       ToolTip="{Binding HostName}" />
+                                                       Margin="0,0,8,0"
+                                                       ToolTip="{Binding HostName, StringFormat='서버 프로파일: {0}'}" />
 
                                             <!-- Right-aligned Badges: Server Status, Suggestions, Freshness, 3-Axis Summary, Duplicate, Nested Warning -->
                                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <!-- LFS Badge (§9.4, 완료 기준 33) -->
-                                                <Border Background="#E0E7FF"
-                                                        BorderBrush="#818CF8"
+                                                <Border Background="{StaticResource InfoBackground}"
+                                                        BorderBrush="{StaticResource InfoBorder}"
                                                         BorderThickness="1"
                                                         CornerRadius="3"
-                                                        Padding="4,1"
-                                                        Margin="3,0"
-                                                        Visibility="{Binding HasLfsBadge, Converter={StaticResource BoolToVis}}">
-                                                    <TextBlock Text="LFS" FontWeight="Bold" FontSize="10" Foreground="#4338CA" />
+                                                        Padding="4,4"
+                                                        Margin="4,0"
+                                                        Visibility="{Binding HasLfsBadge, Converter={StaticResource BoolToVis}}"
+                                                        ToolTip="Git LFS(대용량 파일 저장) 저장소입니다. 저동시성 큐로 처리됩니다.">
+                                                    <TextBlock Text="LFS" FontWeight="Bold" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource InfoForeground}" />
                                                 </Border>
 
                                                 <!-- Worktree / Bare Badge (§9.4, 완료 기준 33) -->
-                                                <Border Background="#F3E8FF"
-                                                        BorderBrush="#C084FC"
+                                                <Border Background="{StaticResource InfoBackground}"
+                                                        BorderBrush="{StaticResource InfoBorder}"
                                                         BorderThickness="1"
                                                         CornerRadius="3"
-                                                        Padding="4,1"
-                                                        Margin="3,0"
-                                                        Visibility="{Binding HasWorktreeBadge, Converter={StaticResource BoolToVis}}">
-                                                    <TextBlock Text="{Binding WorktreeBadgeText}" FontWeight="Bold" FontSize="10" Foreground="#7E22CE" />
+                                                        Padding="4,4"
+                                                        Margin="4,0"
+                                                        Visibility="{Binding HasWorktreeBadge, Converter={StaticResource BoolToVis}}"
+                                                        ToolTip="worktree/bare 저장소는 일괄 작업 대상에서 제외됩니다.">
+                                                    <TextBlock Text="{Binding WorktreeBadgeText}" FontWeight="Bold" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource InfoForeground}" />
                                                 </Border>
 
                                                 <!-- Server Status Badge (Orphaned / External / Untracked / Archived) (§3.2) -->
-                                                <Border Background="#FEF3C7"
-                                                        BorderBrush="#F59E0B"
+                                                <Border Background="{StaticResource WarningBackground}"
+                                                        BorderBrush="{StaticResource WarningBorder}"
                                                         BorderThickness="1"
                                                         CornerRadius="3"
-                                                        Padding="4,1"
+                                                        Padding="4,4"
                                                         Margin="4,0"
-                                                        Visibility="{Binding HasServerStatusBadge, Converter={StaticResource BoolToVis}}">
+                                                        Visibility="{Binding HasServerStatusBadge, Converter={StaticResource BoolToVis}}"
+                                                        ToolTip="{Binding ServerStatusBadge, Converter={StaticResource StateExplanation}}">
                                                     <TextBlock Text="{Binding ServerStatusBadge}"
                                                                FontWeight="Bold"
-                                                               FontSize="10"
-                                                               Foreground="#B45309" />
+                                                               FontSize="{StaticResource FontSizeCaption}"
+                                                               Foreground="{StaticResource WarningForeground}" />
                                                 </Border>
 
                                                 <!-- Upstream Gone Suggestion Button (§3.4, 완료 기준 14) -->
                                                 <Button Content="{Binding UpstreamGoneSuggestionText}"
                                                         Command="{Binding SetUpstreamGoneCommand}"
-                                                        Background="#FEF3C7"
-                                                        BorderBrush="#F59E0B"
-                                                        Foreground="#B45309"
+                                                        Background="{StaticResource WarningBackground}"
+                                                        BorderBrush="{StaticResource WarningBorder}"
+                                                        Foreground="{StaticResource WarningForeground}"
                                                         FontWeight="Bold"
-                                                        FontSize="10"
-                                                        Padding="5,1"
-                                                        Margin="3,0"
+                                                        FontSize="{StaticResource FontSizeCaption}"
+                                                        Padding="4,4"
+                                                        Margin="4,0"
                                                         Cursor="Hand"
                                                         AutomationProperties.AutomationId="BtnTreeUpstreamGoneSuggestion"
                                                         Visibility="{Binding HasUpstreamGoneSuggestion, Converter={StaticResource BoolToVis}}" />
@@ -686,65 +725,69 @@
                                                 <Button Content="🔄 URL 변경 감지"
                                                         Command="{Binding ApplyUrlChangeCommand}"
                                                         ToolTip="{Binding UrlChangeSuggestionText}"
-                                                        Background="#DBEAFE"
-                                                        BorderBrush="#60A5FA"
-                                                        Foreground="#1D4ED8"
+                                                        Background="{StaticResource InfoBackground}"
+                                                        BorderBrush="{StaticResource InfoBorder}"
+                                                        Foreground="{StaticResource InfoForeground}"
                                                         FontWeight="Bold"
-                                                        FontSize="10"
-                                                        Padding="5,1"
-                                                        Margin="3,0"
+                                                        FontSize="{StaticResource FontSizeCaption}"
+                                                        Padding="4,4"
+                                                        Margin="4,0"
                                                         Cursor="Hand"
                                                         AutomationProperties.AutomationId="BtnTreeUrlChangeSuggestion"
                                                         Visibility="{Binding HasUrlChangeSuggestion, Converter={StaticResource BoolToVis}}" />
 
                                                 <!-- Nested Repo Boundary Warning -->
-                                                <Border Background="#FEE2E2"
-                                                        BorderBrush="#F87171"
+                                                <Border Background="{StaticResource ErrorBackground}"
+                                                        BorderBrush="{StaticResource ErrorBorder}"
                                                         BorderThickness="1"
                                                         CornerRadius="3"
-                                                        Padding="4,1"
+                                                        Padding="4,4"
                                                         Margin="4,0"
-                                                        Visibility="{Binding HasGitIgnoreWarning, Converter={StaticResource BoolToVis}}">
+                                                        Visibility="{Binding HasGitIgnoreWarning, Converter={StaticResource BoolToVis}}"
+                                                        ToolTip="자식 저장소가 부모의 .gitignore에 없으면 부모의 Dirty 판정이 자식 파일로 오염될 수 있습니다.">
                                                     <TextBlock Text="⚠️ .gitignore 누락"
-                                                               FontSize="10"
+                                                               FontSize="{StaticResource FontSizeCaption}"
                                                                FontWeight="Bold"
-                                                               Foreground="#991B1B" />
+                                                               Foreground="{StaticResource ErrorForeground}" />
                                                 </Border>
 
                                                 <!-- Duplicate Clones Badge -->
                                                 <Button Content="{Binding DuplicateBadgeText}"
                                                         Command="{Binding JumpToNextCloneCommand}"
-                                                        Background="#EFF6FF"
-                                                        BorderBrush="#93C5FD"
-                                                        Foreground="#1D4ED8"
+                                                        Background="{StaticResource InfoBackground}"
+                                                        BorderBrush="{StaticResource InfoBorder}"
+                                                        Foreground="{StaticResource InfoForeground}"
                                                         FontWeight="SemiBold"
-                                                        FontSize="11"
-                                                        Padding="6,1"
+                                                        FontSize="{StaticResource FontSizeSecondary}"
+                                                        Padding="8,4"
                                                         Margin="4,0"
                                                         Cursor="Hand"
+                                                        ToolTip="클릭하면 이 URL의 다른 로컬 사본으로 이동합니다."
                                                         Visibility="{Binding HasDuplicateClones, Converter={StaticResource BoolToVis}}" />
 
                                                 <!-- 3-Axis Status Badge -->
-                                                <Border Background="#F3F4F6"
-                                                        BorderBrush="#D1D5DB"
+                                                <Border Background="{StaticResource NeutralSurface}"
+                                                        BorderBrush="{StaticResource NeutralBorder}"
                                                         BorderThickness="1"
                                                         CornerRadius="3"
-                                                        Padding="6,2"
-                                                        Margin="4,0">
+                                                        Padding="8,4"
+                                                        Margin="4,0"
+                                                        ToolTip="{Binding ThreeAxisSummary, Converter={StaticResource StateExplanation}}">
                                                     <TextBlock Text="{Binding ThreeAxisSummary}"
                                                                FontWeight="SemiBold"
-                                                               FontSize="11"
-                                                               Foreground="#111827" />
+                                                               FontSize="{StaticResource FontSizeSecondary}"
+                                                               Foreground="{StaticResource NeutralForeground}" />
                                                 </Border>
 
                                                 <!-- Freshness Label -->
                                                 <TextBlock Text="{Binding Freshness}"
-                                                           Foreground="#6B7280"
-                                                           FontSize="11"
+                                                           Foreground="{StaticResource NeutralForegroundMuted}"
+                                                           FontSize="{StaticResource FontSizeSecondary}"
                                                            VerticalAlignment="Center"
-                                                           Margin="6,0,8,0"
+                                                           Margin="8,0,8,0"
                                                            MinWidth="80"
-                                                           TextAlignment="Right" />
+                                                           TextAlignment="Right"
+                                                           ToolTip="마지막 fetch 이후 경과 시간. Fetch 전까지는 Behind 판정이 부정확할 수 있습니다." />
                                             </StackPanel>
 
                                             <!-- Repo Name, Remote Key, Branch -->
@@ -752,19 +795,21 @@
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Text="{Binding FolderName}"
                                                                FontWeight="Bold"
-                                                               FontSize="13"
-                                                               Foreground="#111827" />
-                                                    <TextBlock Text="{Binding DisplayRepoPath}"
-                                                               FontFamily="Consolas"
-                                                               FontSize="11"
-                                                               Foreground="#6B7280"
+                                                               FontSize="{StaticResource FontSizeSubtitle}"
+                                                               Foreground="{StaticResource NeutralForeground}" />
+                                                    <TextBlock Text="{Binding DisplayRepoPath, Converter={StaticResource FrontEllipsis}, ConverterParameter=60}"
+                                                               FontFamily="{StaticResource FontFamilyMono}"
+                                                               FontSize="{StaticResource FontSizeSecondary}"
+                                                               Foreground="{StaticResource NeutralForegroundMuted}"
                                                                Margin="8,0,0,0"
-                                                               VerticalAlignment="Center" />
+                                                               VerticalAlignment="Center"
+                                                               ToolTip="{Binding DisplayRepoPath}" />
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding BranchDisplay}"
-                                                           FontSize="11"
-                                                           Foreground="#4B5563"
-                                                           Margin="0,1,0,0" />
+                                                           FontFamily="{StaticResource FontFamilyMono}"
+                                                           FontSize="{StaticResource FontSizeSecondary}"
+                                                           Foreground="{StaticResource NeutralForegroundMuted}"
+                                                           Margin="0,4,0,0" />
                                             </StackPanel>
                                         </DockPanel>
                                     </HierarchicalDataTemplate>
@@ -772,24 +817,55 @@
                             </TreeView>
                         </Border>
 
-                        <!-- Empty State Notice -->
-                        <Border Background="White"
-                                BorderBrush="#E5E7EB"
+                        <!-- Empty State 1: 스캔 루트 없음 -->
+                        <Border Background="{StaticResource NeutralBackground}"
+                                BorderBrush="{StaticResource NeutralBorder}"
                                 BorderThickness="1"
                                 CornerRadius="6"
                                 Padding="32"
                                 Visibility="{Binding HasNoRepos, Converter={StaticResource BoolToVis}}">
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <TextBlock Text="등록된 저장소가 없습니다"
-                                           FontSize="16"
+                                           FontSize="{StaticResource FontSizeTitle}"
                                            FontWeight="Bold"
-                                           Foreground="#374151"
+                                           Foreground="{StaticResource NeutralForeground}"
                                            HorizontalAlignment="Center" />
-                                <TextBlock Text="상단에서 스캔할 폴더 경로를 입력하고 [루트 추가] 후 [스캔 시작]을 누르세요."
-                                           FontSize="12"
-                                           Foreground="#6B7280"
-                                           Margin="0,8,0,0"
+                                <TextBlock Text="스캔할 폴더 경로를 입력하고 [루트 추가] 후 [스캔 시작]을 누르세요."
+                                           FontSize="{StaticResource FontSizeBody}"
+                                           Foreground="{StaticResource NeutralForegroundMuted}"
+                                           Margin="0,8,0,12"
                                            HorizontalAlignment="Center" />
+                                <Button Content="스캔 폴더 추가"
+                                        Padding="16,8"
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        HorizontalAlignment="Center"
+                                        Click="EmptyStateFocusScanPath_Click" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Empty State 2: 필터 결과 0건 (스캔 루트는 있으나 필터로 전부 가려짐) -->
+                        <Border Background="{StaticResource NeutralBackground}"
+                                BorderBrush="{StaticResource NeutralBorder}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="32"
+                                Visibility="{Binding HasNoFilterResults, Converter={StaticResource BoolToVis}}">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="조건에 맞는 저장소가 없습니다"
+                                           FontSize="{StaticResource FontSizeTitle}"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource NeutralForeground}"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="검색어 또는 필터 조건을 확인하세요."
+                                           FontSize="{StaticResource FontSizeBody}"
+                                           Foreground="{StaticResource NeutralForegroundMuted}"
+                                           Margin="0,8,0,12"
+                                           HorizontalAlignment="Center" />
+                                <Button Content="필터 해제"
+                                        Command="{Binding ClearFiltersCommand}"
+                                        Padding="16,8"
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        HorizontalAlignment="Center" />
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -820,47 +896,44 @@
                                         Content="실행 취소"
                                         Command="{Binding CancelPullCommand}"
                                         Visibility="{Binding IsPullExecuting, Converter={StaticResource BoolToVis}}"
-                                        Padding="10,3"
-                                        Background="#FEE2E2"
-                                        BorderBrush="#FCA5A5"
-                                        Foreground="#991B1B"
-                                        FontWeight="Bold" />
+                                        Padding="8,4"
+                                        Style="{StaticResource DangerButtonStyle}" />
                                 <Button DockPanel.Dock="Right"
                                         x:Name="BtnClosePullPanel"
                                         AutomationProperties.AutomationId="BtnClosePullPanel"
                                         Content="✕ 닫기"
                                         Command="{Binding ClosePullPanelCommand}"
                                         Visibility="{Binding IsPullCompleted, Converter={StaticResource BoolToVis}}"
-                                        Padding="10,3"
-                                        Background="#E2E8F0"
-                                        BorderBrush="#CBD5E1"
-                                        Foreground="#1E293B"
+                                        Padding="8,4"
+                                        Background="{StaticResource NeutralBorder}"
+                                        BorderBrush="{StaticResource NeutralBorder}"
+                                        Foreground="{StaticResource NeutralForeground}"
                                         FontWeight="Bold" />
-                                <TextBlock Text="{Binding PullHeaderTitle}" FontWeight="Bold" FontSize="13" Foreground="{Binding PullHeaderColor}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding PullHeaderTitle}" FontWeight="Bold" FontSize="{StaticResource FontSizeSubtitle}" Foreground="{Binding PullHeaderColor}" VerticalAlignment="Center" />
                             </DockPanel>
 
                             <StackPanel Grid.Row="1" Margin="0,8,0,8">
-                                <ProgressBar Height="14"
+                                <ProgressBar Height="16"
                                              Value="{Binding PullProgressPercent}"
                                              Maximum="100"
-                                             Foreground="#2563EB"
-                                             Background="#E2E8F0" />
-                                <TextBlock Text="{Binding PullProgressText}" FontWeight="SemiBold" FontSize="11" Foreground="#334155" Margin="0,4,0,0" />
+                                             Foreground="{StaticResource AccentBackground}"
+                                             Background="{StaticResource NeutralBorder}" />
+                                <TextBlock Text="{Binding PullProgressText}" AutomationProperties.AutomationId="TxtPullSummaryReport" FontWeight="SemiBold" FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource NeutralForegroundMuted}" Margin="0,4,0,0" />
                             </StackPanel>
 
                             <ListBox Grid.Row="2"
                                      x:Name="ListPullExecution"
                                      AutomationProperties.AutomationId="ListPullExecution"
                                      ItemsSource="{Binding PullExecutionItems}"
-                                     Background="White"
-                                     BorderBrush="#E2E8F0"
+                                     Background="{StaticResource NeutralBackground}"
+                                     BorderBrush="{StaticResource NeutralBorder}"
                                      BorderThickness="1">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <DockPanel Margin="2,1">
-                                            <TextBlock DockPanel.Dock="Right" Text="{Binding DurationMs, StringFormat='({0}ms)'}" FontSize="10" Foreground="#94A3B8" Margin="6,0,0,0" />
-                                            <TextBlock DockPanel.Dock="Right" Text="{Binding StatusText}" FontWeight="Bold" FontSize="11" Foreground="{Binding StatusColor}" />
-                                            <TextBlock Text="{Binding RepoPath}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                        <DockPanel Margin="4,4">
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding DurationMs, StringFormat='({0}ms)'}" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource NeutralForegroundMuted}" Margin="8,0,0,0" />
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding StatusText}" FontWeight="Bold" FontSize="{StaticResource FontSizeSecondary}" Foreground="{Binding StatusColor}" />
+                                            <TextBlock Text="{Binding RepoPath, Converter={StaticResource FrontEllipsis}, ConverterParameter=70}" FontFamily="{StaticResource FontFamilyMono}" FontSize="{StaticResource FontSizeSecondary}" ToolTip="{Binding RepoPath}" />
                                         </DockPanel>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
@@ -871,7 +944,7 @@
                                           Visibility="{Binding HasPullErrorGroups, Converter={StaticResource BoolToVis}}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="#FEF2F2" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,2">
+                                        <Border Background="{StaticResource ErrorBackground}" BorderBrush="{StaticResource ErrorBorder}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,4,0,0">
                                             <DockPanel LastChildFill="True">
                                                 <Button DockPanel.Dock="Right"
                                                         x:Name="BtnRetryPullGroup"
@@ -879,13 +952,13 @@
                                                         Content="이 유형만 재시도"
                                                         Command="{Binding RetryCommand}"
                                                         Visibility="{Binding CanRetry, Converter={StaticResource BoolToVis}}"
-                                                        Padding="8,3" Background="#EF4444" Foreground="White" BorderBrush="#DC2626" FontWeight="Bold" />
+                                                        Padding="8,4" Style="{StaticResource DangerButtonStyle}" />
                                                 <StackPanel Orientation="Vertical">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding CategoryName, StringFormat='🚨 {0}'}" FontWeight="Bold" Foreground="#991B1B" />
-                                                        <TextBlock Text="{Binding FailedCount, StringFormat='({0}건 실패)'}" FontWeight="Bold" Foreground="#B91C1C" Margin="6,0,0,0" />
+                                                        <TextBlock Text="{Binding CategoryName, StringFormat='🚨 {0}'}" FontWeight="Bold" Foreground="{StaticResource ErrorForeground}" />
+                                                        <TextBlock Text="{Binding FailedCount, StringFormat='({0}건 실패)'}" FontWeight="Bold" Foreground="{StaticResource ErrorForeground}" Margin="8,0,0,0" />
                                                     </StackPanel>
-                                                    <TextBlock Text="{Binding GuideMessage}" FontSize="11" Foreground="#7F1D1D" Margin="0,2,0,0" />
+                                                    <TextBlock Text="{Binding GuideMessage}" FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource ErrorForeground}" Margin="0,4,0,0" />
                                                 </StackPanel>
                                             </DockPanel>
                                         </Border>
@@ -921,47 +994,44 @@
                                         Content="실행 취소"
                                         Command="{Binding CancelPushCommand}"
                                         Visibility="{Binding IsPushExecuting, Converter={StaticResource BoolToVis}}"
-                                        Padding="10,3"
-                                        Background="#FEE2E2"
-                                        BorderBrush="#FCA5A5"
-                                        Foreground="#991B1B"
-                                        FontWeight="Bold" />
+                                        Padding="8,4"
+                                        Style="{StaticResource DangerButtonStyle}" />
                                 <Button DockPanel.Dock="Right"
                                         x:Name="BtnClosePushPanel"
                                         AutomationProperties.AutomationId="BtnClosePushPanel"
                                         Content="✕ 닫기"
                                         Command="{Binding ClosePushPanelCommand}"
                                         Visibility="{Binding IsPushCompleted, Converter={StaticResource BoolToVis}}"
-                                        Padding="10,3"
-                                        Background="#E2E8F0"
-                                        BorderBrush="#CBD5E1"
-                                        Foreground="#1E293B"
+                                        Padding="8,4"
+                                        Background="{StaticResource NeutralBorder}"
+                                        BorderBrush="{StaticResource NeutralBorder}"
+                                        Foreground="{StaticResource NeutralForeground}"
                                         FontWeight="Bold" />
-                                <TextBlock Text="{Binding PushHeaderTitle}" FontWeight="Bold" FontSize="13" Foreground="{Binding PushHeaderColor}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding PushHeaderTitle}" FontWeight="Bold" FontSize="{StaticResource FontSizeSubtitle}" Foreground="{Binding PushHeaderColor}" VerticalAlignment="Center" />
                             </DockPanel>
 
                             <StackPanel Grid.Row="1" Margin="0,8,0,8">
-                                <ProgressBar Height="14"
+                                <ProgressBar Height="16"
                                              Value="{Binding PushProgressPercent}"
                                              Maximum="100"
-                                             Foreground="#2563EB"
-                                             Background="#E2E8F0" />
-                                <TextBlock Text="{Binding PushProgressText}" FontWeight="SemiBold" FontSize="11" Foreground="#334155" Margin="0,4,0,0" />
+                                             Foreground="{StaticResource AccentBackground}"
+                                             Background="{StaticResource NeutralBorder}" />
+                                <TextBlock Text="{Binding PushProgressText}" FontWeight="SemiBold" FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource NeutralForegroundMuted}" Margin="0,4,0,0" />
                             </StackPanel>
 
                             <ListBox Grid.Row="2"
                                      x:Name="ListPushExecution"
                                      AutomationProperties.AutomationId="ListPushExecution"
                                      ItemsSource="{Binding PushExecutionItems}"
-                                     Background="White"
-                                     BorderBrush="#E2E8F0"
+                                     Background="{StaticResource NeutralBackground}"
+                                     BorderBrush="{StaticResource NeutralBorder}"
                                      BorderThickness="1">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <DockPanel Margin="2,1">
-                                            <TextBlock DockPanel.Dock="Right" Text="{Binding StatusBadgeText}" FontWeight="Bold" FontSize="11" Foreground="{Binding StatusBadgeColor}" Margin="6,0,0,0" />
-                                            <TextBlock DockPanel.Dock="Right" Text="{Binding Detail}" FontSize="10" Foreground="#64748B" Margin="6,0,0,0" />
-                                            <TextBlock Text="{Binding AbsPath}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                        <DockPanel Margin="4,4">
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding StatusBadgeText}" FontWeight="Bold" FontSize="{StaticResource FontSizeSecondary}" Foreground="{Binding StatusBadgeColor}" Margin="8,0,0,0" />
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding Detail}" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource NeutralForegroundMuted}" Margin="8,0,0,0" />
+                                            <TextBlock Text="{Binding AbsPath, Converter={StaticResource FrontEllipsis}, ConverterParameter=70}" FontFamily="{StaticResource FontFamilyMono}" FontSize="{StaticResource FontSizeSecondary}" ToolTip="{Binding AbsPath}" />
                                         </DockPanel>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
@@ -972,7 +1042,7 @@
                                           Visibility="{Binding HasPushErrorGroups, Converter={StaticResource BoolToVis}}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="#FEF2F2" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,2">
+                                        <Border Background="{StaticResource ErrorBackground}" BorderBrush="{StaticResource ErrorBorder}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,4,0,0">
                                             <DockPanel LastChildFill="True">
                                                 <Button DockPanel.Dock="Right"
                                                         x:Name="BtnRetryPushGroup"
@@ -980,13 +1050,13 @@
                                                         Content="이 유형만 재시도"
                                                         Command="{Binding RetryCommand}"
                                                         Visibility="{Binding CanRetry, Converter={StaticResource BoolToVis}}"
-                                                        Padding="8,3" Background="#EF4444" Foreground="White" BorderBrush="#DC2626" FontWeight="Bold" />
+                                                        Padding="8,4" Style="{StaticResource DangerButtonStyle}" />
                                                 <StackPanel Orientation="Vertical">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding CategoryName, StringFormat='🚨 {0}'}" FontWeight="Bold" Foreground="#991B1B" />
-                                                        <TextBlock Text="{Binding FailedCount, StringFormat='({0}건 실패)'}" FontWeight="Bold" Foreground="#B91C1C" Margin="6,0,0,0" />
+                                                        <TextBlock Text="{Binding CategoryName, StringFormat='🚨 {0}'}" FontWeight="Bold" Foreground="{StaticResource ErrorForeground}" />
+                                                        <TextBlock Text="{Binding FailedCount, StringFormat='({0}건 실패)'}" FontWeight="Bold" Foreground="{StaticResource ErrorForeground}" Margin="8,0,0,0" />
                                                     </StackPanel>
-                                                    <TextBlock Text="{Binding GuideMessage}" FontSize="11" Foreground="#7F1D1D" Margin="0,2,0,0" />
+                                                    <TextBlock Text="{Binding GuideMessage}" FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource ErrorForeground}" Margin="0,4,0,0" />
                                                 </StackPanel>
                                             </DockPanel>
                                         </Border>
@@ -1000,8 +1070,8 @@
                     <Border Grid.Row="8"
                             x:Name="PanelJobHistory"
                             AutomationProperties.AutomationId="PanelJobHistory"
-                            Background="#F8FAFC"
-                            BorderBrush="#CBD5E1"
+                            Background="{StaticResource NeutralSurface}"
+                            BorderBrush="{StaticResource NeutralBorder}"
                             BorderThickness="1"
                             CornerRadius="6"
                             Padding="12"
@@ -1020,18 +1090,17 @@
                                         AutomationProperties.AutomationId="BtnCloseJobHistory"
                                         Content="✕ 닫기"
                                         Command="{Binding ToggleHistoryPanelCommand}"
-                                        Padding="8,3"
-                                        Background="#F1F5F9"
-                                        BorderBrush="#CBD5E1" />
+                                        Padding="8,4"
+                                        Style="{StaticResource SecondaryButtonStyle}" />
 
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,12,0" VerticalAlignment="Center">
-                                    <TextBlock Text="작업 유형:" VerticalAlignment="Center" Margin="0,0,4,0" FontWeight="SemiBold" FontSize="11" />
+                                    <TextBlock Text="작업 유형:" VerticalAlignment="Center" Margin="0,0,4,0" FontWeight="SemiBold" FontSize="{StaticResource FontSizeSecondary}" />
                                     <ComboBox x:Name="CmbJobTypeFilter"
                                               AutomationProperties.AutomationId="CmbJobTypeFilter"
                                               ItemsSource="{Binding AvailableJobTypes}"
                                               SelectedItem="{Binding SelectedJobTypeFilter, Mode=TwoWay}"
                                               Width="130"
-                                              Padding="4,2"
+                                              Padding="4,4"
                                               Margin="0,0,8,0" />
 
                                     <ToggleButton x:Name="BtnToggleFullHistory"
@@ -1039,18 +1108,18 @@
                                                   Content="전체 이력 보기"
                                                   IsChecked="{Binding IsFullHistoryMode, Mode=TwoWay}"
                                                   Command="{Binding ToggleFullHistoryCommand}"
-                                                  Padding="8,3"
+                                                  Padding="8,4"
                                                   Style="{StaticResource FilterToggleButtonStyle}" />
                                 </StackPanel>
 
                                 <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="📋 작업 이력 (Job History)" FontWeight="Bold" FontSize="13" Foreground="#0F172A" VerticalAlignment="Center" Margin="0,0,12,0" />
-                                    <TextBlock Text="경로 검색:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="11" />
+                                    <TextBlock Text="📋 작업 이력 (Job History)" FontWeight="Bold" FontSize="{StaticResource FontSizeSubtitle}" Foreground="{StaticResource NeutralForeground}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                    <TextBlock Text="경로 검색:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="{StaticResource FontSizeSecondary}" />
                                     <TextBox x:Name="TxtHistorySearch"
                                              AutomationProperties.AutomationId="TxtHistorySearch"
                                              Text="{Binding HistorySearchText, UpdateSourceTrigger=PropertyChanged}"
                                              Width="160"
-                                             Padding="4,2" />
+                                             Padding="4,4" />
                                 </WrapPanel>
                             </DockPanel>
 
@@ -1062,9 +1131,9 @@
                                       AutoGenerateColumns="False"
                                       CanUserAddRows="False"
                                       GridLinesVisibility="Horizontal"
-                                      HorizontalGridLinesBrush="#F1F5F9"
-                                      Background="White"
-                                      BorderBrush="#E2E8F0"
+                                      HorizontalGridLinesBrush="{StaticResource NeutralSurface}"
+                                      Background="{StaticResource NeutralBackground}"
+                                      BorderBrush="{StaticResource NeutralBorder}"
                                       BorderThickness="1">
                                 <DataGrid.Columns>
                                     <!-- ID -->
@@ -1074,10 +1143,23 @@
                                     <DataGridTextColumn Header="작업 유형" Binding="{Binding JobType}" Width="110" />
 
                                     <!-- Target Path -->
-                                    <DataGridTextColumn Header="대상 저장소" Binding="{Binding TargetPath}" Width="200" />
+                                    <DataGridTextColumn Header="대상 저장소" Binding="{Binding TargetPath, Converter={StaticResource FrontEllipsis}, ConverterParameter=40}" Width="200">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                                <Setter Property="ToolTip" Value="{Binding TargetPath}" />
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
                                     <!-- Head / URL Transition -->
-                                    <DataGridTextColumn Header="변경 전 → 변경 후" Binding="{Binding HeadTransition}" Width="*" />
+                                    <DataGridTextColumn Header="변경 전 → 변경 후" Binding="{Binding HeadTransition}" Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
                                     <!-- Result -->
                                     <DataGridTemplateColumn Header="결과" Width="80">
@@ -1086,10 +1168,10 @@
                                                 <TextBlock Text="{Binding Result}" FontWeight="Bold">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="#16A34A" />
+                                                            <Setter Property="Foreground" Value="{StaticResource SuccessForeground}" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding Result}" Value="Failed">
-                                                                    <Setter Property="Foreground" Value="#DC2626" />
+                                                                    <Setter Property="Foreground" Value="{StaticResource ErrorForeground}" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -1114,13 +1196,10 @@
                                                         Content="이 커밋으로 되돌리기"
                                                         Command="{Binding RollbackCommand}"
                                                         Visibility="{Binding CanRollback, Converter={StaticResource BoolToVis}}"
-                                                        Padding="6,2"
-                                                        Background="#FEE2E2"
-                                                        Foreground="#991B1B"
-                                                        BorderBrush="#FCA5A5"
-                                                        FontWeight="Bold"
-                                                        FontSize="10"
-                                                        Cursor="Hand" />
+                                                        Padding="8,4"
+                                                        Style="{StaticResource DangerButtonStyle}"
+                                                        FontSize="{StaticResource FontSizeCaption}"
+                                                        ToolTip="git reset --hard로 이 커밋 시점으로 되돌립니다(개별 실행, 확인 필수)." />
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
@@ -1133,7 +1212,7 @@
 
             <!-- TAB 2: 클론 (Phase 4) -->
             <TabItem Header="📥 클론"
-                     FontSize="14"
+                     FontSize="{StaticResource FontSizeSubtitle}"
                      FontWeight="SemiBold"
                      Padding="16,8"
                      AutomationProperties.AutomationId="TabClone"
@@ -1143,14 +1222,14 @@
                         <RowDefinition Height="Auto" /> <!-- Profile Selection & Actions Bar -->
                         <RowDefinition Height="Auto" /> <!-- Permanent Scan Root Banner -->
                         <RowDefinition Height="Auto" /> <!-- Search, Filter & Multi-select Toolbar -->
-                        <RowDefinition Height="*" />    <!-- Catalog DataGrid -->
+                        <RowDefinition Height="*" />    <!-- Catalog DataGrid / Empty State -->
                         <RowDefinition Height="Auto" /> <!-- Destination Root & Execute Bar -->
                     </Grid.RowDefinitions>
 
                     <!-- Top Profile Selection & Management Bar -->
                     <Border Grid.Row="0"
-                            Background="White"
-                            BorderBrush="#E5E7EB"
+                            Background="{StaticResource NeutralBackground}"
+                            BorderBrush="{StaticResource NeutralBorder}"
                             BorderThickness="1"
                             CornerRadius="6"
                             Padding="12,8"
@@ -1161,22 +1240,21 @@
                                         x:Name="BtnOpenProfileManagement"
                                         AutomationProperties.AutomationId="BtnOpenProfileManagement"
                                         Command="{Binding OpenProfileManagementCommand}"
-                                        Padding="10,5"
+                                        Padding="8,4"
                                         Margin="0,0,8,0"
-                                        Background="#F1F5F9"
-                                        BorderBrush="#CBD5E1"
+                                        Background="{StaticResource NeutralSurface}"
+                                        BorderBrush="{StaticResource NeutralBorder}"
                                         FontWeight="SemiBold" />
 
                                 <Button Content="🔄 카탈로그 동기화"
                                         x:Name="BtnSyncCatalog"
                                         AutomationProperties.AutomationId="BtnSyncCatalog"
                                         Command="{Binding SyncCatalogCommand}"
-                                        IsEnabled="{Binding IsSyncing, Converter={StaticResource BoolToVis}, ConverterParameter=invert}"
-                                        Padding="12,5"
-                                        Background="#2563EB"
-                                        Foreground="White"
-                                        BorderBrush="#1D4ED8"
-                                        FontWeight="Bold" />
+                                        IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBool}}"
+                                        Padding="12,4"
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        ToolTipService.ShowOnDisabled="True"
+                                        ToolTip="이미 동기화가 진행 중일 때는 비활성화됩니다." />
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -1188,7 +1266,7 @@
                                           SelectedItem="{Binding SelectedProfile, Mode=TwoWay}"
                                           DisplayMemberPath="Host"
                                           Width="220"
-                                          Padding="6,4"
+                                          Padding="8,4"
                                           x:Name="CmbCloneProfile"
                                           AutomationProperties.AutomationId="CmbCloneProfile" />
                             </StackPanel>
@@ -1197,27 +1275,27 @@
 
                     <!-- Permanent Scan Root Banner (§7.5, §10 Criterion 24) -->
                     <Border Grid.Row="1"
-                            Background="#F0FDF4"
-                            BorderBrush="#BBF7D0"
+                            Background="{StaticResource SuccessBackground}"
+                            BorderBrush="{StaticResource SuccessBorder}"
                             BorderThickness="1"
                             CornerRadius="6"
-                            Padding="10,6"
+                            Padding="8,4"
                             Margin="0,0,0,8">
                         <TextBlock x:Name="TxtScanRootBanner"
                                    AutomationProperties.AutomationId="TxtScanRootBanner"
                                    Text="{Binding ScanRootBannerText}"
                                    FontWeight="SemiBold"
-                                   FontSize="12"
-                                   Foreground="#15803D" />
+                                   FontSize="{StaticResource FontSizeBody}"
+                                   Foreground="{StaticResource SuccessForeground}" />
                     </Border>
 
                     <!-- Filter & Selection Bar -->
                     <Border Grid.Row="2"
-                            Background="White"
-                            BorderBrush="#E5E7EB"
+                            Background="{StaticResource NeutralBackground}"
+                            BorderBrush="{StaticResource NeutralBorder}"
                             BorderThickness="1"
                             CornerRadius="6"
-                            Padding="10,8"
+                            Padding="8"
                             Margin="0,0,0,8">
                         <DockPanel LastChildFill="True">
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
@@ -1226,7 +1304,7 @@
                                            Text="{Binding SelectionSummaryText}"
                                            FontWeight="SemiBold"
                                            VerticalAlignment="Center"
-                                           Margin="0,0,10,0" />
+                                           Margin="0,0,8,0" />
                             </StackPanel>
 
                             <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -1235,7 +1313,7 @@
                                          AutomationProperties.AutomationId="TxtCloneFilter"
                                          Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                                          Width="180"
-                                         Padding="4,2"
+                                         Padding="4,4"
                                          Margin="0,0,12,0" />
 
                                 <CheckBox x:Name="ChkShowArchived"
@@ -1250,107 +1328,145 @@
                                         x:Name="BtnSelectAllCatalog"
                                         AutomationProperties.AutomationId="BtnSelectAllCatalog"
                                         Command="{Binding SelectAllCommand}"
-                                        Padding="8,3"
-                                        Margin="2,0"
-                                        Background="#F3F4F6"
-                                        BorderBrush="#D1D5DB" />
+                                        Padding="8,4"
+                                        Margin="4,0"
+                                        Style="{StaticResource SecondaryButtonStyle}" />
 
                                 <Button Content="선택 해제"
                                         x:Name="BtnUnselectAllCatalog"
                                         AutomationProperties.AutomationId="BtnUnselectAllCatalog"
                                         Command="{Binding UnselectAllCommand}"
-                                        Padding="8,3"
-                                        Margin="2,0"
-                                        Background="#F3F4F6"
-                                        BorderBrush="#D1D5DB" />
+                                        Padding="8,4"
+                                        Margin="4,0"
+                                        Style="{StaticResource SecondaryButtonStyle}" />
                             </WrapPanel>
                         </DockPanel>
                     </Border>
 
-                    <!-- Catalog DataGrid -->
-                    <Border Grid.Row="3"
-                            Background="White"
-                            BorderBrush="#E5E7EB"
-                            BorderThickness="1"
-                            CornerRadius="6">
-                        <DataGrid x:Name="GridCatalog"
-                                  AutomationProperties.AutomationId="GridCatalog"
-                                  ItemsSource="{Binding FilteredCatalogItems}"
-                                  AutoGenerateColumns="False"
-                                  CanUserAddRows="False"
-                                  GridLinesVisibility="Horizontal"
-                                  HorizontalGridLinesBrush="#F1F5F9"
-                                  BorderThickness="0">
-                            <DataGrid.Columns>
-                                <!-- Checkbox Column -->
-                                <DataGridTemplateColumn Width="40">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
-                                                      HorizontalAlignment="Center"
-                                                      VerticalAlignment="Center" />
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
+                    <!-- Catalog DataGrid / Empty State 2: 카탈로그 없음 -->
+                    <Grid Grid.Row="3">
+                        <Border Background="{StaticResource NeutralBackground}"
+                                BorderBrush="{StaticResource NeutralBorder}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Visibility="{Binding HasNoProfiles, Converter={StaticResource InvertedBoolToVis}}">
+                            <DataGrid x:Name="GridCatalog"
+                                      AutomationProperties.AutomationId="GridCatalog"
+                                      ItemsSource="{Binding FilteredCatalogItems}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      GridLinesVisibility="Horizontal"
+                                      HorizontalGridLinesBrush="{StaticResource NeutralSurface}"
+                                      BorderThickness="0">
+                                <DataGrid.Columns>
+                                    <!-- Checkbox Column -->
+                                    <DataGridTemplateColumn Width="40">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
-                                <!-- Namespace / Name -->
-                                <DataGridTemplateColumn Header="네임스페이스 / 저장소" Width="260">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Repo.NormalizedKey}" FontWeight="Bold" Foreground="#0F172A" />
-                                                <TextBlock Text="{Binding Repo.Namespace, StringFormat='네임스페이스: {0}'}" FontSize="10" Foreground="#64748B" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
+                                    <!-- Namespace / Name -->
+                                    <DataGridTemplateColumn Header="네임스페이스 / 저장소" Width="260">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Repo.NormalizedKey}" FontWeight="Bold" Foreground="{StaticResource NeutralForeground}" />
+                                                    <TextBlock Text="{Binding Repo.Namespace, StringFormat='네임스페이스: {0}'}" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource NeutralForegroundMuted}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
-                                <!-- Default Branch -->
-                                <DataGridTextColumn Header="기본 브랜치"
-                                                    Binding="{Binding Repo.DefaultBranch}"
-                                                    Width="110" />
+                                    <!-- Default Branch -->
+                                    <DataGridTextColumn Header="기본 브랜치"
+                                                        Binding="{Binding Repo.DefaultBranch}"
+                                                        Width="110">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- Status / Badges Column -->
-                                <DataGridTemplateColumn Header="상태 배지" Width="180">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <!-- Archived Badge -->
-                                                <Border Background="#FEF2F2" BorderBrush="#FCA5A5" BorderThickness="1"
-                                                        CornerRadius="3" Padding="4,1" Margin="0,0,4,0"
-                                                        Visibility="{Binding IsArchived, Converter={StaticResource BoolToVis}}">
-                                                    <TextBlock Text="보관됨" FontSize="10" FontWeight="Bold" Foreground="#991B1B" />
-                                                </Border>
+                                    <!-- Status / Badges Column -->
+                                    <DataGridTemplateColumn Header="상태 배지" Width="180">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <!-- Archived Badge -->
+                                                    <Border Background="{StaticResource ErrorBackground}" BorderBrush="{StaticResource ErrorBorder}" BorderThickness="1"
+                                                            CornerRadius="3" Padding="4,4" Margin="0,0,4,0"
+                                                            Visibility="{Binding IsArchived, Converter={StaticResource BoolToVis}}">
+                                                        <TextBlock Text="보관됨" FontSize="{StaticResource FontSizeCaption}" FontWeight="Bold" Foreground="{StaticResource ErrorForeground}" />
+                                                    </Border>
 
-                                                <!-- Already Cloned Jump Link/Badge (§5.2, §10 Criterion 24) -->
-                                                <Button Content="{Binding AlreadyClonedBadgeText}"
-                                                        Command="{Binding DataContext.JumpToLocalRepoCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                        CommandParameter="{Binding}"
-                                                        Background="#EFF6FF" BorderBrush="#93C5FD"
-                                                        Foreground="#1D4ED8" FontWeight="Bold" FontSize="11"
-                                                        Padding="6,2" Margin="0,0,4,0" Cursor="Hand"
-                                                        Visibility="{Binding IsAlreadyCloned, Converter={StaticResource BoolToVis}}"
-                                                        ToolTip="클릭 시 로컬 탭 해당 레포 노드로 이동합니다" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
+                                                    <!-- Already Cloned Jump Link/Badge (§5.2, §10 Criterion 24) -->
+                                                    <Button Content="{Binding AlreadyClonedBadgeText}"
+                                                            Command="{Binding DataContext.JumpToLocalRepoCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="{StaticResource InfoBackground}" BorderBrush="{StaticResource InfoBorder}"
+                                                            Foreground="{StaticResource InfoForeground}" FontWeight="Bold" FontSize="{StaticResource FontSizeSecondary}"
+                                                            Padding="8,4" Margin="0,0,4,0" Cursor="Hand"
+                                                            Visibility="{Binding IsAlreadyCloned, Converter={StaticResource BoolToVis}}"
+                                                            ToolTip="클릭 시 로컬 탭 해당 레포 노드로 이동합니다" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
-                                <!-- Clone URL -->
-                                <DataGridTextColumn Header="Clone URL (토큰 미포함)"
-                                                    Binding="{Binding Repo.CloneUrl}"
-                                                    Width="*" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Border>
+                                    <!-- Clone URL -->
+                                    <DataGridTextColumn Header="Clone URL (토큰 미포함)"
+                                                        Binding="{Binding Repo.CloneUrl}"
+                                                        Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+
+                        <!-- Empty State 3: 서버 프로파일 없음 -->
+                        <Border Background="{StaticResource NeutralBackground}"
+                                BorderBrush="{StaticResource NeutralBorder}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="32"
+                                Visibility="{Binding HasNoProfiles, Converter={StaticResource BoolToVis}}">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="등록된 서버 프로파일이 없습니다"
+                                           FontSize="{StaticResource FontSizeTitle}"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource NeutralForeground}"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="GitLab / GitHub / Gitea 서버 프로파일을 등록해야 카탈로그를 불러올 수 있습니다."
+                                           FontSize="{StaticResource FontSizeBody}"
+                                           Foreground="{StaticResource NeutralForegroundMuted}"
+                                           Margin="0,8,0,12"
+                                           HorizontalAlignment="Center" />
+                                <Button Content="서버 연결"
+                                        Command="{Binding OpenProfileManagementCommand}"
+                                        Padding="16,8"
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
 
                     <!-- Destination Directory Picker & Execution Bar -->
                     <Border Grid.Row="4"
-                            Background="White"
-                            BorderBrush="#E5E7EB"
+                            Background="{StaticResource NeutralBackground}"
+                            BorderBrush="{StaticResource NeutralBorder}"
                             BorderThickness="1"
                             CornerRadius="6"
-                            Padding="12,10"
+                            Padding="12,8"
                             Margin="0,8,0,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -1369,22 +1485,21 @@
                                      x:Name="TxtTargetRoot"
                                      AutomationProperties.AutomationId="TxtTargetRoot"
                                      Text="{Binding TargetRootDirectory, UpdateSourceTrigger=PropertyChanged}"
-                                     Padding="6,4"
+                                     Padding="8,4"
                                      Margin="0,0,8,0"
-                                     VerticalContentAlignment="Center" />
+                                     VerticalContentAlignment="Center"
+                                     FontFamily="{StaticResource FontFamilyMono}" />
 
                             <Button Grid.Column="2"
                                     x:Name="BtnPreviewClone"
                                     AutomationProperties.AutomationId="BtnPreviewClone"
                                     Content="클론 미리보기 및 실행..."
                                     Command="{Binding PreviewAndExecuteCloneCommand}"
-                                    IsEnabled="{Binding IsCloning, Converter={StaticResource BoolToVis}, ConverterParameter=invert}"
-                                    Padding="16,6"
-                                    Background="#2563EB"
-                                    Foreground="White"
-                                    BorderBrush="#1D4ED8"
-                                    FontWeight="Bold"
-                                    Cursor="Hand" />
+                                    IsEnabled="{Binding IsCloning, Converter={StaticResource InverseBool}}"
+                                    Padding="16,8"
+                                    Style="{StaticResource AccentButtonStyle}"
+                                    ToolTipService.ShowOnDisabled="True"
+                                    ToolTip="이미 클론이 진행 중일 때는 비활성화됩니다." />
                         </Grid>
                     </Border>
                 </Grid>
@@ -1393,8 +1508,8 @@
 
         <!-- Bottom Status Bar -->
         <StatusBar Grid.Row="2"
-                   Background="#F3F4F6"
-                   BorderBrush="#E5E7EB"
+                   Background="{StaticResource NeutralSurface}"
+                   BorderBrush="{StaticResource NeutralBorder}"
                    BorderThickness="0,1,0,0"
                    Margin="-12,8,-12,-12"
                    Padding="8,4">
@@ -1405,15 +1520,15 @@
             </StatusBarItem>
             <StatusBarItem HorizontalAlignment="Right">
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="등록된 레포: " Foreground="#6B7280" />
-                    <TextBlock Text="{Binding TotalRepoCount}" FontWeight="Bold" Foreground="#111827" />
-                    <TextBlock Text="개" Margin="0,0,12,0" Foreground="#6B7280" />
+                    <TextBlock Text="등록된 레포: " Foreground="{StaticResource NeutralForegroundMuted}" />
+                    <TextBlock Text="{Binding TotalRepoCount}" FontWeight="Bold" Foreground="{StaticResource NeutralForeground}" />
+                    <TextBlock Text="개" Margin="0,0,12,0" Foreground="{StaticResource NeutralForegroundMuted}" />
 
                     <!-- Background Fetch Progress Indicator -->
                     <StackPanel Orientation="Horizontal"
                                 Visibility="{Binding IsFetching, Converter={StaticResource BoolToVis}}"
                                 Margin="0,0,8,0">
-                        <TextBlock Text="Fetch 중..." FontSize="11" Foreground="#4B5563" Margin="0,0,4,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Fetch 중..." FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource NeutralForegroundMuted}" Margin="0,0,4,0" VerticalAlignment="Center" />
                         <ProgressBar Width="90" Height="12" IsIndeterminate="True" VerticalAlignment="Center" />
                     </StackPanel>
 

@@ -12,6 +12,8 @@ public partial class ChangeRemoteUrlWindow : Window
         _viewModel = viewModel;
         InitializeComponent();
         DataContext = viewModel;
+
+        Loaded += (_, _) => TxtRemoteName.Focus();
     }
 
     private async void BtnSave_Click(object sender, RoutedEventArgs e)

@@ -88,6 +88,10 @@ public partial class CloneTabViewModel : ObservableObject
     [ObservableProperty]
     private string _selectionSummaryText = "선택 0개 / 전체 0개";
 
+    // §5-4 빈 상태: 등록된 서버 프로파일이 하나도 없음
+    [ObservableProperty]
+    private bool _hasNoProfiles = true;
+
     public Action<string>? OnJumpToLocalRepoRequested { get; set; }
     public Func<IReadOnlyList<ClonePreviewItem>, string, Task<bool>>? ShowPreviewDialogFunc { get; set; }
     public Func<string, Task<bool>>? PromptAddScanRootFunc { get; set; }
@@ -141,6 +145,7 @@ public partial class CloneTabViewModel : ObservableObject
         }
 
         SelectedProfile = ServerProfiles.FirstOrDefault();
+        HasNoProfiles = ServerProfiles.Count == 0;
     }
 
     partial void OnSelectedProfileChanged(ServerProfile? value)
