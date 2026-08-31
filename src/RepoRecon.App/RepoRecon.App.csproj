@@ -8,6 +8,8 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>RepoRecon.App</RootNamespace>
     <ApplicationIcon>Assets\reporecon.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <AssemblyInformationalVersion>$(Version)</AssemblyInformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
