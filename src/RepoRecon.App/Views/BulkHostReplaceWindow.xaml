@@ -1,0 +1,170 @@
+<Window x:Class="RepoRecon.App.Views.BulkHostReplaceWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:RepoRecon.App.ViewModels"
+        mc:Ignorable="d"
+        Title="호스트 단위 Remote URL 일괄 치환"
+        Height="540" Width="820"
+        WindowStartupLocation="CenterOwner"
+        AutomationProperties.AutomationId="DialogBulkHostReplace"
+        Background="#F8FAFC">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /> <!-- Top Input Form -->
+            <RowDefinition Height="*" />    <!-- Dry-run Preview Grid -->
+            <RowDefinition Height="Auto" /> <!-- Sample Validation & Action Buttons -->
+        </Grid.RowDefinitions>
+
+        <!-- Top Input & Guide Panel -->
+        <Border Grid.Row="0"
+                Background="White"
+                BorderBrush="#E2E8F0"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="12"
+                Margin="0,0,0,12">
+            <StackPanel Orientation="Vertical">
+                <TextBlock Text="🌐 Git 서버 호스트 단위 일괄 치환 (설계 §10.7-b)" FontWeight="Bold" FontSize="14" Foreground="#0F172A" />
+                <TextBlock Text="서버 이전 시 네임스페이스와 프로젝트 경로를 유지한 채 호스트명만 안전하게 일괄 치환합니다." FontSize="11" Foreground="#64748B" Margin="0,3,0,10" />
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="이전 호스트:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBox Grid.Column="1"
+                             x:Name="TxtOldHost"
+                             AutomationProperties.AutomationId="TxtOldHost"
+                             Text="{Binding OldHost, UpdateSourceTrigger=PropertyChanged}"
+                             Padding="6,4"
+                             Margin="0,0,12,0" />
+
+                    <TextBlock Grid.Column="2" Text="새 호스트:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBox Grid.Column="3"
+                             x:Name="TxtNewHost"
+                             AutomationProperties.AutomationId="TxtNewHost"
+                             Text="{Binding NewHost, UpdateSourceTrigger=PropertyChanged}"
+                             Padding="6,4"
+                             Margin="0,0,12,0" />
+
+                    <Button Grid.Column="4"
+                            x:Name="BtnGenerateHostPreview"
+                            AutomationProperties.AutomationId="BtnGenerateHostPreview"
+                            Content="미리보기 (Dry-run)"
+                            Command="{Binding GeneratePreviewCommand}"
+                            IsEnabled="{Binding CanGeneratePreview}"
+                            Padding="12,5"
+                            Background="#2563EB"
+                            Foreground="White"
+                            BorderBrush="#1D4ED8"
+                            FontWeight="Bold" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Preview Grid (Dry-run preview required before execution) -->
+        <Border Grid.Row="1"
+                Background="White"
+                BorderBrush="#E2E8F0"
+                BorderThickness="1"
+                CornerRadius="6">
+            <DockPanel LastChildFill="True">
+                <Border DockPanel.Dock="Top" Background="#F1F5F9" Padding="10,6" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+                    <TextBlock x:Name="TxtBulkPreviewSummary"
+                               AutomationProperties.AutomationId="TxtBulkPreviewSummary"
+                               Text="{Binding PreviewSummaryText}"
+                               FontWeight="SemiBold"
+                               FontSize="12"
+                               Foreground="#1E293B" />
+                </Border>
+
+                <DataGrid x:Name="GridBulkHostPreview"
+                          AutomationProperties.AutomationId="GridBulkHostPreview"
+                          ItemsSource="{Binding PreviewItems}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          GridLinesVisibility="Horizontal"
+                          HorizontalGridLinesBrush="#F1F5F9"
+                          BorderThickness="0">
+                    <DataGrid.Columns>
+                        <!-- Repo Path -->
+                        <DataGridTextColumn Header="로컬 저장소 경로"
+                                            Binding="{Binding Repo.AbsPath}"
+                                            Width="220" />
+
+                        <!-- Current URL -->
+                        <DataGridTextColumn Header="변경 전 URL"
+                                            Binding="{Binding CurrentUrl}"
+                                            Width="*" />
+
+                        <!-- New URL -->
+                        <DataGridTextColumn Header="변경 후 URL (Dry-run)"
+                                            Binding="{Binding NewUrl}"
+                                            Width="*" />
+
+                        <!-- Status / Skip Reason -->
+                        <DataGridTemplateColumn Header="상태" Width="130">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="✅ 치환 대상" Foreground="#16A34A" FontWeight="Bold" FontSize="11"
+                                                   Visibility="{Binding IsEligible, Converter={StaticResource BoolToVis}}" />
+                                        <TextBlock Text="{Binding SkipReason, StringFormat='스킵: {0}'}" Foreground="#94A3B8" FontSize="10"
+                                                   Visibility="{Binding IsEligible, Converter={StaticResource BoolToVis}, ConverterParameter=invert}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
+
+        <!-- Bottom Action Bar & Sample Validation Info -->
+        <DockPanel Grid.Row="2" Margin="0,12,0,0" LastChildFill="False">
+            <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+                <TextBlock x:Name="TxtSampleValidation"
+                           AutomationProperties.AutomationId="TxtSampleValidation"
+                           Text="{Binding SampleValidationStatus}"
+                           Foreground="{Binding SampleValidationColor}"
+                           FontWeight="SemiBold"
+                           FontSize="11" />
+            </StackPanel>
+
+            <Button DockPanel.Dock="Right"
+                    x:Name="BtnExecuteHostReplace"
+                    AutomationProperties.AutomationId="BtnExecuteHostReplace"
+                    Content="일괄 치환 실행"
+                    Click="BtnExecute_Click"
+                    IsEnabled="{Binding IsPreviewGenerated}"
+                    Padding="16,6"
+                    Background="#2563EB"
+                    Foreground="White"
+                    BorderBrush="#1D4ED8"
+                    FontWeight="Bold"
+                    Cursor="Hand" />
+
+            <Button DockPanel.Dock="Right"
+                    x:Name="BtnCancelHostReplace"
+                    AutomationProperties.AutomationId="BtnCancelHostReplace"
+                    Content="취소"
+                    Click="BtnCancel_Click"
+                    Padding="14,6"
+                    Margin="0,0,8,0"
+                    Background="#F1F5F9"
+                    BorderBrush="#CBD5E1" />
+        </DockPanel>
+    </Grid>
+</Window>

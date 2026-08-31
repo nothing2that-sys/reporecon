@@ -184,6 +184,7 @@
                         <RowDefinition Height="*" />    <!-- Main Hierarchical Tree View / Empty State (5) -->
                         <RowDefinition Height="Auto" /> <!-- Pull Execution Panel (6) -->
                         <RowDefinition Height="Auto" /> <!-- Push Execution Panel (7) -->
+                        <RowDefinition Height="Auto" /> <!-- Job History Panel (8) -->
                     </Grid.RowDefinitions>
 
                     <!-- Scan Roots Management Panel -->
@@ -412,11 +413,46 @@
                                         BorderBrush="#D1D5DB" />
 
                                 <Button Content="새로고침 (F5)"
+                                        x:Name="BtnRefreshAll"
+                                        AutomationProperties.AutomationId="BtnRefreshAll"
                                         Command="{Binding RefreshAllCommand}"
                                         Padding="8,3"
                                         Margin="4,0,0,0"
                                         Background="#F3F4F6"
                                         BorderBrush="#D1D5DB" />
+
+                                <Separator Margin="4,2" />
+
+                                <Button Content="호스트 일괄 치환..."
+                                        x:Name="BtnOpenBulkHostReplace"
+                                        AutomationProperties.AutomationId="BtnOpenBulkHostReplace"
+                                        Command="{Binding OpenBulkHostReplaceCommand}"
+                                        Padding="8,3"
+                                        Margin="2,0"
+                                        Background="#F1F5F9"
+                                        BorderBrush="#CBD5E1"
+                                        FontWeight="SemiBold" />
+
+                                <Button Content="상태 내보내기"
+                                        x:Name="BtnExportState"
+                                        AutomationProperties.AutomationId="BtnExportState"
+                                        Command="{Binding ExportStateCommand}"
+                                        Padding="8,3"
+                                        Margin="2,0"
+                                        Background="#F1F5F9"
+                                        BorderBrush="#CBD5E1"
+                                        FontWeight="SemiBold" />
+
+                                <Button Content="📋 작업 이력"
+                                        x:Name="BtnToggleJobHistory"
+                                        AutomationProperties.AutomationId="BtnToggleJobHistory"
+                                        Command="{Binding ToggleHistoryPanelCommand}"
+                                        Padding="8,3"
+                                        Margin="2,0"
+                                        Background="#EFF6FF"
+                                        BorderBrush="#BFDBFE"
+                                        Foreground="#1D4ED8"
+                                        FontWeight="Bold" />
                             </WrapPanel>
                         </DockPanel>
                     </Border>
@@ -525,6 +561,15 @@
                                     <HierarchicalDataTemplate DataType="{x:Type tree:FolderTreeNodeViewModel}"
                                                               ItemsSource="{Binding Children}">
                                         <DockPanel Margin="0,2" LastChildFill="True">
+                                            <DockPanel.ContextMenu>
+                                                <ContextMenu AutomationProperties.AutomationId="ContextMenuFolderNode">
+                                                    <MenuItem Header="탐색기에서 열기" Command="{Binding OpenInExplorerCommand}" ToolTip="Shift+클릭: 상위 폴더에서 선택" AutomationProperties.AutomationId="MenuFolderOpenInExplorer" />
+                                                    <MenuItem Header="여기서 터미널 열기" Command="{Binding OpenTerminalHereCommand}" AutomationProperties.AutomationId="MenuFolderOpenTerminal" />
+                                                    <Separator />
+                                                    <MenuItem Header="경로 복사" Command="{Binding CopyPathCommand}" AutomationProperties.AutomationId="MenuFolderCopyPath" />
+                                                </ContextMenu>
+                                            </DockPanel.ContextMenu>
+
                                             <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
                                                       VerticalAlignment="Center"
                                                       Margin="0,0,6,0" />
@@ -557,6 +602,22 @@
                                     <HierarchicalDataTemplate DataType="{x:Type tree:RepoTreeNodeViewModel}"
                                                               ItemsSource="{Binding Children}">
                                         <DockPanel Margin="0,3" LastChildFill="True">
+                                            <DockPanel.ContextMenu>
+                                                <ContextMenu AutomationProperties.AutomationId="ContextMenuRepoNode">
+                                                    <MenuItem Header="탐색기에서 열기" Command="{Binding OpenInExplorerCommand}" ToolTip="Shift+클릭: 상위 폴더에서 선택" AutomationProperties.AutomationId="MenuRepoOpenInExplorer" />
+                                                    <MenuItem Header="여기서 터미널 열기" Command="{Binding OpenTerminalHereCommand}" AutomationProperties.AutomationId="MenuRepoOpenTerminal" />
+                                                    <MenuItem Header="브라우저에서 열기" Command="{Binding OpenInBrowserCommand}" IsEnabled="{Binding CanOpenInBrowser}" AutomationProperties.AutomationId="MenuRepoOpenInBrowser" />
+                                                    <Separator />
+                                                    <MenuItem Header="경로 복사" Command="{Binding CopyPathCommand}" AutomationProperties.AutomationId="MenuRepoCopyPath" />
+                                                    <MenuItem Header="Clone URL 복사" Command="{Binding CopyCloneUrlCommand}" AutomationProperties.AutomationId="MenuRepoCopyCloneUrl" />
+                                                    <MenuItem Header="사본으로 이동" Command="{Binding JumpToNextCloneCommand}" IsEnabled="{Binding HasDuplicateClones}" AutomationProperties.AutomationId="MenuRepoJumpToCopy" />
+                                                    <Separator />
+                                                    <MenuItem Header="Remote URL 변경..." Command="{Binding ChangeRemoteUrlCommand}" AutomationProperties.AutomationId="MenuRepoChangeRemoteUrl" />
+                                                    <MenuItem Header="개별 Force Push (--force-with-lease)..." Command="{Binding ForcePushCommand}" AutomationProperties.AutomationId="MenuRepoForcePush" />
+                                                    <MenuItem Header="개별 Push (-u)..." Command="{Binding PushNoUpstreamCommand}" AutomationProperties.AutomationId="MenuRepoPushNoUpstream" />
+                                                </ContextMenu>
+                                            </DockPanel.ContextMenu>
+
                                             <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
                                                       VerticalAlignment="Center"
                                                       Margin="0,0,6,0" />
@@ -569,8 +630,30 @@
                                                        Margin="0,0,6,0"
                                                        ToolTip="{Binding HostName}" />
 
-                                            <!-- Right-aligned Badges: Server Status, Freshness, 3-Axis Summary, Duplicate, Nested Warning -->
+                                            <!-- Right-aligned Badges: Server Status, Suggestions, Freshness, 3-Axis Summary, Duplicate, Nested Warning -->
                                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <!-- LFS Badge (§9.4, 완료 기준 33) -->
+                                                <Border Background="#E0E7FF"
+                                                        BorderBrush="#818CF8"
+                                                        BorderThickness="1"
+                                                        CornerRadius="3"
+                                                        Padding="4,1"
+                                                        Margin="3,0"
+                                                        Visibility="{Binding HasLfsBadge, Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock Text="LFS" FontWeight="Bold" FontSize="10" Foreground="#4338CA" />
+                                                </Border>
+
+                                                <!-- Worktree / Bare Badge (§9.4, 완료 기준 33) -->
+                                                <Border Background="#F3E8FF"
+                                                        BorderBrush="#C084FC"
+                                                        BorderThickness="1"
+                                                        CornerRadius="3"
+                                                        Padding="4,1"
+                                                        Margin="3,0"
+                                                        Visibility="{Binding HasWorktreeBadge, Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock Text="{Binding WorktreeBadgeText}" FontWeight="Bold" FontSize="10" Foreground="#7E22CE" />
+                                                </Border>
+
                                                 <!-- Server Status Badge (Orphaned / External / Untracked / Archived) (§3.2) -->
                                                 <Border Background="#FEF3C7"
                                                         BorderBrush="#F59E0B"
@@ -584,6 +667,35 @@
                                                                FontSize="10"
                                                                Foreground="#B45309" />
                                                 </Border>
+
+                                                <!-- Upstream Gone Suggestion Button (§3.4, 완료 기준 14) -->
+                                                <Button Content="{Binding UpstreamGoneSuggestionText}"
+                                                        Command="{Binding SetUpstreamGoneCommand}"
+                                                        Background="#FEF3C7"
+                                                        BorderBrush="#F59E0B"
+                                                        Foreground="#B45309"
+                                                        FontWeight="Bold"
+                                                        FontSize="10"
+                                                        Padding="5,1"
+                                                        Margin="3,0"
+                                                        Cursor="Hand"
+                                                        AutomationProperties.AutomationId="BtnTreeUpstreamGoneSuggestion"
+                                                        Visibility="{Binding HasUpstreamGoneSuggestion, Converter={StaticResource BoolToVis}}" />
+
+                                                <!-- URL Change Suggestion Button (§3.5, 완료 기준 16) -->
+                                                <Button Content="🔄 URL 변경 감지"
+                                                        Command="{Binding ApplyUrlChangeCommand}"
+                                                        ToolTip="{Binding UrlChangeSuggestionText}"
+                                                        Background="#DBEAFE"
+                                                        BorderBrush="#60A5FA"
+                                                        Foreground="#1D4ED8"
+                                                        FontWeight="Bold"
+                                                        FontSize="10"
+                                                        Padding="5,1"
+                                                        Margin="3,0"
+                                                        Cursor="Hand"
+                                                        AutomationProperties.AutomationId="BtnTreeUrlChangeSuggestion"
+                                                        Visibility="{Binding HasUrlChangeSuggestion, Converter={StaticResource BoolToVis}}" />
 
                                                 <!-- Nested Repo Boundary Warning -->
                                                 <Border Background="#FEE2E2"
@@ -686,8 +798,8 @@
                     <Border Grid.Row="6"
                             x:Name="PanelPullExecution"
                             AutomationProperties.AutomationId="PanelPullExecution"
-                            Background="#F8FAFC"
-                            BorderBrush="#CBD5E1"
+                            Background="{Binding PullPanelBackground}"
+                            BorderBrush="{Binding PullPanelBorderBrush}"
                             BorderThickness="1"
                             CornerRadius="6"
                             Padding="12"
@@ -698,6 +810,7 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="120" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
                             <DockPanel Grid.Row="0" LastChildFill="True">
@@ -706,13 +819,24 @@
                                         AutomationProperties.AutomationId="BtnCancelPull"
                                         Content="실행 취소"
                                         Command="{Binding CancelPullCommand}"
-                                        IsEnabled="{Binding IsPullExecuting}"
+                                        Visibility="{Binding IsPullExecuting, Converter={StaticResource BoolToVis}}"
                                         Padding="10,3"
                                         Background="#FEE2E2"
                                         BorderBrush="#FCA5A5"
                                         Foreground="#991B1B"
                                         FontWeight="Bold" />
-                                <TextBlock Text="🚀 일괄 Pull 실행 진행 상황" FontWeight="Bold" FontSize="13" Foreground="#0F172A" />
+                                <Button DockPanel.Dock="Right"
+                                        x:Name="BtnClosePullPanel"
+                                        AutomationProperties.AutomationId="BtnClosePullPanel"
+                                        Content="✕ 닫기"
+                                        Command="{Binding ClosePullPanelCommand}"
+                                        Visibility="{Binding IsPullCompleted, Converter={StaticResource BoolToVis}}"
+                                        Padding="10,3"
+                                        Background="#E2E8F0"
+                                        BorderBrush="#CBD5E1"
+                                        Foreground="#1E293B"
+                                        FontWeight="Bold" />
+                                <TextBlock Text="{Binding PullHeaderTitle}" FontWeight="Bold" FontSize="13" Foreground="{Binding PullHeaderColor}" VerticalAlignment="Center" />
                             </DockPanel>
 
                             <StackPanel Grid.Row="1" Margin="0,8,0,8">
@@ -721,7 +845,7 @@
                                              Maximum="100"
                                              Foreground="#2563EB"
                                              Background="#E2E8F0" />
-                                <TextBlock Text="{Binding PullProgressText}" FontSize="11" Foreground="#475569" Margin="0,4,0,0" />
+                                <TextBlock Text="{Binding PullProgressText}" FontWeight="SemiBold" FontSize="11" Foreground="#334155" Margin="0,4,0,0" />
                             </StackPanel>
 
                             <ListBox Grid.Row="2"
@@ -741,6 +865,33 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
+
+                            <!-- Categorized Failures & Selective Retry (§10.2, 완료 기준 4, 5) -->
+                            <ItemsControl Grid.Row="3" ItemsSource="{Binding PullErrorGroups}" Margin="0,8,0,0"
+                                          Visibility="{Binding HasPullErrorGroups, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#FEF2F2" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,2">
+                                            <DockPanel LastChildFill="True">
+                                                <Button DockPanel.Dock="Right"
+                                                        x:Name="BtnRetryPullGroup"
+                                                        AutomationProperties.AutomationId="BtnRetryPullGroup"
+                                                        Content="이 유형만 재시도"
+                                                        Command="{Binding RetryCommand}"
+                                                        Visibility="{Binding CanRetry, Converter={StaticResource BoolToVis}}"
+                                                        Padding="8,3" Background="#EF4444" Foreground="White" BorderBrush="#DC2626" FontWeight="Bold" />
+                                                <StackPanel Orientation="Vertical">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding CategoryName, StringFormat='🚨 {0}'}" FontWeight="Bold" Foreground="#991B1B" />
+                                                        <TextBlock Text="{Binding FailedCount, StringFormat='({0}건 실패)'}" FontWeight="Bold" Foreground="#B91C1C" Margin="6,0,0,0" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding GuideMessage}" FontSize="11" Foreground="#7F1D1D" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </Grid>
                     </Border>
 
@@ -748,8 +899,8 @@
                     <Border Grid.Row="7"
                             x:Name="PanelPushExecution"
                             AutomationProperties.AutomationId="PanelPushExecution"
-                            Background="#F8FAFC"
-                            BorderBrush="#BFDBFE"
+                            Background="{Binding PushPanelBackground}"
+                            BorderBrush="{Binding PushPanelBorderBrush}"
                             BorderThickness="1"
                             CornerRadius="6"
                             Padding="12"
@@ -760,6 +911,7 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="120" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
                             <DockPanel Grid.Row="0" LastChildFill="True">
@@ -768,13 +920,24 @@
                                         AutomationProperties.AutomationId="BtnCancelPushExecution"
                                         Content="실행 취소"
                                         Command="{Binding CancelPushCommand}"
-                                        IsEnabled="{Binding IsPushExecuting}"
+                                        Visibility="{Binding IsPushExecuting, Converter={StaticResource BoolToVis}}"
                                         Padding="10,3"
                                         Background="#FEE2E2"
                                         BorderBrush="#FCA5A5"
                                         Foreground="#991B1B"
                                         FontWeight="Bold" />
-                                <TextBlock Text="🚀 일괄 Push 실행 진행 상황" FontWeight="Bold" FontSize="13" Foreground="#1E3A8A" />
+                                <Button DockPanel.Dock="Right"
+                                        x:Name="BtnClosePushPanel"
+                                        AutomationProperties.AutomationId="BtnClosePushPanel"
+                                        Content="✕ 닫기"
+                                        Command="{Binding ClosePushPanelCommand}"
+                                        Visibility="{Binding IsPushCompleted, Converter={StaticResource BoolToVis}}"
+                                        Padding="10,3"
+                                        Background="#E2E8F0"
+                                        BorderBrush="#CBD5E1"
+                                        Foreground="#1E293B"
+                                        FontWeight="Bold" />
+                                <TextBlock Text="{Binding PushHeaderTitle}" FontWeight="Bold" FontSize="13" Foreground="{Binding PushHeaderColor}" VerticalAlignment="Center" />
                             </DockPanel>
 
                             <StackPanel Grid.Row="1" Margin="0,8,0,8">
@@ -783,7 +946,7 @@
                                              Maximum="100"
                                              Foreground="#2563EB"
                                              Background="#E2E8F0" />
-                                <TextBlock Text="{Binding PushProgressText}" FontSize="11" Foreground="#475569" Margin="0,4,0,0" />
+                                <TextBlock Text="{Binding PushProgressText}" FontWeight="SemiBold" FontSize="11" Foreground="#334155" Margin="0,4,0,0" />
                             </StackPanel>
 
                             <ListBox Grid.Row="2"
@@ -803,6 +966,166 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
+
+                            <!-- Categorized Failures & Selective Retry (§10.2, 완료 기준 4, 5, 7) -->
+                            <ItemsControl Grid.Row="3" ItemsSource="{Binding PushErrorGroups}" Margin="0,8,0,0"
+                                          Visibility="{Binding HasPushErrorGroups, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#FEF2F2" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,2">
+                                            <DockPanel LastChildFill="True">
+                                                <Button DockPanel.Dock="Right"
+                                                        x:Name="BtnRetryPushGroup"
+                                                        AutomationProperties.AutomationId="BtnRetryPushGroup"
+                                                        Content="이 유형만 재시도"
+                                                        Command="{Binding RetryCommand}"
+                                                        Visibility="{Binding CanRetry, Converter={StaticResource BoolToVis}}"
+                                                        Padding="8,3" Background="#EF4444" Foreground="White" BorderBrush="#DC2626" FontWeight="Bold" />
+                                                <StackPanel Orientation="Vertical">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding CategoryName, StringFormat='🚨 {0}'}" FontWeight="Bold" Foreground="#991B1B" />
+                                                        <TextBlock Text="{Binding FailedCount, StringFormat='({0}건 실패)'}" FontWeight="Bold" Foreground="#B91C1C" Margin="6,0,0,0" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding GuideMessage}" FontSize="11" Foreground="#7F1D1D" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </Border>
+
+                    <!-- Job History Panel (§10.3, 완료 기준 8~13) -->
+                    <Border Grid.Row="8"
+                            x:Name="PanelJobHistory"
+                            AutomationProperties.AutomationId="PanelJobHistory"
+                            Background="#F8FAFC"
+                            BorderBrush="#CBD5E1"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12"
+                            Margin="0,8,0,0"
+                            Visibility="{Binding IsHistoryPanelVisible, Converter={StaticResource BoolToVis}}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="200" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Top Header & Filter Toolbar -->
+                            <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="True">
+                                <Button DockPanel.Dock="Right"
+                                        x:Name="BtnCloseJobHistory"
+                                        AutomationProperties.AutomationId="BtnCloseJobHistory"
+                                        Content="✕ 닫기"
+                                        Command="{Binding ToggleHistoryPanelCommand}"
+                                        Padding="8,3"
+                                        Background="#F1F5F9"
+                                        BorderBrush="#CBD5E1" />
+
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,12,0" VerticalAlignment="Center">
+                                    <TextBlock Text="작업 유형:" VerticalAlignment="Center" Margin="0,0,4,0" FontWeight="SemiBold" FontSize="11" />
+                                    <ComboBox x:Name="CmbJobTypeFilter"
+                                              AutomationProperties.AutomationId="CmbJobTypeFilter"
+                                              ItemsSource="{Binding AvailableJobTypes}"
+                                              SelectedItem="{Binding SelectedJobTypeFilter, Mode=TwoWay}"
+                                              Width="130"
+                                              Padding="4,2"
+                                              Margin="0,0,8,0" />
+
+                                    <ToggleButton x:Name="BtnToggleFullHistory"
+                                                  AutomationProperties.AutomationId="BtnToggleFullHistory"
+                                                  Content="전체 이력 보기"
+                                                  IsChecked="{Binding IsFullHistoryMode, Mode=TwoWay}"
+                                                  Command="{Binding ToggleFullHistoryCommand}"
+                                                  Padding="8,3"
+                                                  Style="{StaticResource FilterToggleButtonStyle}" />
+                                </StackPanel>
+
+                                <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="📋 작업 이력 (Job History)" FontWeight="Bold" FontSize="13" Foreground="#0F172A" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                    <TextBlock Text="경로 검색:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="11" />
+                                    <TextBox x:Name="TxtHistorySearch"
+                                             AutomationProperties.AutomationId="TxtHistorySearch"
+                                             Text="{Binding HistorySearchText, UpdateSourceTrigger=PropertyChanged}"
+                                             Width="160"
+                                             Padding="4,2" />
+                                </WrapPanel>
+                            </DockPanel>
+
+                            <!-- History DataGrid with Rollback Buttons -->
+                            <DataGrid Grid.Row="1"
+                                      x:Name="GridJobHistory"
+                                      AutomationProperties.AutomationId="GridJobHistory"
+                                      ItemsSource="{Binding JobHistoryItems}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      GridLinesVisibility="Horizontal"
+                                      HorizontalGridLinesBrush="#F1F5F9"
+                                      Background="White"
+                                      BorderBrush="#E2E8F0"
+                                      BorderThickness="1">
+                                <DataGrid.Columns>
+                                    <!-- ID -->
+                                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="45" />
+
+                                    <!-- Job Type -->
+                                    <DataGridTextColumn Header="작업 유형" Binding="{Binding JobType}" Width="110" />
+
+                                    <!-- Target Path -->
+                                    <DataGridTextColumn Header="대상 저장소" Binding="{Binding TargetPath}" Width="200" />
+
+                                    <!-- Head / URL Transition -->
+                                    <DataGridTextColumn Header="변경 전 → 변경 후" Binding="{Binding HeadTransition}" Width="*" />
+
+                                    <!-- Result -->
+                                    <DataGridTemplateColumn Header="결과" Width="80">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Result}" FontWeight="Bold">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#16A34A" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Result}" Value="Failed">
+                                                                    <Setter Property="Foreground" Value="#DC2626" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Error Category -->
+                                    <DataGridTextColumn Header="오류 분류" Binding="{Binding ErrorCategory}" Width="100" />
+
+                                    <!-- Time -->
+                                    <DataGridTextColumn Header="실행 시각" Binding="{Binding TimeFormatted}" Width="135" />
+
+                                    <!-- Rollback Action Column (§10.3, 완료 기준 10, 12) -->
+                                    <DataGridTemplateColumn Header="되돌리기" Width="130">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Button x:Name="BtnRollbackCommit"
+                                                        AutomationProperties.AutomationId="BtnRollbackCommit"
+                                                        Content="이 커밋으로 되돌리기"
+                                                        Command="{Binding RollbackCommand}"
+                                                        Visibility="{Binding CanRollback, Converter={StaticResource BoolToVis}}"
+                                                        Padding="6,2"
+                                                        Background="#FEE2E2"
+                                                        Foreground="#991B1B"
+                                                        BorderBrush="#FCA5A5"
+                                                        FontWeight="Bold"
+                                                        FontSize="10"
+                                                        Cursor="Hand" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
                         </Grid>
                     </Border>
                 </Grid>

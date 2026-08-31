@@ -9,6 +9,7 @@ using RepoRecon.Core.Adapters;
 using RepoRecon.Core.Clone;
 using RepoRecon.Core.Concurrency;
 using RepoRecon.Core.Data;
+using RepoRecon.Core.Export;
 using RepoRecon.Core.Fetch;
 using RepoRecon.Core.Git;
 using RepoRecon.Core.Pull;
@@ -100,6 +101,9 @@ public partial class App : Application
                     logger: sp.GetService<Microsoft.Extensions.Logging.ILogger<PushEngine>>()));
                 services.AddSingleton<IServerAdapterFactory, ServerAdapterFactory>();
                 services.AddSingleton<ICloneEngine, CloneEngine>();
+                services.AddSingleton<IRemoteUrlService, RemoteUrlService>();
+                services.AddSingleton<IRollbackService, RollbackService>();
+                services.AddSingleton<IExportService, ExportService>();
                 services.AddSingleton<ProfileManagementViewModel>();
                 services.AddSingleton<CloneTabViewModel>();
                 services.AddSingleton<ClonePreviewViewModel>();

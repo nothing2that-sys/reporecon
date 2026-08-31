@@ -261,25 +261,37 @@ SELECT last_insert_rowid();";
 
     public async Task<IReadOnlyList<JobHistoryEntry>> GetJobHistoryAsync(string? targetPath = null, int limit = 100, CancellationToken cancellationToken = default)
     {
+        return await GetJobHistoryFilteredAsync(targetPath, jobType: null, limit: limit, cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<JobHistoryEntry>> GetJobHistoryFilteredAsync(string? targetPath = null, string? jobType = null, int limit = 100, CancellationToken cancellationToken = default)
+    {
         using var conn = CreateConnection();
         using var cmd = conn.CreateCommand();
-        if (string.IsNullOrWhiteSpace(targetPath))
+
+        var whereClauses = new List<string>();
+        if (!string.IsNullOrWhiteSpace(targetPath))
         {
-            cmd.CommandText = "SELECT id, job_type, target_path, pre_head, post_head, result, error_category, created_at FROM job_history ORDER BY id DESC LIMIT @limit;";
-        }
-        else
-        {
-            cmd.CommandText = "SELECT id, job_type, target_path, pre_head, post_head, result, error_category, created_at FROM job_history WHERE target_path = @target_path ORDER BY id DESC LIMIT @limit;";
+            whereClauses.Add("(target_path LIKE @target_path_like OR target_path = @target_path)");
             cmd.Parameters.AddWithValue("@target_path", targetPath);
+            cmd.Parameters.AddWithValue("@target_path_like", $"%{targetPath}%");
         }
-        cmd.Parameters.AddWithValue("@limit", limit);
+        if (!string.IsNullOrWhiteSpace(jobType) && !string.Equals(jobType, "전체", StringComparison.OrdinalIgnoreCase) && !string.Equals(jobType, "All", StringComparison.OrdinalIgnoreCase))
+        {
+            whereClauses.Add("job_type = @job_type");
+            cmd.Parameters.AddWithValue("@job_type", jobType);
+        }
+
+        var whereSql = whereClauses.Count > 0 ? "WHERE " + string.Join(" AND ", whereClauses) : string.Empty;
+        cmd.CommandText = $"SELECT id, job_type, target_path, pre_head, post_head, result, error_category, created_at FROM job_history {whereSql} ORDER BY id DESC LIMIT @limit;";
+        cmd.Parameters.AddWithValue("@limit", limit > 0 ? limit : int.MaxValue);
 
         var list = new List<JobHistoryEntry>();
         using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             var id = reader.GetInt64(0);
-            var jobType = reader.GetString(1);
+            var jType = reader.GetString(1);
             var path = reader.GetString(2);
             var preHead = reader.IsDBNull(3) ? null : reader.GetString(3);
             var postHead = reader.IsDBNull(4) ? null : reader.GetString(4);
@@ -287,7 +299,7 @@ SELECT last_insert_rowid();";
             var errorCat = reader.IsDBNull(6) ? null : reader.GetString(6);
             var createdAt = DateTime.Parse(reader.GetString(7), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
-            list.Add(new JobHistoryEntry(id, jobType, path, preHead, postHead, result, errorCat, createdAt));
+            list.Add(new JobHistoryEntry(id, jType, path, preHead, postHead, result, errorCat, createdAt));
         }
 
         return list;

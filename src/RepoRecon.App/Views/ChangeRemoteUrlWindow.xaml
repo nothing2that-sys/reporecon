@@ -1,0 +1,168 @@
+<Window x:Class="RepoRecon.App.Views.ChangeRemoteUrlWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:RepoRecon.App.ViewModels"
+        mc:Ignorable="d"
+        Title="Remote URL 변경"
+        Height="420" Width="640"
+        WindowStartupLocation="CenterOwner"
+        AutomationProperties.AutomationId="DialogChangeRemoteUrl"
+        Background="#F8FAFC">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /> <!-- Target Path & Notice -->
+            <RowDefinition Height="*" />    <!-- Input Fields & Previews -->
+            <RowDefinition Height="Auto" /> <!-- Action Buttons -->
+        </Grid.RowDefinitions>
+
+        <!-- Header / Path Info -->
+        <Border Grid.Row="0"
+                Background="White"
+                BorderBrush="#E2E8F0"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="12"
+                Margin="0,0,0,12">
+            <StackPanel Orientation="Vertical">
+                <TextBlock Text="🔗 원격 저장소 Remote URL 변경" FontWeight="Bold" FontSize="14" Foreground="#0F172A" />
+                <TextBlock Text="{Binding RepoPath, StringFormat='대상 경로: {0}'}" FontSize="11" Foreground="#64748B" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </Border>
+
+        <!-- Main Form -->
+        <Border Grid.Row="1"
+                Background="White"
+                BorderBrush="#E2E8F0"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="14">
+            <StackPanel Orientation="Vertical">
+                <!-- Remote Name -->
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="대상 Remote:" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1"
+                             x:Name="TxtRemoteName"
+                             AutomationProperties.AutomationId="TxtRemoteName"
+                             Text="{Binding RemoteName, UpdateSourceTrigger=PropertyChanged}"
+                             Padding="6,3" />
+                </Grid>
+
+                <!-- Current URL -->
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="현재 URL:" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               x:Name="TxtCurrentUrl"
+                               AutomationProperties.AutomationId="TxtCurrentUrl"
+                               Text="{Binding CurrentUrl}"
+                               Foreground="#475569"
+                               VerticalAlignment="Center"
+                               TextWrapping="Wrap" />
+                </Grid>
+
+                <!-- New URL Input -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="새 Remote URL:" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1"
+                             x:Name="TxtNewUrl"
+                             AutomationProperties.AutomationId="TxtNewUrl"
+                             Text="{Binding NewUrl, UpdateSourceTrigger=PropertyChanged}"
+                             Padding="6,4"
+                             Margin="0,0,8,0" />
+                    <Button Grid.Column="2"
+                            x:Name="BtnCheckReachability"
+                            AutomationProperties.AutomationId="BtnCheckReachability"
+                            Content="접근성 검사"
+                            Command="{Binding CheckReachabilityCommand}"
+                            IsEnabled="{Binding IsCheckingReachability, Converter={StaticResource BoolToVis}, ConverterParameter=invert}"
+                            Padding="10,4"
+                            Background="#F1F5F9"
+                            BorderBrush="#CBD5E1"
+                            FontWeight="SemiBold" />
+                </Grid>
+
+                <!-- Pre-save Mapping Reevaluation Preview (§10.7-a, Criterion 18) -->
+                <Border Background="#F8FAFC"
+                        BorderBrush="#E2E8F0"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="10"
+                        Margin="0,0,0,8">
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="사전 매핑 재판정 결과 (저장 전 미리보기):" FontWeight="Bold" FontSize="11" Foreground="#334155" />
+                        <TextBlock x:Name="TxtReevaluatedMapping"
+                                   AutomationProperties.AutomationId="TxtReevaluatedMapping"
+                                   Text="{Binding ReevaluatedMappingStatus}"
+                                   Foreground="{Binding ReevaluatedMappingColor}"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Margin="0,3,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Reachability Status -->
+                <Border Background="#F8FAFC"
+                        BorderBrush="#E2E8F0"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="10">
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="원격 도달 가능성 검증 (ls-remote):" FontWeight="Bold" FontSize="11" Foreground="#334155" />
+                        <TextBlock x:Name="TxtReachabilityStatus"
+                                   AutomationProperties.AutomationId="TxtReachabilityStatus"
+                                   Text="{Binding ReachabilityStatus}"
+                                   Foreground="{Binding ReachabilityStatusColor}"
+                                   FontSize="11"
+                                   Margin="0,3,0,0"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- Bottom Action Buttons -->
+        <DockPanel Grid.Row="2" Margin="0,12,0,0" LastChildFill="False">
+            <Button DockPanel.Dock="Right"
+                    x:Name="BtnSaveRemoteUrl"
+                    AutomationProperties.AutomationId="BtnSaveRemoteUrl"
+                    Content="저장 및 적용"
+                    Click="BtnSave_Click"
+                    IsEnabled="{Binding CanSave}"
+                    Padding="16,6"
+                    Background="#2563EB"
+                    Foreground="White"
+                    BorderBrush="#1D4ED8"
+                    FontWeight="Bold"
+                    Cursor="Hand" />
+
+            <Button DockPanel.Dock="Right"
+                    x:Name="BtnCancelRemoteUrl"
+                    AutomationProperties.AutomationId="BtnCancelRemoteUrl"
+                    Content="취소"
+                    Click="BtnCancel_Click"
+                    Padding="14,6"
+                    Margin="0,0,8,0"
+                    Background="#F1F5F9"
+                    BorderBrush="#CBD5E1" />
+        </DockPanel>
+    </Grid>
+</Window>

@@ -1,7 +1,11 @@
+using System.Diagnostics;
+using System.IO;
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RepoRecon.Core.Models;
 using RepoRecon.Core.Tree;
+using RepoRecon.Core.Urls;
 
 namespace RepoRecon.App.ViewModels.Tree;
 
@@ -9,6 +13,8 @@ public partial class RepoTreeNodeViewModel : TreeNodeViewModelBase
 {
     private readonly Action<long>? _onNavigateToSibling;
     private string? _fetchFailureLabel;
+
+    public TreeRepoNode Node { get; }
 
     [ObservableProperty]
     private bool _hasFetchFailure;
@@ -103,14 +109,48 @@ public partial class RepoTreeNodeViewModel : TreeNodeViewModelBase
     [ObservableProperty]
     private bool _hasServerStatusBadge;
 
+    // Badges (§9.4, 완료 기준 33)
+    public bool HasLfsBadge => Repo.HasLfs;
+    public bool HasWorktreeBadge => Repo.GitDirKind != GitDirKind.Normal;
+    public string WorktreeBadgeText => Repo.GitDirKind == GitDirKind.Bare ? "Bare" : (Repo.GitDirKind == GitDirKind.Worktree ? "Worktree" : string.Empty);
+
+    // Browser Open (§10.1, 완료 기준 3: 카탈로그에 없는 레포는 비활성)
+    public ServerRepo? MatchedServerRepo => Node.MatchedServerRepo;
+    public ServerProfile? MatchedProfile => Node.MatchedProfile;
+    public bool CanOpenInBrowser => MatchedServerRepo != null && !string.IsNullOrWhiteSpace(MatchedServerRepo.CloneUrl);
+
+    // Suggestions (§3.4, §3.5, 완료 기준 14, 16)
+    public bool HasUpstreamGoneSuggestion => StateCode == RepoStateCode.UpstreamGone && MatchedServerRepo != null && !string.IsNullOrWhiteSpace(MatchedServerRepo.DefaultBranch);
+    public string UpstreamGoneSuggestionText => MatchedServerRepo != null ? $"origin/{MatchedServerRepo.DefaultBranch}으로 전환?" : string.Empty;
+
+    [ObservableProperty]
+    private bool _hasUrlChangeSuggestion;
+
+    [ObservableProperty]
+    private string? _urlChangeOldUrl;
+
+    [ObservableProperty]
+    private string? _urlChangeNewHostUrl;
+
+    [ObservableProperty]
+    private string? _urlChangeSuggestionText;
+
     public override bool IsFolder => false;
 
     public List<long> DuplicateSiblingIds { get; } = new();
+
+    // Context Menu Action delegates (injected from MainViewModel)
+    public Action<RepoTreeNodeViewModel>? OnChangeRemoteUrlRequested { get; set; }
+    public Action<RepoTreeNodeViewModel>? OnForcePushRequested { get; set; }
+    public Action<RepoTreeNodeViewModel>? OnPushNoUpstreamRequested { get; set; }
+    public Action<RepoTreeNodeViewModel>? OnSetUpstreamGoneRequested { get; set; }
+    public Action<RepoTreeNodeViewModel>? OnApplyUrlChangeRequested { get; set; }
 
     public RepoTreeNodeViewModel(
         TreeRepoNode node,
         Action<long>? onNavigateToSibling = null)
     {
+        Node = node;
         _repo = node.Repo;
         _status = node.Status;
         _onNavigateToSibling = onNavigateToSibling;
@@ -152,11 +192,126 @@ public partial class RepoTreeNodeViewModel : TreeNodeViewModelBase
         }
 
         HasServerStatusBadge = !string.IsNullOrWhiteSpace(ServerStatusBadge);
-
         HostDotColor = DetermineHostColor(node.HostName);
 
         ApplyStatus(node.Status);
     }
+
+    #region Context Menu Commands (§10.1, 완료 기준 1~3, 17, 23, 27)
+
+    [RelayCommand]
+    private void OpenInExplorer()
+    {
+        try
+        {
+            if (Directory.Exists(FullPath))
+            {
+                var isShiftPressed = (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift) == System.Windows.Input.ModifierKeys.Shift;
+                var args = isShiftPressed ? $"/select,\"{FullPath}\"" : $"\"{FullPath}\"";
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = args,
+                    UseShellExecute = true
+                });
+            }
+        }
+        catch { }
+    }
+
+    [RelayCommand]
+    private void OpenTerminalHere()
+    {
+        try
+        {
+            if (Directory.Exists(FullPath))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    WorkingDirectory = FullPath,
+                    UseShellExecute = true
+                });
+            }
+        }
+        catch { }
+    }
+
+    [RelayCommand]
+    private void OpenInBrowser()
+    {
+        if (!CanOpenInBrowser || MatchedServerRepo == null) return;
+        try
+        {
+            var url = MatchedServerRepo.CloneUrl;
+            if (url.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+            {
+                url = url[..^4];
+            }
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+        }
+        catch { }
+    }
+
+    [RelayCommand]
+    private void CopyPath()
+    {
+        try
+        {
+            Clipboard.SetText(FullPath);
+        }
+        catch { }
+    }
+
+    [RelayCommand]
+    private void CopyCloneUrl()
+    {
+        try
+        {
+            var url = MatchedServerRepo?.CloneUrl ?? (!string.IsNullOrWhiteSpace(Repo.NormalizedKey) ? $"https://{Repo.NormalizedKey}.git" : string.Empty);
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                Clipboard.SetText(RemoteUrlNormalizer.MaskCredentials(url));
+            }
+        }
+        catch { }
+    }
+
+    [RelayCommand]
+    private void ChangeRemoteUrl()
+    {
+        OnChangeRemoteUrlRequested?.Invoke(this);
+    }
+
+    [RelayCommand]
+    private void ForcePush()
+    {
+        OnForcePushRequested?.Invoke(this);
+    }
+
+    [RelayCommand]
+    private void PushNoUpstream()
+    {
+        OnPushNoUpstreamRequested?.Invoke(this);
+    }
+
+    [RelayCommand]
+    private void SetUpstreamGone()
+    {
+        OnSetUpstreamGoneRequested?.Invoke(this);
+    }
+
+    [RelayCommand]
+    private void ApplyUrlChange()
+    {
+        OnApplyUrlChangeRequested?.Invoke(this);
+    }
+
+    #endregion
 
     public void UpdateStatus(LocalStatus? status)
     {
@@ -192,7 +347,6 @@ public partial class RepoTreeNodeViewModel : TreeNodeViewModelBase
             ? Branch
             : $"{Branch} → {status.Upstream}";
 
-        // If not fetched yet and has remote, keep state as UnknownUnfetched / Ahead / Behind / etc.
         StateCode = status?.StateCode ?? RepoStateCode.UnknownUnfetched;
 
         if ((LastFetchedAt == null || HasFetchFailure) && (StateCode == RepoStateCode.Ahead || StateCode == RepoStateCode.Behind || StateCode == RepoStateCode.UpToDate || StateCode == RepoStateCode.Diverged))

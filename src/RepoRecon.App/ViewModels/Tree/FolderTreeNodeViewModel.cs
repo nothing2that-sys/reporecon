@@ -1,4 +1,6 @@
+using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using RepoRecon.Core.Tree;
 
 namespace RepoRecon.App.ViewModels.Tree;
@@ -52,6 +54,54 @@ public partial class FolderTreeNodeViewModel : TreeNodeViewModelBase
         RollupWarning = node.RollupWarning;
         RollupTotalRepos = node.RollupTotalRepos;
         RollupSummaryText = node.RollupSummaryText;
+    }
+
+    [RelayCommand]
+    private void OpenInExplorer()
+    {
+        try
+        {
+            if (Directory.Exists(FullPath))
+            {
+                var isShiftPressed = (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift) == System.Windows.Input.ModifierKeys.Shift;
+                var args = isShiftPressed ? $"/select,\"{FullPath}\"" : $"\"{FullPath}\"";
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = args,
+                    UseShellExecute = true
+                });
+            }
+        }
+        catch { }
+    }
+
+    [RelayCommand]
+    private void OpenTerminalHere()
+    {
+        try
+        {
+            if (Directory.Exists(FullPath))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    WorkingDirectory = FullPath,
+                    UseShellExecute = true
+                });
+            }
+        }
+        catch { }
+    }
+
+    [RelayCommand]
+    private void CopyPath()
+    {
+        try
+        {
+            System.Windows.Clipboard.SetText(FullPath);
+        }
+        catch { }
     }
 
     public override bool ApplyFilter(Func<RepoTreeNodeViewModel, bool> predicate)

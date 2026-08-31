@@ -44,6 +44,58 @@ public partial class MainWindow : Window
         {
             await viewModel.InitializeAsync();
         };
+
+        KeyDown += MainWindow_KeyDown;
+    }
+
+    private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+
+        // F5 -> Refresh all (Criterion 28)
+        if (e.Key == System.Windows.Input.Key.F5)
+        {
+            if (vm.RefreshAllCommand.CanExecute(null))
+            {
+                vm.RefreshAllCommand.Execute(null);
+                e.Handled = true;
+            }
+            return;
+        }
+
+        // Ctrl + A -> Select all visible items ONLY (Criterion 29)
+        if (e.Key == System.Windows.Input.Key.A && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) == System.Windows.Input.ModifierKeys.Control)
+        {
+            if (System.Windows.Input.Keyboard.FocusedElement is TextBox)
+            {
+                return;
+            }
+
+            vm.SelectAllVisible();
+            e.Handled = true;
+            return;
+        }
+
+        // Space -> Toggle selection of focused tree item (Criterion 28)
+        if (e.Key == System.Windows.Input.Key.Space && MainTreeView.IsKeyboardFocusWithin)
+        {
+            if (MainTreeView.SelectedItem is TreeNodeViewModelBase selectedNode)
+            {
+                selectedNode.SetSelected(!selectedNode.IsSelected.GetValueOrDefault());
+                e.Handled = true;
+            }
+            return;
+        }
+
+        // Type-to-filter on tree (Criterion 28)
+        if (MainTreeView.IsKeyboardFocusWithin &&
+            (System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.None) &&
+            ((e.Key >= System.Windows.Input.Key.A && e.Key <= System.Windows.Input.Key.Z) ||
+             (e.Key >= System.Windows.Input.Key.D0 && e.Key <= System.Windows.Input.Key.D9) ||
+             (e.Key >= System.Windows.Input.Key.NumPad0 && e.Key <= System.Windows.Input.Key.NumPad9)))
+        {
+            TxtFilter.Focus();
+        }
     }
 
     private void MainTreeView_ScrollChanged(object sender, ScrollChangedEventArgs e)

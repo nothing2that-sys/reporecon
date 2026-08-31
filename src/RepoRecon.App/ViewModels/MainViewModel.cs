@@ -9,6 +9,7 @@ using RepoRecon.App.ViewModels.Tree;
 using RepoRecon.App.Views;
 using RepoRecon.Core.Clone;
 using RepoRecon.Core.Data;
+using RepoRecon.Core.Export;
 using RepoRecon.Core.Fetch;
 using RepoRecon.Core.Git;
 using RepoRecon.Core.Models;
@@ -16,6 +17,7 @@ using RepoRecon.Core.Pull;
 using RepoRecon.Core.Push;
 using RepoRecon.Core.Scanning;
 using RepoRecon.Core.Tree;
+using RepoRecon.Core.Urls;
 
 namespace RepoRecon.App.ViewModels;
 
@@ -29,6 +31,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly IPullEngine _pullEngine;
     private readonly IPushEngine _pushEngine;
     private readonly ICloneEngine _cloneEngine;
+    private readonly IRemoteUrlService _remoteUrlService;
+    private readonly IRollbackService _rollbackService;
+    private readonly IExportService _exportService;
+    private readonly HostAliasTable _aliasTable;
     private readonly ILogger<MainViewModel> _logger;
     private readonly DispatcherTimer _freshnessTimer;
     private CancellationTokenSource? _pullCts;
@@ -38,6 +44,35 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public CloneTabViewModel CloneTab { get; }
     public ProfileManagementViewModel ProfileManagement { get; }
+
+    // Error Grouping Collections (§10.2, 완료 기준 4, 5)
+    public ObservableCollection<ErrorGroupSummaryViewModel> PullErrorGroups { get; } = new();
+    public ObservableCollection<ErrorGroupSummaryViewModel> PushErrorGroups { get; } = new();
+
+    [ObservableProperty]
+    private bool _hasPullErrorGroups;
+
+    [ObservableProperty]
+    private bool _hasPushErrorGroups;
+
+    // Job History Properties (§10.3, 완료 기준 8, 9)
+    public ObservableCollection<JobHistoryItemViewModel> JobHistoryItems { get; } = new();
+    public ObservableCollection<string> AvailableJobTypes { get; } = new() { "전체", "pull", "push", "push_force", "rollback", "remote_url_change" };
+
+    [ObservableProperty]
+    private string _historySearchText = string.Empty;
+
+    [ObservableProperty]
+    private string _selectedJobTypeFilter = "전체";
+
+    [ObservableProperty]
+    private bool _isFullHistoryMode;
+
+    [ObservableProperty]
+    private bool _isJobHistoryLoading;
+
+    [ObservableProperty]
+    private bool _isHistoryPanelVisible;
 
     [ObservableProperty]
     private int _selectedTabIndex;
@@ -186,6 +221,21 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private bool _isPullPanelVisible;
 
     [ObservableProperty]
+    private bool _isPullCompleted;
+
+    [ObservableProperty]
+    private string _pullHeaderTitle = "🚀 일괄 Pull 실행 진행 상황";
+
+    [ObservableProperty]
+    private string _pullHeaderColor = "#0F172A";
+
+    [ObservableProperty]
+    private string _pullPanelBorderBrush = "#CBD5E1";
+
+    [ObservableProperty]
+    private string _pullPanelBackground = "#F8FAFC";
+
+    [ObservableProperty]
     private int _pullProgressPercent;
 
     [ObservableProperty]
@@ -209,6 +259,21 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _isPushPanelVisible;
+
+    [ObservableProperty]
+    private bool _isPushCompleted;
+
+    [ObservableProperty]
+    private string _pushHeaderTitle = "🚀 일괄 Push 실행 진행 상황";
+
+    [ObservableProperty]
+    private string _pushHeaderColor = "#1E3A8A";
+
+    [ObservableProperty]
+    private string _pushPanelBorderBrush = "#BFDBFE";
+
+    [ObservableProperty]
+    private string _pushPanelBackground = "#F8FAFC";
 
     [ObservableProperty]
     private int _pushProgressPercent;
@@ -238,6 +303,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IPullEngine pullEngine,
         IPushEngine pushEngine,
         ICloneEngine cloneEngine,
+        IRemoteUrlService remoteUrlService,
+        IRollbackService rollbackService,
+        IExportService exportService,
+        HostAliasTable aliasTable,
         CloneTabViewModel cloneTab,
         ProfileManagementViewModel profileManagement,
         ILogger<MainViewModel>? logger = null)
@@ -250,6 +319,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _pullEngine = pullEngine;
         _pushEngine = pushEngine;
         _cloneEngine = cloneEngine;
+        _remoteUrlService = remoteUrlService;
+        _rollbackService = rollbackService;
+        _exportService = exportService;
+        _aliasTable = aliasTable;
         CloneTab = cloneTab;
         ProfileManagement = profileManagement;
         _logger = logger ?? NullLogger<MainViewModel>.Instance;
@@ -803,8 +876,33 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 }
             }
 
+            // Detect URL change candidates for Orphaned repos (§3.5, §10.7, 완료 기준 16)
+            foreach (var repoVm in _repoViewModelMap.Values)
+            {
+                if (repoVm.IsOrphaned && !string.IsNullOrWhiteSpace(repoVm.Repo.NormalizedKey))
+                {
+                    var keyParts = repoVm.Repo.NormalizedKey.Split(new[] { '/' }, 2);
+                    if (keyParts.Length == 2)
+                    {
+                        var repoPathPart = keyParts[1].ToLowerInvariant();
+                        var candidateRepo = serverRepos.FirstOrDefault(sr =>
+                            !sr.NormalizedKey.StartsWith(repoVm.HostName + ":", StringComparison.OrdinalIgnoreCase) &&
+                            sr.NormalizedKey.EndsWith("/" + repoPathPart, StringComparison.OrdinalIgnoreCase));
+
+                        if (candidateRepo != null)
+                        {
+                            repoVm.HasUrlChangeSuggestion = true;
+                            repoVm.UrlChangeOldUrl = $"https://{repoVm.Repo.NormalizedKey}.git";
+                            repoVm.UrlChangeNewHostUrl = candidateRepo.CloneUrl;
+                            repoVm.UrlChangeSuggestionText = $"URL 변경 감지: {candidateRepo.CloneUrl}";
+                        }
+                    }
+                }
+            }
+
             TotalRepoCount = _repoViewModelMap.Count;
             ApplyFilters();
+            await LoadJobHistoryAsync();
         }
         catch (Exception ex)
         {
@@ -843,6 +941,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         var repoVm = new RepoTreeNodeViewModel(repoNode, FocusRepo) { Parent = parent };
         repoVm.SelectionChanged += OnTreeNodeSelectionChanged;
+
+        // Wire context menu and suggestion callbacks (§10.1, §10.7)
+        repoVm.OnChangeRemoteUrlRequested = HandleChangeRemoteUrl;
+        repoVm.OnForcePushRequested = async vm => await HandleForcePushAsync(vm);
+        repoVm.OnPushNoUpstreamRequested = async vm => await HandlePushNoUpstreamAsync(vm);
+        repoVm.OnSetUpstreamGoneRequested = async vm => await HandleSetUpstreamGoneAsync(vm);
+        repoVm.OnApplyUrlChangeRequested = async vm => await HandleApplyUrlChangeAsync(vm);
+
         _repoViewModelMap[repoNode.Repo.Id] = repoVm;
 
         if (!string.IsNullOrWhiteSpace(repoNode.HostName) && repoNode.HostName != "Local")
@@ -1133,8 +1239,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _pullCts = new CancellationTokenSource();
         IsPullPanelVisible = true;
         IsPullExecuting = true;
+        IsPullCompleted = false;
         HasPullReport = false;
         PullProgressPercent = 0;
+        PullHeaderTitle = "🚀 일괄 Pull 실행 진행 중...";
+        PullHeaderColor = "#0F172A";
+        PullPanelBorderBrush = "#CBD5E1";
+        PullPanelBackground = "#F8FAFC";
         PullProgressText = $"일괄 Pull 시작 중 (총 {targets.Count}개)...";
 
         PullExecutionItems.Clear();
@@ -1164,9 +1275,34 @@ public partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var report = await _pullEngine.ExecuteBatchPullAsync(targets, progress, _pullCts.Token);
-            PullReportSummary = report.SummaryText;
+            IsPullCompleted = true;
+            var durationStr = FormatDuration(report.Duration);
+            PullProgressText = $"Pull 완료 — 성공 {report.SuccessCount} / 실패 {report.FailedCount} / 스킵 {report.SkippedCount} (소요 {durationStr})";
+            PullReportSummary = PullProgressText;
             HasPullReport = true;
-            StatusMessage = report.SummaryText;
+            StatusMessage = PullProgressText;
+
+            if (report.FailedCount > 0)
+            {
+                PullHeaderTitle = $"⚠️ 일괄 Pull 완료 (실패 {report.FailedCount}건 발생)";
+                PullHeaderColor = "#DC2626";
+                PullPanelBorderBrush = "#FCA5A5";
+                PullPanelBackground = "#FEF2F2";
+            }
+            else if (report.SkippedCount > 0)
+            {
+                PullHeaderTitle = $"⚠️ 일괄 Pull 완료 (스킵 {report.SkippedCount}건 발생)";
+                PullHeaderColor = "#D97706";
+                PullPanelBorderBrush = "#FCD34D";
+                PullPanelBackground = "#FFFBEB";
+            }
+            else
+            {
+                PullHeaderTitle = "✅ 일괄 Pull 완료 (모든 대상 성공)";
+                PullHeaderColor = "#16A34A";
+                PullPanelBorderBrush = "#86EFAC";
+                PullPanelBackground = "#F0FDF4";
+            }
 
             // Update items with final results
             foreach (var res in report.Results)
@@ -1179,20 +1315,101 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 }
             }
 
+            // Error Grouping (§10.2, 완료 기준 4, 5)
+            UpdatePullErrorGroups(report.Results);
+
             await LoadDataAsync();
+
+            // Background Completion Notification (§10.5, 완료 기준 30)
+            NotifyBatchCompletion("Pull", report.SuccessCount, report.FailedCount, report.SkippedCount);
         }
         catch (OperationCanceledException)
         {
-            PullReportSummary = "일괄 Pull 작업이 사용자에 의해 취소되었습니다.";
+            IsPullCompleted = true;
+            PullHeaderTitle = "🛑 일괄 Pull 취소됨";
+            PullHeaderColor = "#991B1B";
+            PullPanelBorderBrush = "#FCA5A5";
+            PullPanelBackground = "#FEF2F2";
+            PullProgressText = "일괄 Pull 작업이 사용자에 의해 취소되었습니다.";
+            PullReportSummary = PullProgressText;
             HasPullReport = true;
             StatusMessage = PullReportSummary;
         }
         catch (Exception ex)
         {
+            IsPullCompleted = true;
+            PullHeaderTitle = "🚨 일괄 Pull 중 오류 발생";
+            PullHeaderColor = "#DC2626";
+            PullPanelBorderBrush = "#FCA5A5";
+            PullPanelBackground = "#FEF2F2";
             _logger.LogError(ex, "일괄 Pull 실행 중 예외 발생");
-            PullReportSummary = $"일괄 Pull 중 오류 발생: {ex.Message}";
+            PullProgressText = $"일괄 Pull 중 오류 발생: {ex.Message}";
+            PullReportSummary = PullProgressText;
             HasPullReport = true;
             StatusMessage = PullReportSummary;
+        }
+        finally
+        {
+            IsPullExecuting = false;
+            _pullCts?.Dispose();
+            _pullCts = null;
+        }
+    }
+
+    private void UpdatePullErrorGroups(IEnumerable<PullJobResult> results)
+    {
+        PullErrorGroups.Clear();
+        var failed = results.Where(r => r.Status == PullJobStatus.Failed).ToList();
+        if (failed.Count == 0)
+        {
+            HasPullErrorGroups = false;
+            return;
+        }
+
+        var grouped = failed.GroupBy(r => ErrorClassifier.Classify(r.ErrorMessage));
+        foreach (var group in grouped)
+        {
+            var errorGroupVm = new ErrorGroupSummaryViewModel(
+                group.Key,
+                group.Select(x => x.RepoId),
+                RetryPullCategoryAsync);
+            PullErrorGroups.Add(errorGroupVm);
+        }
+        HasPullErrorGroups = true;
+    }
+
+    private async Task RetryPullCategoryAsync(ErrorCategory category, IEnumerable<long> repoIds)
+    {
+        var idSet = new HashSet<long>(repoIds);
+        var targetVms = _repoViewModelMap.Values.Where(r => idSet.Contains(r.Repo.Id)).ToList();
+        if (targetVms.Count == 0) return;
+
+        var targets = targetVms.Select(vm => (vm.Repo, vm.Status)).ToList();
+        _pullCts = new CancellationTokenSource();
+        IsPullPanelVisible = true;
+        IsPullExecuting = true;
+        HasPullReport = false;
+        PullProgressPercent = 0;
+        PullProgressText = $"카테고리 '{category}' 재시도 실행 중 (총 {targets.Count}개)...";
+
+        var progress = new Progress<PullProgressInfo>(info =>
+        {
+            System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
+            {
+                var percent = info.TotalCount > 0 ? (int)((info.CompletedCount / (double)info.TotalCount) * 100) : 0;
+                PullProgressPercent = percent;
+                PullProgressText = $"재시도 진행 중: {info.CompletedCount} / {info.TotalCount} ({percent}%)";
+            });
+        });
+
+        try
+        {
+            var report = await _pullEngine.ExecuteBatchPullAsync(targets, progress, _pullCts.Token);
+            PullReportSummary = $"재시도 완료: {report.SummaryText}";
+            HasPullReport = true;
+            StatusMessage = PullReportSummary;
+            UpdatePullErrorGroups(report.Results);
+            await LoadDataAsync();
         }
         finally
         {
@@ -1267,8 +1484,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _pushCts = new CancellationTokenSource();
         IsPushPanelVisible = true;
         IsPushExecuting = true;
+        IsPushCompleted = false;
         HasPushReport = false;
         PushProgressPercent = 0;
+        PushHeaderTitle = "🚀 일괄 Push 실행 진행 중...";
+        PushHeaderColor = "#1E3A8A";
+        PushPanelBorderBrush = "#BFDBFE";
+        PushPanelBackground = "#F8FAFC";
         PushProgressText = $"일괄 Push 시작 중 (총 {previewItems.Count}개)...";
 
         PushExecutionItems.Clear();
@@ -1300,9 +1522,36 @@ public partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var report = await _pushEngine.ExecuteAsync(previewItems, progress, _pushCts.Token).ConfigureAwait(true);
-            PushReportSummary = $"Push 완료: 총 {report.TotalCount}개 중 성공 {report.SuccessCount}개, 실패 {report.FailedCount}개, 스킵 {report.SkippedCount}개 (소요시간: {report.TotalDuration.TotalSeconds:F1}초)";
+            IsPushCompleted = true;
+            var durationStr = FormatDuration(report.TotalDuration);
+            PushProgressText = $"Push 완료 — 성공 {report.SuccessCount} / 실패 {report.FailedCount} / 스킵 {report.SkippedCount} (소요 {durationStr})";
+            PushReportSummary = PushProgressText;
             HasPushReport = true;
-            StatusMessage = PushReportSummary;
+            StatusMessage = PushProgressText;
+
+            if (report.FailedCount > 0)
+            {
+                PushHeaderTitle = $"⚠️ 일괄 Push 완료 (실패 {report.FailedCount}건 발생)";
+                PushHeaderColor = "#DC2626";
+                PushPanelBorderBrush = "#FCA5A5";
+                PushPanelBackground = "#FEF2F2";
+            }
+            else if (report.SkippedCount > 0)
+            {
+                PushHeaderTitle = $"⚠️ 일괄 Push 완료 (스킵 {report.SkippedCount}건 발생)";
+                PushHeaderColor = "#D97706";
+                PushPanelBorderBrush = "#FCD34D";
+                PushPanelBackground = "#FFFBEB";
+            }
+            else
+            {
+                PushHeaderTitle = "✅ 일괄 Push 완료 (모든 대상 성공)";
+                PushHeaderColor = "#16A34A";
+                PushPanelBorderBrush = "#86EFAC";
+                PushPanelBackground = "#F0FDF4";
+            }
+
+            var previewEligibleMap = previewItems.ToDictionary(p => p.RepoId, p => p.IsEligible);
 
             // Update items with final results
             foreach (var res in report.Results)
@@ -1311,25 +1560,127 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 if (itemVm != null)
                 {
                     itemVm.Status = res.Success ? PushItemUiStatus.Success : PushItemUiStatus.Failed;
-                    itemVm.Detail = res.ErrorMessage ?? (res.Success ? "성공" : null);
+
+                    // Criterion 7: Dry-run passed but permission failed at execution
+                    var passedDryRun = previewEligibleMap.TryGetValue(res.RepoId, out var passed) && passed;
+                    if (!res.Success && res.ErrorCategory == ErrorCategory.Permission && passedDryRun)
+                    {
+                        itemVm.Detail = "dry-run은 통과했으나 실행 시 권한 거부됨";
+                    }
+                    else
+                    {
+                        itemVm.Detail = res.ErrorMessage ?? (res.Success ? "성공" : null);
+                    }
+
                     itemVm.DirtyWarning = res.DirtyWarning;
                 }
             }
 
+            // Error Grouping (§10.2, 완료 기준 4, 5, 7)
+            UpdatePushErrorGroups(report.Results, previewItems);
+
             await LoadDataAsync().ConfigureAwait(true);
+
+            // Background Completion Notification (§10.5, 완료 기준 30)
+            NotifyBatchCompletion("Push", report.SuccessCount, report.FailedCount, report.SkippedCount);
         }
         catch (OperationCanceledException)
         {
-            PushReportSummary = "일괄 Push 작업이 사용자에 의해 취소되었습니다.";
+            IsPushCompleted = true;
+            PushHeaderTitle = "🛑 일괄 Push 취소됨";
+            PushHeaderColor = "#991B1B";
+            PushPanelBorderBrush = "#FCA5A5";
+            PushPanelBackground = "#FEF2F2";
+            PushProgressText = "일괄 Push 작업이 사용자에 의해 취소되었습니다.";
+            PushReportSummary = PushProgressText;
             HasPushReport = true;
             StatusMessage = PushReportSummary;
         }
         catch (Exception ex)
         {
+            IsPushCompleted = true;
+            PushHeaderTitle = "🚨 일괄 Push 중 오류 발생";
+            PushHeaderColor = "#DC2626";
+            PushPanelBorderBrush = "#FCA5A5";
+            PushPanelBackground = "#FEF2F2";
             _logger.LogError(ex, "일괄 Push 실행 중 예외 발생");
-            PushReportSummary = $"일괄 Push 중 오류 발생: {ex.Message}";
+            PushProgressText = $"일괄 Push 중 오류 발생: {ex.Message}";
+            PushReportSummary = PushProgressText;
             HasPushReport = true;
             StatusMessage = PushReportSummary;
+        }
+        finally
+        {
+            IsPushExecuting = false;
+            _pushCts?.Dispose();
+            _pushCts = null;
+        }
+    }
+
+    private void UpdatePushErrorGroups(
+        IEnumerable<PushExecutionItemResult> results,
+        IReadOnlyList<PushPreviewItem> previewItems)
+    {
+        PushErrorGroups.Clear();
+        var failed = results.Where(r => !r.Success).ToList();
+        if (failed.Count == 0)
+        {
+            HasPushErrorGroups = false;
+            return;
+        }
+
+        var previewEligibleIds = new HashSet<long>(previewItems.Where(p => p.IsEligible).Select(p => p.RepoId));
+
+        var grouped = failed.GroupBy(r => r.ErrorCategory ?? ErrorCategory.Other);
+        foreach (var group in grouped)
+        {
+            var hasDryRunPassPermissionFailNotice = group.Key == ErrorCategory.Permission &&
+                group.Any(x => previewEligibleIds.Contains(x.RepoId));
+
+            var errorGroupVm = new ErrorGroupSummaryViewModel(
+                group.Key,
+                group.Select(x => x.RepoId),
+                RetryPushCategoryAsync,
+                hasDryRunPassPermissionFailNotice);
+            PushErrorGroups.Add(errorGroupVm);
+        }
+        HasPushErrorGroups = true;
+    }
+
+    private async Task RetryPushCategoryAsync(ErrorCategory category, IEnumerable<long> repoIds)
+    {
+        var idSet = new HashSet<long>(repoIds);
+        var targetVms = _repoViewModelMap.Values.Where(r => idSet.Contains(r.Repo.Id)).ToList();
+        if (targetVms.Count == 0) return;
+
+        var targets = targetVms.Select(vm => (vm.Repo, vm.Status)).ToList();
+        var previewItems = await _pushEngine.GeneratePreviewAsync(targets).ConfigureAwait(true);
+
+        _pushCts = new CancellationTokenSource();
+        IsPushPanelVisible = true;
+        IsPushExecuting = true;
+        HasPushReport = false;
+        PushProgressPercent = 0;
+        PushProgressText = $"카테고리 '{category}' 재시도 실행 중 (총 {previewItems.Count}개)...";
+
+        var progress = new Progress<BatchPushProgress>(info =>
+        {
+            System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
+            {
+                var percent = info.TotalCount > 0 ? (int)((info.ProcessedCount / (double)info.TotalCount) * 100) : 0;
+                PushProgressPercent = percent;
+                PushProgressText = $"재시도 진행 중: {info.ProcessedCount} / {info.TotalCount} ({percent}%)";
+            });
+        });
+
+        try
+        {
+            var report = await _pushEngine.ExecuteAsync(previewItems, progress, _pushCts.Token).ConfigureAwait(true);
+            PushReportSummary = $"재시도 완료: Push 성공 {report.SuccessCount}개, 실패 {report.FailedCount}개";
+            HasPushReport = true;
+            StatusMessage = PushReportSummary;
+            UpdatePushErrorGroups(report.Results, previewItems);
+            await LoadDataAsync().ConfigureAwait(true);
         }
         finally
         {
@@ -1355,6 +1706,434 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (!IsPushExecuting)
         {
             IsPushPanelVisible = false;
+        }
+    }
+
+    #endregion
+
+    #region Job History & Rollback (§10.3, 완료 기준 8~13)
+
+    partial void OnHistorySearchTextChanged(string value) => _ = LoadJobHistoryAsync();
+    partial void OnSelectedJobTypeFilterChanged(string value) => _ = LoadJobHistoryAsync();
+
+    [RelayCommand]
+    public async Task LoadJobHistoryAsync()
+    {
+        IsJobHistoryLoading = true;
+        try
+        {
+            var limit = IsFullHistoryMode ? 0 : 100;
+            var jType = SelectedJobTypeFilter == "전체" ? null : SelectedJobTypeFilter;
+            var search = string.IsNullOrWhiteSpace(HistorySearchText) ? null : HistorySearchText.Trim();
+
+            var entries = await _indexStore.GetJobHistoryFilteredAsync(search, jType, limit);
+            JobHistoryItems.Clear();
+            foreach (var entry in entries)
+            {
+                JobHistoryItems.Add(new JobHistoryItemViewModel(entry, async item => await HandleRollbackAsync(item)));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load job history");
+        }
+        finally
+        {
+            IsJobHistoryLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task ToggleFullHistoryAsync()
+    {
+        IsFullHistoryMode = !IsFullHistoryMode;
+        await LoadJobHistoryAsync();
+    }
+
+    [RelayCommand]
+    public void ToggleHistoryPanel()
+    {
+        IsHistoryPanelVisible = !IsHistoryPanelVisible;
+        if (IsHistoryPanelVisible)
+        {
+            _ = LoadJobHistoryAsync();
+        }
+    }
+
+    public async Task HandleRollbackAsync(JobHistoryItemViewModel item)
+    {
+        if (string.IsNullOrWhiteSpace(item.PreHead)) return;
+
+        var dlg = new RollbackConfirmWindow(item.TargetPath, item.PreHead);
+        if (System.Windows.Application.Current?.MainWindow != null)
+        {
+            dlg.Owner = System.Windows.Application.Current.MainWindow;
+        }
+
+        if (dlg.ShowDialog() == true)
+        {
+            try
+            {
+                var repoId = 0L;
+                var matched = _repoViewModelMap.Values.FirstOrDefault(r => string.Equals(r.FullPath, item.TargetPath, StringComparison.OrdinalIgnoreCase));
+                if (matched != null) repoId = matched.Repo.Id;
+
+                var (success, error) = await _rollbackService.RollbackCommitAsync(repoId, item.TargetPath, item.PreHead);
+                if (success)
+                {
+                    StatusMessage = $"성공적으로 커밋 {item.PreHead[..Math.Min(8, item.PreHead.Length)]} (으)로 되돌렸습니다.";
+                    await LoadDataAsync();
+                    await LoadJobHistoryAsync();
+                }
+                else
+                {
+                    System.Windows.MessageBox.Show($"되돌리기 실패:\n{error}", "되돌리기 오류", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                }
+            }
+            catch (InvalidOperationException ex)
+            {
+                System.Windows.MessageBox.Show(ex.Message, "되돌리기 차단", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"되돌리기 중 예외 발생:\n{ex.Message}", "되돌리기 오류", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }
+    }
+
+    #endregion
+
+    #region Context Menu Actions & Single Operations (§10.1, §10.4, §10.7)
+
+    public void HandleChangeRemoteUrl(RepoTreeNodeViewModel repoVm)
+    {
+        _ = OpenChangeRemoteUrlAsync(repoVm);
+    }
+
+    public async Task OpenChangeRemoteUrlAsync(RepoTreeNodeViewModel repoVm)
+    {
+        var profiles = await _indexStore.GetServerProfilesAsync();
+        var serverRepos = await _indexStore.GetAllServerReposAsync();
+        var currentUrl = await _remoteUrlService.GetRemoteUrlAsync(repoVm.FullPath, "origin") ?? string.Empty;
+
+        var vm = new ChangeRemoteUrlViewModel(
+            repoVm.Repo.Id,
+            repoVm.FullPath,
+            currentUrl,
+            _remoteUrlService,
+            _aliasTable,
+            profiles,
+            serverRepos);
+
+        vm.OnSavedCallback = async () =>
+        {
+            StatusMessage = $"Remote URL이 변경되었습니다: {repoVm.FullPath}";
+            await LoadDataAsync();
+            await LoadJobHistoryAsync();
+        };
+
+        var dlg = new ChangeRemoteUrlWindow(vm);
+        if (System.Windows.Application.Current?.MainWindow != null)
+        {
+            dlg.Owner = System.Windows.Application.Current.MainWindow;
+        }
+        dlg.ShowDialog();
+    }
+
+    public async Task HandleForcePushAsync(RepoTreeNodeViewModel repoVm)
+    {
+        // Criterion 24: Force push disabled when multiple items selected
+        var selectedCount = _repoViewModelMap.Values.Count(r => r.IsSelected == true);
+        if (selectedCount > 1)
+        {
+            System.Windows.MessageBox.Show("개별 Force Push는 단일 저장소 선택 상태에서만 실행할 수 있습니다.", "Force Push 차단", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            return;
+        }
+
+        // Query remote commit hash
+        var remoteCommitResult = await _gitRunner.ExecuteAsync(repoVm.FullPath, $"rev-parse origin/{repoVm.Branch}", TimeSpan.FromSeconds(5));
+        var remoteCommit = remoteCommitResult.IsSuccess ? remoteCommitResult.StandardOutput.Trim() : "(원격 커밋 확인 불가 또는 신규 브랜치)";
+
+        var dlg = new ForcePushConfirmWindow(repoVm.FullPath, repoVm.Branch, remoteCommit);
+        if (System.Windows.Application.Current?.MainWindow != null)
+        {
+            dlg.Owner = System.Windows.Application.Current.MainWindow;
+        }
+
+        if (dlg.ShowDialog() == true)
+        {
+            StatusMessage = $"Force Push 실행 중 ({repoVm.FolderName})...";
+            var preHeadCheck = await _gitRunner.ExecuteAsync(repoVm.FullPath, "rev-parse HEAD", TimeSpan.FromSeconds(5));
+            var preHead = preHeadCheck.IsSuccess ? preHeadCheck.StandardOutput.Trim() : null;
+
+            var pushResult = await _gitRunner.ExecuteAsync(
+                repoVm.FullPath,
+                $"push --force-with-lease origin {repoVm.Branch}",
+                TimeSpan.FromSeconds(30));
+
+            if (pushResult.IsSuccess)
+            {
+                var postHeadCheck = await _gitRunner.ExecuteAsync(repoVm.FullPath, "rev-parse HEAD", TimeSpan.FromSeconds(5));
+                var postHead = postHeadCheck.IsSuccess ? postHeadCheck.StandardOutput.Trim() : preHead;
+
+                await _indexStore.InsertJobHistoryAsync(new JobHistoryEntry(
+                    0,
+                    "push_force",
+                    repoVm.FullPath,
+                    preHead,
+                    postHead,
+                    "Success",
+                    null,
+                    DateTime.UtcNow));
+
+                StatusMessage = $"개별 Force Push 완료 ({repoVm.FolderName})";
+                await LoadDataAsync();
+                await LoadJobHistoryAsync();
+            }
+            else
+            {
+                var err = pushResult.StandardError.Trim();
+                var errorCat = ErrorClassifier.ClassifyToString(err);
+
+                await _indexStore.InsertJobHistoryAsync(new JobHistoryEntry(
+                    0,
+                    "push_force",
+                    repoVm.FullPath,
+                    preHead,
+                    preHead,
+                    "Failed",
+                    errorCat,
+                    DateTime.UtcNow));
+
+                System.Windows.MessageBox.Show($"Force Push 실패:\n{err}", "Force Push 오류", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }
+    }
+
+    public async Task HandlePushNoUpstreamAsync(RepoTreeNodeViewModel repoVm)
+    {
+        var dlg = new PushNoUpstreamConfirmWindow(repoVm.FullPath, repoVm.Branch);
+        if (System.Windows.Application.Current?.MainWindow != null)
+        {
+            dlg.Owner = System.Windows.Application.Current.MainWindow;
+        }
+
+        if (dlg.ShowDialog() == true)
+        {
+            StatusMessage = $"Push (-u) 실행 중 ({repoVm.FolderName})...";
+            var preHeadCheck = await _gitRunner.ExecuteAsync(repoVm.FullPath, "rev-parse HEAD", TimeSpan.FromSeconds(5));
+            var preHead = preHeadCheck.IsSuccess ? preHeadCheck.StandardOutput.Trim() : null;
+
+            var pushResult = await _gitRunner.ExecuteAsync(
+                repoVm.FullPath,
+                $"push -u origin {repoVm.Branch}",
+                TimeSpan.FromSeconds(30));
+
+            if (pushResult.IsSuccess)
+            {
+                var postHeadCheck = await _gitRunner.ExecuteAsync(repoVm.FullPath, "rev-parse HEAD", TimeSpan.FromSeconds(5));
+                var postHead = postHeadCheck.IsSuccess ? postHeadCheck.StandardOutput.Trim() : preHead;
+
+                await _indexStore.InsertJobHistoryAsync(new JobHistoryEntry(
+                    0,
+                    "push",
+                    repoVm.FullPath,
+                    preHead,
+                    postHead,
+                    "Success",
+                    null,
+                    DateTime.UtcNow));
+
+                StatusMessage = $"Push (-u) 완료 ({repoVm.FolderName})";
+                await LoadDataAsync();
+                await LoadJobHistoryAsync();
+            }
+            else
+            {
+                var err = pushResult.StandardError.Trim();
+                var errorCat = ErrorClassifier.ClassifyToString(err);
+
+                await _indexStore.InsertJobHistoryAsync(new JobHistoryEntry(
+                    0,
+                    "push",
+                    repoVm.FullPath,
+                    preHead,
+                    preHead,
+                    "Failed",
+                    errorCat,
+                    DateTime.UtcNow));
+
+                System.Windows.MessageBox.Show($"Push (-u) 실패:\n{err}", "Push 오류", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }
+    }
+
+    public async Task HandleSetUpstreamGoneAsync(RepoTreeNodeViewModel repoVm)
+    {
+        if (repoVm.MatchedServerRepo == null || string.IsNullOrWhiteSpace(repoVm.MatchedServerRepo.DefaultBranch)) return;
+
+        var dlg = new UpstreamGoneSuggestionWindow(repoVm.FullPath, repoVm.MatchedServerRepo.DefaultBranch);
+        if (System.Windows.Application.Current?.MainWindow != null)
+        {
+            dlg.Owner = System.Windows.Application.Current.MainWindow;
+        }
+
+        if (dlg.ShowDialog() == true)
+        {
+            var (success, error) = await _remoteUrlService.SetUpstreamBranchAsync(
+                repoVm.Repo.Id,
+                repoVm.FullPath,
+                repoVm.MatchedServerRepo.DefaultBranch);
+
+            if (success)
+            {
+                StatusMessage = $"업스트림이 origin/{repoVm.MatchedServerRepo.DefaultBranch}(으)로 변경되었습니다.";
+                await LoadDataAsync();
+            }
+            else
+            {
+                System.Windows.MessageBox.Show($"업스트림 변경 실패:\n{error}", "오류", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }
+    }
+
+    public async Task HandleApplyUrlChangeAsync(RepoTreeNodeViewModel repoVm)
+    {
+        if (string.IsNullOrWhiteSpace(repoVm.UrlChangeNewHostUrl)) return;
+
+        var dlg = new UrlChangeSuggestionWindow(repoVm.FullPath, repoVm.UrlChangeOldUrl ?? "-", repoVm.UrlChangeNewHostUrl);
+        if (System.Windows.Application.Current?.MainWindow != null)
+        {
+            dlg.Owner = System.Windows.Application.Current.MainWindow;
+        }
+
+        if (dlg.ShowDialog() == true)
+        {
+            var (success, error, _) = await _remoteUrlService.ChangeRemoteUrlAsync(
+                repoVm.Repo.Id,
+                repoVm.FullPath,
+                "origin",
+                repoVm.UrlChangeNewHostUrl);
+
+            if (success)
+            {
+                StatusMessage = $"Remote URL이 '{repoVm.UrlChangeNewHostUrl}'(으)로 갱신되었습니다.";
+                await LoadDataAsync();
+                await LoadJobHistoryAsync();
+            }
+            else
+            {
+                System.Windows.MessageBox.Show($"Remote URL 갱신 실패:\n{error}", "오류", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }
+    }
+
+    [RelayCommand]
+    public async Task OpenBulkHostReplaceAsync()
+    {
+        var targets = new List<(LocalRepo Repo, string CurrentUrl)>();
+        foreach (var repoVm in _repoViewModelMap.Values)
+        {
+            var url = await _remoteUrlService.GetRemoteUrlAsync(repoVm.FullPath, "origin");
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                targets.Add((repoVm.Repo, url));
+            }
+        }
+
+        var vm = new BulkHostReplaceViewModel(_remoteUrlService, targets);
+        vm.OnCompletedCallback = async () =>
+        {
+            StatusMessage = "호스트 일괄 치환이 완료되었습니다.";
+            await LoadDataAsync();
+            await LoadJobHistoryAsync();
+        };
+
+        var dlg = new BulkHostReplaceWindow(vm);
+        if (System.Windows.Application.Current?.MainWindow != null)
+        {
+            dlg.Owner = System.Windows.Application.Current.MainWindow;
+        }
+        dlg.ShowDialog();
+    }
+
+    [RelayCommand]
+    public async Task ExportStateAsync()
+    {
+        var visibleRepos = _repoViewModelMap.Values.Where(r => r.IsVisible).ToList();
+        if (visibleRepos.Count == 0)
+        {
+            System.Windows.MessageBox.Show("내보낼 저장소가 없습니다 (현재 필터 조건에 표시된 저장소 0개).", "내보내기 안내", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "저장소 상태 내보내기",
+            Filter = "CSV 파일 (*.csv)|*.csv|Markdown 파일 (*.md)|*.md|모든 파일 (*.*)|*.*",
+            DefaultExt = ".csv",
+            FileName = $"RepoRecon_Status_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            var isMarkdown = dialog.FileName.EndsWith(".md", StringComparison.OrdinalIgnoreCase);
+            var exportItems = visibleRepos.Select(r => new ExportItem(
+                r.FolderName,
+                r.FullPath,
+                r.Repo.NormalizedKey,
+                r.Branch,
+                r.Upstream,
+                r.Ahead,
+                r.Behind,
+                r.DirtyCount,
+                r.ConflictedCount,
+                r.StateDisplay,
+                r.Freshness,
+                r.MatchedServerRepo?.CloneUrl ?? (!string.IsNullOrWhiteSpace(r.Repo.NormalizedKey) ? $"https://{r.Repo.NormalizedKey}.git" : null)
+            )).ToList();
+
+            await _exportService.ExportToFileAsync(exportItems, dialog.FileName, isMarkdown);
+            StatusMessage = $"상태 리포트가 저장되었습니다: {dialog.FileName}";
+        }
+    }
+
+    [RelayCommand]
+    public void ClosePullPanel()
+    {
+        IsPullPanelVisible = false;
+    }
+
+    [RelayCommand]
+    public void ClosePushPanel()
+    {
+        IsPushPanelVisible = false;
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalMinutes >= 1)
+        {
+            return $"{(int)duration.TotalMinutes}분 {duration.Seconds}초";
+        }
+        return $"{duration.TotalSeconds:F1}초";
+    }
+
+    private void NotifyBatchCompletion(string operation, int success, int failed, int skipped)
+    {
+        var mainWindow = System.Windows.Application.Current?.MainWindow;
+        var isActive = mainWindow != null && mainWindow.IsActive;
+
+        if (!isActive)
+        {
+            _logger.LogInformation("Background Batch {Operation} Completed: Success={Success}, Failed={Failed}, Skipped={Skipped}",
+                operation, success, failed, skipped);
+
+            System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
+            {
+                var msg = $"일괄 {operation} 작업이 완료되었습니다.\n성공: {success}건 / 실패: {failed}건 / 스킵: {skipped}건";
+                System.Windows.MessageBox.Show(msg, $"RepoRecon 일괄 {operation} 완료", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+            });
         }
     }
 
