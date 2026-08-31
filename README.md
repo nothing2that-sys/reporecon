@@ -78,6 +78,26 @@ dotnet test
 
 ---
 
+## 📦 설치 (배포본)
+
+RepoRecon은 설치본(`.exe`)과 포터블(`.zip`) 두 형태로 배포됩니다. 두 산출물 모두 `build/build-release.ps1` 한 번 실행으로 `dist/`에 생성됩니다 (사전에 [Inno Setup](https://jrsoftware.org/isinfo.php)이 설치되어 있어야 합니다).
+
+```powershell
+pwsh -File build/build-release.ps1
+```
+
+### 설치본 (`RepoRecon-Setup-{version}.exe`)
+
+1. `RepoRecon-Setup-{version}.exe`를 실행합니다.
+3. 관리자 권한이 필요하지 않습니다 (`%LOCALAPPDATA%\Programs\RepoRecon`에 설치됩니다).
+4. 데이터(`index.db`, `logs/`, `credentials/`)는 `%LOCALAPPDATA%\RepoRecon\`에 저장됩니다. 제거 시 이 데이터를 함께 삭제할지 물으며, 기본값은 "삭제 안 함"입니다.
+
+### 포터블 (`RepoRecon-Portable-{version}.zip`)
+
+포터블이 필요하면 zip을 받아 원하는 위치에 압축을 해제한 뒤 `RepoRecon.App.exe`를 실행하면 됩니다. 데이터는 exe 옆에 생성되며, 자세한 내용은 zip 안의 `README-portable.txt`를 참고하십시오.
+
+---
+
 ## 🧪 Phase별 자동화 검증 스크립트
 
 프로젝트 루트에서 PowerShell을 통해 각 단계별 검증 스크립트를 실행할 수 있습니다.
