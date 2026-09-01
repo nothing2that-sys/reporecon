@@ -235,6 +235,50 @@ ON CONFLICT(local_repo_id) DO UPDATE SET
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    // §2.3/§4.4: an alias add/change/remove can make an already-cached
+    // local_repos.normalized_key wrong. RepoScanner (SS4.4) only re-queries
+    // remote.origin.url for a NULL key, so the fix is to null out exactly the
+    // rows whose current key's authority the alias touches -- not every row --
+    // and let the next scan pick them back up at the usual one-git-call cost.
+    //
+    // `authorityOrHost` follows the same shape as an aliases_json entry
+    // (SS2.3): "host:port" matches that authority exactly; a bare "host"
+    // matches any port. Pass a profile's own canonical "host:port" (from
+    // RemoteUrlNormalizer.ExtractAuthority) to invalidate everything already
+    // resolved to it, e.g. after an alias is removed or the profile is deleted.
+    public async Task<int> InvalidateNormalizedKeysForAliasAsync(string authorityOrHost, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(authorityOrHost))
+            return 0;
+
+        var trimmed = authorityOrHost.Trim();
+        var separatorIndex = trimmed.LastIndexOf(':');
+        string host;
+        int? port;
+        if (separatorIndex > 0 && int.TryParse(trimmed[(separatorIndex + 1)..], out var parsedPort))
+        {
+            host = trimmed[..separatorIndex];
+            port = parsedPort;
+        }
+        else
+        {
+            host = trimmed;
+            port = null;
+        }
+
+        host = EscapeLikePattern(host.ToLowerInvariant());
+        var likePattern = port.HasValue ? $"{host}:{port.Value}/%" : $"{host}:%";
+
+        using var conn = CreateConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE local_repos SET normalized_key = NULL WHERE normalized_key LIKE @pattern ESCAPE '\\';";
+        cmd.Parameters.AddWithValue("@pattern", likePattern);
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static string EscapeLikePattern(string value) =>
+        value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+
     #endregion
 
     #region Job History

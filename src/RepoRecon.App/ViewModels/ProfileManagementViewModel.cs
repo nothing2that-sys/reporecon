@@ -56,6 +56,8 @@ public partial class ProfileManagementViewModel : ObservableObject
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
+    public Func<Task>? OnAliasesInvalidatedFunc { get; set; }
+
     public ProfileManagementViewModel(
         SqliteIndexStore indexStore,
         ISecureTokenStore tokenStore,
@@ -203,6 +205,8 @@ public partial class ProfileManagementViewModel : ObservableObject
                                          .Distinct(StringComparer.OrdinalIgnoreCase)
                                          .ToList();
 
+            var previousAliases = SelectedProfile?.Aliases ?? new List<string>();
+
             var profileToSave = new ServerProfile(
                 Id: SelectedProfile?.Id ?? 0,
                 Host: EditHost.Trim(),
@@ -216,8 +220,43 @@ public partial class ProfileManagementViewModel : ObservableObject
             var savedId = await _indexStore.UpsertServerProfileAsync(profileToSave);
             StatusMessage = $"프로파일 '{EditHost}'이(가) 저장되었습니다.";
 
+            // §2.3/§4.4: an added/changed alias means some local_repos rows
+            // are now keyed under the wrong (pre-alias) authority; a removed
+            // alias means we can no longer tell which rows it used to cover
+            // (they already read as the canonical authority), so invalidate
+            // everything already resolved to this profile's canonical host.
+            var addedAliases = aliasesList.Except(previousAliases, StringComparer.OrdinalIgnoreCase).ToList();
+            var removedAliases = previousAliases.Except(aliasesList, StringComparer.OrdinalIgnoreCase).ToList();
+
+            var invalidatedCount = 0;
+            foreach (var addedAlias in addedAliases)
+            {
+                invalidatedCount += await _indexStore.InvalidateNormalizedKeysForAliasAsync(addedAlias);
+            }
+
+            if (removedAliases.Count > 0)
+            {
+                var canonicalAuthority = RemoteUrlNormalizer.ExtractAuthority(profileToSave.Host);
+                if (canonicalAuthority != null)
+                {
+                    invalidatedCount += await _indexStore.InvalidateNormalizedKeysForAliasAsync(canonicalAuthority);
+                }
+            }
+
+            if (invalidatedCount > 0)
+            {
+                _logger.LogInformation(
+                    "Invalidated {Count} local_repos.normalized_key rows after alias change on profile {Host} (added={Added}, removed={Removed})",
+                    invalidatedCount, profileToSave.Host, addedAliases.Count, removedAliases.Count);
+            }
+
             await LoadProfilesAsync();
             SelectedProfile = Profiles.FirstOrDefault(p => p.Id == savedId);
+
+            if (invalidatedCount > 0 && OnAliasesInvalidatedFunc != null)
+            {
+                await OnAliasesInvalidatedFunc();
+            }
         }
         catch (Exception ex)
         {
@@ -235,6 +274,7 @@ public partial class ProfileManagementViewModel : ObservableObject
         {
             var profileId = SelectedProfile.Id;
             var tokenRef = SelectedProfile.TokenRef;
+            var canonicalAuthority = RemoteUrlNormalizer.ExtractAuthority(SelectedProfile.Host);
 
             await _indexStore.DeleteServerProfileAsync(profileId);
             if (!string.IsNullOrWhiteSpace(tokenRef))
@@ -242,9 +282,29 @@ public partial class ProfileManagementViewModel : ObservableObject
                 await _tokenStore.DeleteTokenAsync(tokenRef);
             }
 
+            // §2.3/§4.4: same treatment as removing all of this profile's
+            // aliases -- invalidate whatever is already resolved to its
+            // canonical authority so a stale key isn't left unrecoverable.
+            var invalidatedCount = 0;
+            if (canonicalAuthority != null)
+            {
+                invalidatedCount = await _indexStore.InvalidateNormalizedKeysForAliasAsync(canonicalAuthority);
+                if (invalidatedCount > 0)
+                {
+                    _logger.LogInformation(
+                        "Invalidated {Count} local_repos.normalized_key rows after deleting profile {Host}",
+                        invalidatedCount, SelectedProfile.Host);
+                }
+            }
+
             StatusMessage = "프로파일이 삭제되었습니다.";
             ResetForm();
             await LoadProfilesAsync();
+
+            if (invalidatedCount > 0 && OnAliasesInvalidatedFunc != null)
+            {
+                await OnAliasesInvalidatedFunc();
+            }
         }
         catch (Exception ex)
         {

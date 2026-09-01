@@ -189,6 +189,7 @@
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Grid.Column="0"
@@ -204,18 +205,31 @@
                                          VerticalContentAlignment="Center"
                                          Padding="8,4"
                                          Margin="0,0,8,0"
-                                         TabIndex="0" />
+                                         TabIndex="0"
+                                         ToolTip="폴더 선택 대화상자나 이 아래 트리 뷰로의 드래그앤드롭이 우선 수단입니다. 직접 입력은 보조 수단입니다(§6)." />
 
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,8,0">
+                                <!-- Folder Picker (§6, OpenFolderDialog, 진입점 1/2) -->
+                                <Button Grid.Column="2"
+                                        x:Name="BtnBrowseFolder"
+                                        AutomationProperties.AutomationId="BtnBrowseFolder"
+                                        Content="찾아보기..."
+                                        Click="BrowseFolder_Click"
+                                        Padding="12,4"
+                                        Margin="0,0,8,0"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        TabIndex="1"
+                                        ToolTip="폴더 선택 대화상자로 스캔 루트 경로를 고릅니다." />
+
+                                <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="0,0,8,0">
                                     <TextBlock Text="깊이:" VerticalAlignment="Center" Margin="0,0,4,0" />
                                     <TextBox Text="{Binding NewScanRootDepth, UpdateSourceTrigger=PropertyChanged}"
                                              Width="40"
                                              VerticalContentAlignment="Center"
                                              Padding="4,4"
-                                             TabIndex="1" />
+                                             TabIndex="2" />
                                 </StackPanel>
 
-                                <Button Grid.Column="3"
+                                <Button Grid.Column="4"
                                         x:Name="BtnAddScanRoot"
                                         AutomationProperties.AutomationId="BtnAddScanRoot"
                                         Content="루트 추가"
@@ -223,9 +237,9 @@
                                         Padding="12,4"
                                         Margin="0,0,8,0"
                                         Style="{StaticResource SecondaryButtonStyle}"
-                                        TabIndex="2" />
+                                        TabIndex="3" />
 
-                                <Button Grid.Column="4"
+                                <Button Grid.Column="5"
                                         x:Name="BtnStartScan"
                                         AutomationProperties.AutomationId="BtnStartScan"
                                         Content="스캔 시작"
@@ -234,7 +248,7 @@
                                         FontWeight="Bold"
                                         Padding="16,4"
                                         Style="{StaticResource AccentButtonStyle}"
-                                        TabIndex="3"
+                                        TabIndex="4"
                                         ToolTipService.ShowOnDisabled="True"
                                         ToolTip="스캔이 이미 진행 중일 때는 비활성화됩니다." />
                             </Grid>
@@ -589,7 +603,11 @@
                                       VirtualizingStackPanel.VirtualizationMode="Recycling"
                                       ScrollViewer.IsDeferredScrollingEnabled="False"
                                       ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                                      ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                      AllowDrop="True"
+                                      DragEnter="MainTreeView_DragEnter"
+                                      DragOver="MainTreeView_DragEnter"
+                                      Drop="MainTreeView_Drop">
 
                                 <TreeView.Resources>
                                     <!-- Template for FolderTreeNodeViewModel -->
@@ -707,6 +725,21 @@
                                                                Foreground="{StaticResource WarningForeground}" />
                                                 </Border>
 
+                                                <!-- Missing Confirmation Badge (§3.2.2 (b): local_repos.is_missing) -->
+                                                <Border Background="{StaticResource ErrorBackground}"
+                                                        BorderBrush="{StaticResource ErrorBorder}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="3"
+                                                        Padding="4,4"
+                                                        Margin="4,0"
+                                                        Visibility="{Binding IsMissing, Converter={StaticResource BoolToVis}}"
+                                                        ToolTip="활성 스캔 루트 아래인데 이번 스캔에서 보이지 않았습니다. 권한 문제이거나 네트워크 드라이브가 끊겼을 수 있어 자동으로 지우지 않습니다.">
+                                                    <TextBlock Text="{Binding MissingBadgeText}"
+                                                               FontWeight="Bold"
+                                                               FontSize="{StaticResource FontSizeCaption}"
+                                                               Foreground="{StaticResource ErrorForeground}" />
+                                                </Border>
+
                                                 <!-- Upstream Gone Suggestion Button (§3.4, 완료 기준 14) -->
                                                 <Button Content="{Binding UpstreamGoneSuggestionText}"
                                                         Command="{Binding SetUpstreamGoneCommand}"
@@ -796,13 +829,15 @@
                                                     <TextBlock Text="{Binding FolderName}"
                                                                FontWeight="Bold"
                                                                FontSize="{StaticResource FontSizeSubtitle}"
-                                                               Foreground="{StaticResource NeutralForeground}" />
+                                                               Foreground="{StaticResource NeutralForeground}"
+                                                               TextDecorations="{Binding IsMissing, Converter={StaticResource BoolToStrikethrough}}" />
                                                     <TextBlock Text="{Binding DisplayRepoPath, Converter={StaticResource FrontEllipsis}, ConverterParameter=60}"
                                                                FontFamily="{StaticResource FontFamilyMono}"
                                                                FontSize="{StaticResource FontSizeSecondary}"
                                                                Foreground="{StaticResource NeutralForegroundMuted}"
                                                                Margin="8,0,0,0"
                                                                VerticalAlignment="Center"
+                                                               TextDecorations="{Binding IsMissing, Converter={StaticResource BoolToStrikethrough}}"
                                                                ToolTip="{Binding DisplayRepoPath}" />
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding BranchDisplay}"
@@ -830,7 +865,7 @@
                                            FontWeight="Bold"
                                            Foreground="{StaticResource NeutralForeground}"
                                            HorizontalAlignment="Center" />
-                                <TextBlock Text="스캔할 폴더 경로를 입력하고 [루트 추가] 후 [스캔 시작]을 누르세요."
+                                <TextBlock Text="스캔할 폴더를 선택하거나, 트리 영역으로 폴더를 끌어다 놓으세요."
                                            FontSize="{StaticResource FontSizeBody}"
                                            Foreground="{StaticResource NeutralForegroundMuted}"
                                            Margin="0,8,0,12"
@@ -839,7 +874,7 @@
                                         Padding="16,8"
                                         Style="{StaticResource AccentButtonStyle}"
                                         HorizontalAlignment="Center"
-                                        Click="EmptyStateFocusScanPath_Click" />
+                                        Click="BrowseFolder_Click" />
                             </StackPanel>
                         </Border>
 
@@ -1414,6 +1449,20 @@
                                                             Padding="8,4" Margin="0,0,4,0" Cursor="Hand"
                                                             Visibility="{Binding IsAlreadyCloned, Converter={StaticResource BoolToVis}}"
                                                             ToolTip="클릭 시 로컬 탭 해당 레포 노드로 이동합니다" />
+
+                                                    <!-- Not Cloned Badge (§3.2.2 — "빈칸 금지"의 대표 사례) -->
+                                                    <Border Background="{StaticResource NeutralSurface}"
+                                                            BorderBrush="{StaticResource NeutralBorder}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="3"
+                                                            Padding="8,4"
+                                                            Margin="0,0,4,0"
+                                                            Visibility="{Binding IsNotCloned, Converter={StaticResource BoolToVis}}">
+                                                        <TextBlock Text="{Binding NotClonedBadgeText}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="{StaticResource FontSizeSecondary}"
+                                                                   Foreground="{StaticResource NeutralForeground}" />
+                                                    </Border>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>

@@ -72,6 +72,7 @@
         <conv:BoolToLabelConverter x:Key="BoolToLabel" />
         <conv:FrontEllipsisConverter x:Key="FrontEllipsis" />
         <conv:StateExplanationConverter x:Key="StateExplanation" />
+        <conv:BoolToStrikethroughConverter x:Key="BoolToStrikethrough" />
 
         <!-- ================================================================
              공용 스타일

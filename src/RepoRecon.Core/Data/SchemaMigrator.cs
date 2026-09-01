@@ -6,7 +6,7 @@ namespace RepoRecon.Core.Data;
 
 public class SchemaMigrator
 {
-    public const int CurrentSchemaVersion = 4;
+    public const int CurrentSchemaVersion = 5;
     private readonly ILogger<SchemaMigrator> _logger;
 
     public SchemaMigrator(ILogger<SchemaMigrator>? logger = null)
@@ -52,7 +52,7 @@ public class SchemaMigrator
 
         if (existingVersion == 0)
         {
-            CreateSchemaV4(connection);
+            CreateSchemaV5(connection);
         }
         else if (existingVersion == CurrentSchemaVersion)
         {
@@ -60,8 +60,14 @@ public class SchemaMigrator
         }
         else if (existingVersion == 3)
         {
-            _logger.LogInformation("Migrating database schema from v3 to v4.");
+            _logger.LogInformation("Migrating database schema from v3 to v5.");
             MigrateV3ToV4(connection);
+            MigrateV4ToV5(connection);
+        }
+        else if (existingVersion == 4)
+        {
+            _logger.LogInformation("Migrating database schema from v4 to v5.");
+            MigrateV4ToV5(connection);
         }
         else
         {
@@ -126,7 +132,29 @@ UPDATE schema_version SET version = 4;
         transaction.Commit();
     }
 
-    private static void CreateSchemaV4(SqliteConnection connection)
+    private static void MigrateV4ToV5(SqliteConnection connection)
+    {
+        using var transaction = connection.BeginTransaction();
+        using var cmd = connection.CreateCommand();
+        cmd.Transaction = transaction;
+
+        cmd.CommandText = @"
+CREATE TABLE IF NOT EXISTS auto_pull_targets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    folder_path TEXT NOT NULL UNIQUE,
+    recurse INTEGER NOT NULL DEFAULT 1,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    last_run_at TEXT
+);
+
+UPDATE schema_version SET version = 5;
+";
+        cmd.ExecuteNonQuery();
+        transaction.Commit();
+    }
+
+    private static void CreateSchemaV5(SqliteConnection connection)
     {
         using var transaction = connection.BeginTransaction();
         using var cmd = connection.CreateCommand();
@@ -137,7 +165,7 @@ CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY
 );
 
-INSERT OR REPLACE INTO schema_version (version) VALUES (4);
+INSERT OR REPLACE INTO schema_version (version) VALUES (5);
 
 CREATE TABLE IF NOT EXISTS scan_roots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -210,6 +238,15 @@ CREATE TABLE IF NOT EXISTS server_repos (
     FOREIGN KEY(profile_id) REFERENCES server_profiles(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS auto_pull_targets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    folder_path TEXT NOT NULL UNIQUE,
+    recurse INTEGER NOT NULL DEFAULT 1,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    last_run_at TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_local_repos_normalized_key ON local_repos(normalized_key);
 CREATE INDEX IF NOT EXISTS idx_local_repos_parent_id ON local_repos(parent_repo_id);
 CREATE INDEX IF NOT EXISTS idx_job_history_target ON job_history(target_path);
@@ -240,7 +277,7 @@ CREATE INDEX IF NOT EXISTS idx_server_repos_namespace ON server_repos(namespace)
 
         using var connection = new SqliteConnection($"Data Source={dbPath}");
         connection.Open();
-        CreateSchemaV4(connection);
+        CreateSchemaV5(connection);
     }
 
     private static void DeleteFileIfExists(string path)

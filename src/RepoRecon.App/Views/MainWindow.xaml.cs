@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -12,11 +14,18 @@ namespace RepoRecon.App.Views;
 
 public partial class MainWindow : Window
 {
+    private const int IdleBaselineWindowSize = 120; // ~2s of frames at 60Hz
+
     private readonly ILogger<MainWindow> _logger;
     private readonly DispatcherTimer _scrollSamplingCompletionTimer;
     private readonly List<double> _scrollFrameIntervalsMs = new();
+    private readonly Queue<double> _idleFrameIntervalsMs = new();
     private bool _isScrollSampling;
     private long _lastRenderingTimestamp;
+    private long _idleLastRenderingTimestamp;
+    private long _scrollInputStartTimestamp;
+    private double _idleBaselineMaxMsAtScrollStart = double.NaN;
+    private double? _firstRenderLatencyMs;
 
     public MainWindow(MainViewModel viewModel, ILogger<MainWindow> logger)
     {
@@ -113,6 +122,9 @@ public partial class MainWindow : Window
         {
             _scrollFrameIntervalsMs.Clear();
             _lastRenderingTimestamp = 0;
+            _scrollInputStartTimestamp = Stopwatch.GetTimestamp();
+            _firstRenderLatencyMs = null;
+            _idleBaselineMaxMsAtScrollStart = _idleFrameIntervalsMs.Count > 0 ? _idleFrameIntervalsMs.Max() : double.NaN;
             _isScrollSampling = true;
         }
 
@@ -162,12 +174,50 @@ public partial class MainWindow : Window
 
     private void CompositionTarget_Rendering(object? sender, EventArgs e)
     {
+        var timestamp = Stopwatch.GetTimestamp();
+
         if (!_isScrollSampling)
         {
+            // Rolling idle baseline: frame intervals while nothing is being
+            // scrolled, so a later scroll session has something non-arbitrary
+            // to compare against (SS5.3.5 — absolute-ms thresholds aren't a metric).
+            //
+            // Only accumulate once the SS4.1 fetch queue has drained. Every
+            // completed fetch marshals a status update onto the UI thread, and
+            // while that storm runs (real usage too, not just a test harness --
+            // it fires on every startup and F5) the render thread stalls far
+            // past normal idle jitter. Sampling through it turns the "idle"
+            // floor into a snapshot of fetch contention instead.
+            var isFetchQueueDrained = DataContext is not MainViewModel viewModel || !viewModel.IsFetching;
+            if (isFetchQueueDrained)
+            {
+                if (_idleLastRenderingTimestamp != 0)
+                {
+                    var idleElapsedMs = (timestamp - _idleLastRenderingTimestamp) * 1000d / Stopwatch.Frequency;
+                    if (idleElapsedMs > 0)
+                    {
+                        if (_idleFrameIntervalsMs.Count >= IdleBaselineWindowSize)
+                        {
+                            _idleFrameIntervalsMs.Dequeue();
+                        }
+
+                        _idleFrameIntervalsMs.Enqueue(idleElapsedMs);
+                    }
+                }
+
+                _idleLastRenderingTimestamp = timestamp;
+            }
+            else
+            {
+                // Don't record the elapsed time span across a fetch storm as a
+                // single "idle" interval once it ends -- reset and restart
+                // clean on the first drained tick instead.
+                _idleLastRenderingTimestamp = 0;
+            }
+
             return;
         }
 
-        var timestamp = Stopwatch.GetTimestamp();
         if (_lastRenderingTimestamp != 0)
         {
             var elapsedMs = (timestamp - _lastRenderingTimestamp) * 1000d / Stopwatch.Frequency;
@@ -175,6 +225,11 @@ public partial class MainWindow : Window
             {
                 _scrollFrameIntervalsMs.Add(elapsedMs);
             }
+        }
+
+        if (_firstRenderLatencyMs is null && _scrollInputStartTimestamp != 0)
+        {
+            _firstRenderLatencyMs = (timestamp - _scrollInputStartTimestamp) * 1000d / Stopwatch.Frequency;
         }
 
         _lastRenderingTimestamp = timestamp;
@@ -199,23 +254,27 @@ public partial class MainWindow : Window
         var minimum = _scrollFrameIntervalsMs.Min();
         var maximum = _scrollFrameIntervalsMs.Max();
         var average = _scrollFrameIntervalsMs.Average();
-        var overBudget = _scrollFrameIntervalsMs.Count(value => value > 16.6d);
+
+        // SS5.3.5: judged on idle-baseline-relative max-interval increase and
+        // first-input-to-first-render latency only. No absolute-ms threshold
+        // counter (e.g. the retired Over16_6Ms) is computed or logged — one
+        // survives here, a reviewer will use it as if it were still the bar.
+        var idleBaselineMaxMs = _idleBaselineMaxMsAtScrollStart;
+        var maxIntervalIncreaseMs = maximum - idleBaselineMaxMs;
+        var firstInputToFirstRenderMs = _firstRenderLatencyMs ?? double.NaN;
 
         _logger.LogInformation(
-            "TreeScrollFrameMetrics Control=MainTreeView Method=ScrollChanged+CompositionTarget.Rendering Samples={Samples} MinMs={MinMs:F3} MaxMs={MaxMs:F3} AvgMs={AvgMs:F3} Over16_6Ms={OverBudget}",
+            "TreeScrollFrameMetrics Control=MainTreeView Method=ScrollChanged+CompositionTarget.Rendering Samples={Samples} MinMs={MinMs:F3} MaxMs={MaxMs:F3} AvgMs={AvgMs:F3} IdleBaselineMaxMs={IdleBaselineMaxMs:F3} MaxIntervalIncreaseMs={MaxIntervalIncreaseMs:F3} FirstInputToFirstRenderMs={FirstInputToFirstRenderMs:F3}",
             _scrollFrameIntervalsMs.Count,
             minimum,
             maximum,
             average,
-            overBudget);
+            idleBaselineMaxMs,
+            maxIntervalIncreaseMs,
+            firstInputToFirstRenderMs);
     }
 
-    private void EmptyStateFocusScanPath_Click(object sender, RoutedEventArgs e)
-    {
-        TxtScanPath.Focus();
-    }
-
-    private void BrowseFolder_Click(object sender, RoutedEventArgs e)
+    private async void BrowseFolder_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFolderDialog
         {
@@ -223,9 +282,40 @@ public partial class MainWindow : Window
             Multiselect = false
         };
 
+        // §6: the picker is a primary entry point, on par with drag-and-drop --
+        // it adds the root immediately through the same AddScanRootAsync path
+        // (nested-root absorption, network-drive warning) rather than only
+        // filling the text field for a separate manual "루트 추가" click.
         if (dialog.ShowDialog(this) == true && DataContext is MainViewModel vm)
         {
             vm.NewScanRootPath = dialog.FolderName;
+            await vm.AddScanRootAsync();
         }
+    }
+
+    private void MainTreeView_DragEnter(object sender, DragEventArgs e)
+    {
+        var hasDroppableFolder = e.Data.GetDataPresent(DataFormats.FileDrop) &&
+            ((string[])e.Data.GetData(DataFormats.FileDrop)).Any(Directory.Exists);
+        e.Effects = hasDroppableFolder ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private async void MainTreeView_Drop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop) || DataContext is not MainViewModel vm)
+        {
+            return;
+        }
+
+        var folders = ((string[])e.Data.GetData(DataFormats.FileDrop)).Where(Directory.Exists).ToArray();
+        if (folders.Length == 0)
+        {
+            return;
+        }
+
+        // §6: same AddScanRootAsync path as the picker and the manual text
+        // field -- no separate validation route for drag-and-drop.
+        await vm.AddScanRootPathsAsync(folders);
     }
 }

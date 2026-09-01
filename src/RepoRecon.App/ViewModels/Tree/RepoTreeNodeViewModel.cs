@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using RepoRecon.App.ViewModels;
 using RepoRecon.Core.Models;
 using RepoRecon.Core.Tree;
 using RepoRecon.Core.Urls;
@@ -61,11 +62,16 @@ public partial class RepoTreeNodeViewModel : TreeNodeViewModelBase
     [ObservableProperty]
     private RepoStateCode _stateCode = RepoStateCode.UnknownUnfetched;
 
+    // English -- feeds CSV/Markdown export (§3.2.2 (c)) via MainViewModel's
+    // ExportItem construction. Never bind this to the UI.
     [ObservableProperty]
-    private string _stateDisplay = "미확인 (fetch 전)";
+    private string _stateDisplay = "Unknown (Not Fetched)";
 
     [ObservableProperty]
     private string _threeAxisSummary = string.Empty;
+
+    [ObservableProperty]
+    private string? _missingBadgeText;
 
     [ObservableProperty]
     private DateTime? _lastFetchedAt;
@@ -175,23 +181,24 @@ public partial class RepoTreeNodeViewModel : TreeNodeViewModelBase
 
         if (IsOrphaned)
         {
-            ServerStatusBadge = "Orphaned";
+            ServerStatusBadge = StateBadgeText.Orphaned;
         }
         else if (IsExternal)
         {
-            ServerStatusBadge = "External";
+            ServerStatusBadge = StateBadgeText.External;
         }
         else if (IsUntracked)
         {
-            ServerStatusBadge = "Untracked";
+            ServerStatusBadge = StateBadgeText.Untracked;
         }
 
         if (IsArchived)
         {
-            ServerStatusBadge = ServerStatusBadge != null ? $"{ServerStatusBadge} · 보관됨" : "보관됨";
+            ServerStatusBadge = ServerStatusBadge != null ? $"{ServerStatusBadge} · {StateBadgeText.Archived}" : StateBadgeText.Archived;
         }
 
         HasServerStatusBadge = !string.IsNullOrWhiteSpace(ServerStatusBadge);
+        MissingBadgeText = IsMissing ? StateBadgeText.MissingConfirmation : null;
         HostDotColor = DetermineHostColor(node.HostName);
 
         ApplyStatus(node.Status);
@@ -349,9 +356,16 @@ public partial class RepoTreeNodeViewModel : TreeNodeViewModelBase
 
         StateCode = status?.StateCode ?? RepoStateCode.UnknownUnfetched;
 
-        if ((LastFetchedAt == null || HasFetchFailure) && (StateCode == RepoStateCode.Ahead || StateCode == RepoStateCode.Behind || StateCode == RepoStateCode.UpToDate || StateCode == RepoStateCode.Diverged))
+        var isFetchPending = (LastFetchedAt == null || HasFetchFailure) &&
+            (StateCode == RepoStateCode.Ahead || StateCode == RepoStateCode.Behind || StateCode == RepoStateCode.UpToDate || StateCode == RepoStateCode.Diverged);
+
+        string stateDisplayKo;
+        if (isFetchPending)
         {
-            StateDisplay = HasFetchFailure ? "미확인 (fetch 실패)" : "미확인 (fetch 전)";
+            // §3.2.2 (c): StateDisplay stays English -- it feeds CSV/Markdown
+            // export via MainViewModel. stateDisplayKo is screen-only.
+            StateDisplay = HasFetchFailure ? "Unknown (Fetch Failed)" : "Unknown (Not Fetched)";
+            stateDisplayKo = HasFetchFailure ? StateBadgeText.UnknownFetchFailed : StateBadgeText.UnknownUnfetched;
         }
         else
         {
@@ -360,31 +374,29 @@ public partial class RepoTreeNodeViewModel : TreeNodeViewModelBase
                 RepoStateCode.NoUpstream => "No Upstream",
                 RepoStateCode.UpstreamGone => "Upstream Gone",
                 RepoStateCode.DetachedHead => "Detached HEAD",
-                RepoStateCode.Untracked => "Untracked · No Upstream",
+                RepoStateCode.Untracked => "Untracked",
                 RepoStateCode.Conflicted => "Conflicted",
                 RepoStateCode.Diverged => $"Diverged (↑{Ahead} ↓{Behind})",
                 RepoStateCode.Ahead => $"Ahead (↑{Ahead})",
                 RepoStateCode.Behind => $"Behind (↓{Behind})",
                 RepoStateCode.UpToDate => "Up-to-Date",
-                _ => "미확인 (fetch 전)"
+                _ => "Unknown (Not Fetched)"
             };
+            stateDisplayKo = StateBadgeText.ForSyncState(StateCode, Ahead, Behind);
         }
 
-        var parts = new List<string> { StateDisplay };
+        var parts = new List<string> { stateDisplayKo };
         if (DirtyCount > 0)
         {
-            parts.Add($"수정 {DirtyCount}");
+            parts.Add(StateBadgeText.ForDirty(DirtyCount));
         }
         if (ConflictedCount > 0)
         {
-            parts.Add($"충돌 {ConflictedCount}");
-        }
-        if (IsMissing)
-        {
-            parts.Add("(미발견)");
+            parts.Add(StateBadgeText.ForConflicted(ConflictedCount));
         }
 
         ThreeAxisSummary = string.Join(" · ", parts);
+        MissingBadgeText = IsMissing ? StateBadgeText.MissingConfirmation : null;
         UpdateFreshness();
     }
 

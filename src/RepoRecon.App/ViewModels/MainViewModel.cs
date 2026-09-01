@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -344,6 +345,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _freshnessTimer.Start();
 
         WireCloneTabEvents();
+        WireProfileManagementEvents();
     }
 
     private void WireCloneTabEvents()
@@ -413,6 +415,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 StatusMessage = CloneTab.StatusMessage;
             }
         };
+
+        // §2.3/§4.4: an alias add/remove invalidates some local_repos keys
+        // (see CloneTabViewModel.SyncCatalogAsync). Re-scan right away so the
+        // local tab reflects it without the user having to press F5 themselves.
+        CloneTab.OnAliasesInvalidatedFunc = StartScanAsync;
+    }
+
+    private void WireProfileManagementEvents()
+    {
+        ProfileManagement.OnAliasesInvalidatedFunc = StartScanAsync;
     }
 
     [RelayCommand]
@@ -1127,6 +1139,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to add scan root");
             StatusMessage = $"루트 추가 실패: {ex.Message}";
+        }
+    }
+
+    // §6: drag-and-drop entry point. Reuses AddScanRootAsync() per folder --
+    // same nested-root absorption and network-drive-warning check as the
+    // picker and the manual text field, no separate validation route.
+    public async Task AddScanRootPathsAsync(IEnumerable<string> paths)
+    {
+        foreach (var path in paths.Where(p => !string.IsNullOrWhiteSpace(p) && Directory.Exists(p)))
+        {
+            NewScanRootPath = path;
+            await AddScanRootAsync();
         }
     }
 

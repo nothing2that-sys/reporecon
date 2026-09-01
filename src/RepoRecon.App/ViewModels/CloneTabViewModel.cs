@@ -28,6 +28,15 @@ public partial class CatalogRepoItemViewModel : ObservableObject
     public string AlreadyClonedBadgeText => ClonedLocalCount > 0 ? $"이미 있음 ({ClonedLocalCount}곳)" : string.Empty;
     public bool IsArchived => Repo.IsArchived;
 
+    // §3.2.2: "빈칸 금지" — a catalog row with no local clone and no archived
+    // flag previously rendered with no badge at all (the 1.0.0 bug this
+    // section calls out by name). NotCloned is the state_code default here;
+    // there's no per-row sync state to show since one server repo can back
+    // multiple local clones in different states (§2.2) — the local path
+    // column (§5.4, task 7) is where that detail actually lives.
+    public bool IsNotCloned => ClonedLocalCount == 0;
+    public string NotClonedBadgeText => StateBadgeText.NotCloned;
+
     public Action? SelectionChanged { get; set; }
 
     public CatalogRepoItemViewModel(ServerRepo repo, int clonedLocalCount = 0)
@@ -98,6 +107,7 @@ public partial class CloneTabViewModel : ObservableObject
     public Func<string, Task<bool>>? PromptAddScanRootFunc { get; set; }
     public Action? OpenProfileManagementFunc { get; set; }
     public Func<Task>? OnCloneCompletedFunc { get; set; }
+    public Func<Task>? OnAliasesInvalidatedFunc { get; set; }
 
     public CloneTabViewModel(
         SqliteIndexStore indexStore,
@@ -275,6 +285,23 @@ public partial class CloneTabViewModel : ObservableObject
                 _logger.LogInformation("Auto-registered host alias {CloneAuthority} -> {ApiAuthority} for profile {Host}",
                     cloneAuthority, apiAuthority, SelectedProfile.Host);
                 StatusMessage = $"별칭 자동 등록: {cloneAuthority} → {apiAuthority}";
+
+                // §2.3/§4.4: repos scanned before this alias existed are still
+                // keyed under the old (mismatched) authority. Invalidate just
+                // those so the next scan re-resolves them, then run it now --
+                // the user is about to look at the local tab for the result.
+                var invalidatedCount = await _indexStore.InvalidateNormalizedKeysForAliasAsync(cloneAuthority);
+                if (invalidatedCount > 0)
+                {
+                    _logger.LogInformation(
+                        "Invalidated {Count} local_repos.normalized_key rows for newly-registered authority {CloneAuthority}",
+                        invalidatedCount, cloneAuthority);
+
+                    if (OnAliasesInvalidatedFunc != null)
+                    {
+                        await OnAliasesInvalidatedFunc();
+                    }
+                }
             }
 
             // Convert to ServerRepo entities

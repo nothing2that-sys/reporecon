@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
+using System.Windows.Documents;
 
 namespace RepoRecon.App.Converters;
 
@@ -79,22 +80,22 @@ public class FrontEllipsisConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
-/// <summary>§5-7: tooltip explaining what a state badge means, e.g. what "Diverged" implies
-/// for Pull/Push. Matches by substring since the bound text is a composed display string
-/// (design v3 §3.2), not a clean enum — returns null (no tooltip) when nothing matches so
-/// self-explanatory badges (Up-to-Date, plain ↓N/↑N counts) stay uncluttered.</summary>
+/// <summary>§5-7: tooltip explaining what a state badge means, e.g. what "갈라짐" implies
+/// for Pull/Push. Matches by substring since the bound text is a composed Korean display
+/// string (§3.2.2), not a clean enum — returns null (no tooltip) when nothing matches so
+/// self-explanatory badges (최신, plain ↓N/↑N counts) stay uncluttered.</summary>
 public class StateExplanationConverter : IValueConverter
 {
     private static readonly (string Match, string Explanation)[] Explanations =
     {
-        ("Diverged", "로컬과 원격이 서로 다른 커밋을 갖고 있습니다. Pull/Push 모두 차단되며, 먼저 사람이 정리해야 합니다."),
-        ("No Upstream", "추적 브랜치가 설정되어 있지 않습니다. Pull/Push가 차단됩니다."),
-        ("Upstream Gone", "원격 추적 브랜치가 서버에서 삭제되었습니다. 기본 브랜치로 전환이 필요할 수 있습니다."),
-        ("Detached HEAD", "브랜치가 체크아웃되어 있지 않습니다. Pull/Push가 차단됩니다."),
-        ("Conflicted", "머지 충돌이 있습니다. Pull/Push가 차단되며 직접 해결해야 합니다."),
-        ("Orphaned", "이 서버 프로파일의 호스트이지만 현재 카탈로그에서 찾을 수 없습니다(권한 변경 또는 삭제/아카이브 가능성)."),
-        ("External", "등록된 서버 프로파일에 없는 호스트의 저장소입니다."),
-        ("Untracked", "remote가 없는 로컬 전용 저장소입니다."),
+        ("갈라짐 · pull 먼저 필요", "로컬과 원격이 서로 다른 커밋을 갖고 있습니다. Pull/Push 모두 차단되며, 먼저 사람이 정리해야 합니다."),
+        ("추적 브랜치 없음", "추적 브랜치가 설정되어 있지 않습니다. Pull/Push가 차단됩니다."),
+        ("서버에서 사라진 브랜치", "원격 추적 브랜치가 서버에서 삭제되었습니다. 기본 브랜치로 전환이 필요할 수 있습니다."),
+        ("브랜치 미체크아웃", "브랜치가 체크아웃되어 있지 않습니다. Pull/Push가 차단됩니다."),
+        ("머지 충돌 중", "머지 충돌이 있습니다. Pull/Push가 차단되며 직접 해결해야 합니다."),
+        ("카탈로그에 없음", "이 서버 프로파일의 호스트이지만 현재 카탈로그에서 찾을 수 없습니다(권한 변경 또는 삭제/아카이브 가능성)."),
+        ("미등록 호스트", "등록된 서버 프로파일에 없는 호스트의 저장소입니다."),
+        ("remote 없음", "remote가 없는 로컬 전용 저장소입니다."),
     };
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -106,6 +107,17 @@ public class StateExplanationConverter : IValueConverter
         }
         return null;
     }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>bool -&gt; TextDecorationCollection. §3.2.2 (b): local_repos.is_missing
+/// applies strikethrough to the path text alongside the "확인 안 됨" badge.</summary>
+public class BoolToStrikethroughConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is true ? TextDecorations.Strikethrough : null;
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
