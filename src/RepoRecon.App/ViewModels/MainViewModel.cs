@@ -297,7 +297,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<string> InaccessiblePaths { get; } = new();
     public ObservableCollection<ScanRootItemViewModel> ScanRoots { get; } = new();
+
+    // §5.3.1: left tree, folder nodes only -- a single "전체" virtual root
+    // whose Children are the real scan-root folders.
     public ObservableCollection<TreeNodeViewModelBase> RootTreeNodes { get; } = new();
+
+    [ObservableProperty]
+    private FolderTreeNodeViewModel? _selectedLeftNode;
+
+    // §5.3.2: "직속만" toggle -- right pane defaults to the selected node's
+    // full recursive subtree.
+    [ObservableProperty]
+    private bool _directChildrenOnly;
+
+    // §5.3.2: right pane, a flat list of repos scoped to SelectedLeftNode
+    // (recursive by default) and narrowed by the current filter.
+    public ObservableCollection<RepoTreeNodeViewModel> RightPaneRepos { get; } = new();
 
     public MainViewModel(
         IGitRunner gitRunner,
@@ -356,13 +371,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             var target = _repoViewModelMap.Values.FirstOrDefault(r => string.Equals(r.Repo.NormalizedKey, normKey, StringComparison.OrdinalIgnoreCase));
             if (target != null)
             {
-                var p = target.Parent;
-                while (p != null)
-                {
-                    p.IsExpanded = true;
-                    p = p.Parent;
-                }
-                target.IsSelected = true;
+                FocusRepo(target.Repo.Id);
             }
         };
 
@@ -466,6 +475,42 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsSkipDetailsExpanded = !IsSkipDetailsExpanded;
     }
 
+    partial void OnSelectedLeftNodeChanged(FolderTreeNodeViewModel? value) => RecomputeRightPane();
+    partial void OnDirectChildrenOnlyChanged(bool value) => RecomputeRightPane();
+
+    private void RecomputeRightPane()
+    {
+        RightPaneRepos.Clear();
+        if (SelectedLeftNode == null)
+            return;
+
+        foreach (var repo in SelectedLeftNode.GetScopedRepos(DirectChildrenOnly).Where(r => r.IsVisible))
+        {
+            RightPaneRepos.Add(repo);
+        }
+    }
+
+    private static FolderTreeNodeViewModel? FindFolderByPath(FolderTreeNodeViewModel node, string? path)
+    {
+        if (path == null)
+            return null;
+
+        if (string.Equals(node.FullPath, path, StringComparison.OrdinalIgnoreCase))
+            return node;
+
+        foreach (var child in node.Children)
+        {
+            if (child is FolderTreeNodeViewModel folderChild)
+            {
+                var found = FindFolderByPath(folderChild, path);
+                if (found != null)
+                    return found;
+            }
+        }
+
+        return null;
+    }
+
     partial void OnFilterTextChanged(string value) => ApplyFilters();
     partial void OnFilterBehindOnlyChanged(bool value) => ApplyFilters();
     partial void OnFilterAheadOnlyChanged(bool value) => ApplyFilters();
@@ -531,10 +576,25 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return true;
         }
 
+        // §5.3.1/5.3.3 v4: the filter narrows repo rows directly (not a tree
+        // visibility cascade) -- each repo's IsVisible is the filter result,
+        // the left tree's rollup badges recompute from it, and the right
+        // pane is rebuilt from whichever repos are both in scope and visible.
+        foreach (var repo in _repoViewModelMap.Values)
+        {
+            repo.IsVisible = Predicate(repo);
+        }
+
         foreach (var root in RootTreeNodes)
         {
             root.ApplyFilter(Predicate);
+            if (root is FolderTreeNodeViewModel rootFolder)
+            {
+                rootFolder.RecalculateRollup();
+            }
         }
+
+        RecomputeRightPane();
 
         var isAnyFilterActive = hasSearch || !isAllHosts || FilterBehindOnly || FilterAheadOnly ||
                                  FilterDivergedOnly || FilterDirtyOnly || FilterConflictedOnly;
@@ -564,15 +624,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
         SelectedHostFilter = "전체 호스트";
     }
 
+    // §5.3.4/§10.4: "보이는 것만" now means the right pane's current rows --
+    // whatever's in scope (SelectedLeftNode, 직속만) and passes the filter --
+    // not every repo in the whole index regardless of where you're looking.
     [RelayCommand]
     public void SelectAllVisible()
     {
-        foreach (var repo in _repoViewModelMap.Values)
+        foreach (var repo in RightPaneRepos)
         {
-            if (repo.IsVisible)
-            {
-                repo.SetSelected(true, updateChildren: true, updateParent: true);
-            }
+            repo.SetSelected(true, updateChildren: true, updateParent: true);
         }
         UpdateExecutionCounts();
     }
@@ -874,14 +934,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
             // Build hierarchical tree using Core RepoTreeBuilder with Server Profiles and Catalog
             var treeFolders = RepoTreeBuilder.BuildTree(roots, reposWithStatus, serverProfiles, serverRepos);
 
+            // §5.3.1: single "전체" virtual root wrapping the real scan-root
+            // folders, so selecting it scopes the right pane to everything.
+            var previousSelectedPath = SelectedLeftNode?.FullPath;
             RootTreeNodes.Clear();
             var distinctHosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+            var allReposNode = new FolderTreeNodeViewModel(new TreeFolderNode("전체", string.Empty)) { Parent = null };
             foreach (var folder in treeFolders)
             {
-                var folderVm = CreateFolderViewModel(folder, parent: null, distinctHosts);
-                RootTreeNodes.Add(folderVm);
+                var folderVm = CreateFolderViewModel(folder, parent: allReposNode, distinctHosts);
+                allReposNode.Children.Add(folderVm);
             }
+            RootTreeNodes.Add(allReposNode);
+
+            // Preserve the left-tree selection across reloads when the same
+            // path still exists; default to "전체" otherwise.
+            SelectedLeftNode = FindFolderByPath(allReposNode, previousSelectedPath) ?? allReposNode;
 
             // Populate AvailableHosts filter
             AvailableHosts.Clear();
@@ -962,7 +1031,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         foreach (var repo in folderNode.Repos)
         {
             var repoVm = CreateRepoViewModel(repo, folderVm, distinctHosts);
-            folderVm.Children.Add(repoVm);
+            folderVm.DirectRepos.Add(repoVm);
         }
 
         return folderVm;
@@ -1002,20 +1071,36 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnTreeNodeSelectionChanged(object? sender, EventArgs e) => UpdateExecutionCounts();
 
+    // §5.3.1/5.3.2: repos no longer live in the left tree, so "jump to this
+    // repo" means: navigate the left tree to its containing folder (walking
+    // up through any repo-in-repo nesting first) and let the right pane's
+    // recursive scope surface it.
     public void FocusRepo(long repoId)
     {
-        if (_repoViewModelMap.TryGetValue(repoId, out var repoVm))
+        if (!_repoViewModelMap.TryGetValue(repoId, out var repoVm))
+            return;
+
+        var current = repoVm.Parent;
+        while (current != null && current is not FolderTreeNodeViewModel)
         {
-            var current = repoVm.Parent;
-            while (current != null)
-            {
-                current.IsExpanded = true;
-                current = current.Parent;
-            }
-            repoVm.IsExpanded = true;
-            repoVm.SetSelected(true);
-            StatusMessage = $"레포 사본 이동: {repoVm.FolderName} ({repoVm.FullPath})";
+            current = current.Parent;
         }
+
+        if (current is FolderTreeNodeViewModel parentFolder)
+        {
+            var expandCursor = (TreeNodeViewModelBase?)parentFolder;
+            while (expandCursor != null)
+            {
+                expandCursor.IsExpanded = true;
+                expandCursor = expandCursor.Parent;
+            }
+
+            DirectChildrenOnly = false;
+            SelectedLeftNode = parentFolder;
+        }
+
+        repoVm.SetSelected(true);
+        StatusMessage = $"레포 사본 이동: {repoVm.FolderName} ({repoVm.FullPath})";
     }
 
     public void BoostVisibleRepoPriority(IEnumerable<long> visibleIds)

@@ -588,73 +588,134 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Main Hierarchical Tree View / Empty States -->
+                    <!-- Main Split View (§5.3.1/5.3.2: 좌 디렉토리 트리 / 우 레포 리스트) / Empty States -->
                     <Grid Grid.Row="5">
-                        <Border Background="{StaticResource NeutralBackground}"
-                                BorderBrush="{StaticResource NeutralBorder}"
-                                BorderThickness="1"
-                                CornerRadius="6">
-                            <TreeView x:Name="MainTreeView"
-                                      AutomationProperties.AutomationId="TreeRepos"
-                                      ItemsSource="{Binding RootTreeNodes}"
-                                      BorderThickness="0"
-                                      Padding="4"
-                                      VirtualizingStackPanel.IsVirtualizing="True"
-                                      VirtualizingStackPanel.VirtualizationMode="Recycling"
-                                      ScrollViewer.IsDeferredScrollingEnabled="False"
-                                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                                      ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                      AllowDrop="True"
-                                      DragEnter="MainTreeView_DragEnter"
-                                      DragOver="MainTreeView_DragEnter"
-                                      Drop="MainTreeView_Drop">
+                        <Grid Visibility="{Binding HasNoRepos, Converter={StaticResource InvertedBoolToVis}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="280" MinWidth="180" />
+                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
 
-                                <TreeView.Resources>
-                                    <!-- Template for FolderTreeNodeViewModel -->
-                                    <HierarchicalDataTemplate DataType="{x:Type tree:FolderTreeNodeViewModel}"
-                                                              ItemsSource="{Binding Children}">
-                                        <DockPanel Margin="0,4" LastChildFill="True">
-                                            <DockPanel.ContextMenu>
-                                                <ContextMenu AutomationProperties.AutomationId="ContextMenuFolderNode">
-                                                    <MenuItem Header="탐색기에서 열기" Command="{Binding OpenInExplorerCommand}" ToolTip="Shift+클릭: 상위 폴더에서 선택" AutomationProperties.AutomationId="MenuFolderOpenInExplorer" />
-                                                    <MenuItem Header="여기서 터미널 열기" Command="{Binding OpenTerminalHereCommand}" AutomationProperties.AutomationId="MenuFolderOpenTerminal" />
-                                                    <Separator />
-                                                    <MenuItem Header="경로 복사" Command="{Binding CopyPathCommand}" AutomationProperties.AutomationId="MenuFolderCopyPath" />
-                                                </ContextMenu>
-                                            </DockPanel.ContextMenu>
+                            <!-- LEFT: Directory Tree (§5.3.1) -->
+                            <Border Grid.Column="0"
+                                    Background="{StaticResource NeutralBackground}"
+                                    BorderBrush="{StaticResource NeutralBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="6">
+                                <TreeView x:Name="MainTreeView"
+                                          AutomationProperties.AutomationId="TreeRepos"
+                                          ItemsSource="{Binding RootTreeNodes}"
+                                          BorderThickness="0"
+                                          Padding="4"
+                                          VirtualizingStackPanel.IsVirtualizing="True"
+                                          VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                          ScrollViewer.IsDeferredScrollingEnabled="False"
+                                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                          AllowDrop="True"
+                                          DragEnter="MainTreeView_DragEnter"
+                                          DragOver="MainTreeView_DragEnter"
+                                          Drop="MainTreeView_Drop"
+                                          SelectedItemChanged="MainTreeView_SelectedItemChanged">
 
-                                            <CheckBox IsChecked="{Binding CascadeSelection, Mode=TwoWay}"
-                                                      VerticalAlignment="Center"
-                                                      Margin="0,0,8,0" />
+                                    <TreeView.Resources>
+                                        <!-- Template for FolderTreeNodeViewModel: folder nodes only (§5.3.1);
+                                             clicking navigates the right pane, no cascading checkbox (v4 discards
+                                             "폴더 노드 체크 = 하위 전체 선택") -->
+                                        <HierarchicalDataTemplate DataType="{x:Type tree:FolderTreeNodeViewModel}"
+                                                                  ItemsSource="{Binding Children}">
+                                            <DockPanel Margin="0,4" LastChildFill="True">
+                                                <DockPanel.ContextMenu>
+                                                    <ContextMenu AutomationProperties.AutomationId="ContextMenuFolderNode">
+                                                        <MenuItem Header="탐색기에서 열기" Command="{Binding OpenInExplorerCommand}" ToolTip="Shift+클릭: 상위 폴더에서 선택" AutomationProperties.AutomationId="MenuFolderOpenInExplorer" />
+                                                        <MenuItem Header="여기서 터미널 열기" Command="{Binding OpenTerminalHereCommand}" AutomationProperties.AutomationId="MenuFolderOpenTerminal" />
+                                                        <Separator />
+                                                        <MenuItem Header="경로 복사" Command="{Binding CopyPathCommand}" AutomationProperties.AutomationId="MenuFolderCopyPath" />
+                                                    </ContextMenu>
+                                                </DockPanel.ContextMenu>
 
-                                            <!-- Rollup Status Summary Badge -->
-                                            <Border DockPanel.Dock="Right"
-                                                    Background="{StaticResource WarningBackground}"
-                                                    BorderBrush="{StaticResource WarningBorder}"
-                                                    BorderThickness="1"
-                                                    CornerRadius="4"
-                                                    Padding="8,4"
-                                                    Margin="8,0,4,0"
-                                                    VerticalAlignment="Center"
-                                                    ToolTip="하위 저장소 상태 롤업: ↓ Behind 합, ↑ Ahead 합, ⚠ 확인 필요 합">
-                                                <TextBlock Text="{Binding RollupSummaryText}"
+                                                <!-- Rollup Status Summary Badge (필터 적용 결과 기준, §2.4) -->
+                                                <Border DockPanel.Dock="Right"
+                                                        Background="{StaticResource WarningBackground}"
+                                                        BorderBrush="{StaticResource WarningBorder}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Padding="8,4"
+                                                        Margin="8,0,4,0"
+                                                        VerticalAlignment="Center"
+                                                        Visibility="{Binding RollupSummaryText, Converter={StaticResource StringNotEmptyToVis}}"
+                                                        ToolTip="하위 저장소 상태 롤업(현재 필터 기준): ↓ Behind 합, ↑ Ahead 합, ⚠ 확인 필요 합">
+                                                    <TextBlock Text="{Binding RollupSummaryText}"
+                                                               FontWeight="Bold"
+                                                               FontSize="{StaticResource FontSizeSecondary}"
+                                                               Foreground="{StaticResource WarningForeground}" />
+                                                </Border>
+
+                                                <!-- Folder Path -->
+                                                <TextBlock Text="{Binding CompressedDisplayPath}"
                                                            FontWeight="Bold"
-                                                           FontSize="{StaticResource FontSizeSecondary}"
-                                                           Foreground="{StaticResource WarningForeground}" />
-                                            </Border>
+                                                           FontSize="{StaticResource FontSizeSubtitle}"
+                                                           Foreground="{StaticResource NeutralForeground}"
+                                                           VerticalAlignment="Center" />
+                                            </DockPanel>
+                                        </HierarchicalDataTemplate>
+                                    </TreeView.Resources>
+                                </TreeView>
+                            </Border>
 
-                                            <!-- Folder Path -->
-                                            <TextBlock Text="{Binding CompressedDisplayPath}"
-                                                       FontWeight="Bold"
-                                                       FontSize="{StaticResource FontSizeSubtitle}"
-                                                       Foreground="{StaticResource NeutralForeground}"
-                                                       VerticalAlignment="Center" />
-                                        </DockPanel>
-                                    </HierarchicalDataTemplate>
+                            <GridSplitter Grid.Column="1"
+                                          Width="6"
+                                          HorizontalAlignment="Stretch"
+                                          VerticalAlignment="Stretch"
+                                          Background="{StaticResource NeutralBorder}"
+                                          ResizeBehavior="PreviousAndNext" />
 
-                                    <!-- Template for RepoTreeNodeViewModel -->
-                                    <HierarchicalDataTemplate DataType="{x:Type tree:RepoTreeNodeViewModel}"
-                                                              ItemsSource="{Binding Children}">
+                            <!-- RIGHT: Flat Repo List (§5.3.2) -->
+                            <Grid Grid.Column="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Grid.Row="0" Margin="4,0,4,8" LastChildFill="False">
+                                    <ToggleButton Content="직속만"
+                                                  x:Name="BtnDirectChildrenOnly"
+                                                  AutomationProperties.AutomationId="BtnDirectChildrenOnly"
+                                                  IsChecked="{Binding DirectChildrenOnly, Mode=TwoWay}"
+                                                  DockPanel.Dock="Right"
+                                                  Style="{StaticResource FilterToggleButtonStyle}"
+                                                  ToolTip="켜면 선택한 폴더에 직접 있는 저장소만, 끄면 하위 전체를 포함합니다(기본값)." />
+                                    <TextBlock Text="{Binding SelectedLeftNode.CompressedDisplayPath, FallbackValue=전체}"
+                                               FontWeight="Bold"
+                                               FontSize="{StaticResource FontSizeSubtitle}"
+                                               Foreground="{StaticResource NeutralForeground}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" />
+                                </DockPanel>
+
+                                <Border Grid.Row="1"
+                                        Background="{StaticResource NeutralBackground}"
+                                        BorderBrush="{StaticResource NeutralBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="6">
+                                    <ListBox x:Name="RightPaneRepoList"
+                                             AutomationProperties.AutomationId="ListRightPaneRepos"
+                                             ItemsSource="{Binding RightPaneRepos}"
+                                             BorderThickness="0"
+                                             Padding="4"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                             VirtualizingStackPanel.IsVirtualizing="True"
+                                             VirtualizingStackPanel.VirtualizationMode="Recycling">
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem">
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                                <Setter Property="Padding" Value="0" />
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                        <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type tree:RepoTreeNodeViewModel}">
                                         <DockPanel Margin="0,4" LastChildFill="True">
                                             <DockPanel.ContextMenu>
                                                 <ContextMenu AutomationProperties.AutomationId="ContextMenuRepoNode">
@@ -847,10 +908,12 @@
                                                            Margin="0,4,0,0" />
                                             </StackPanel>
                                         </DockPanel>
-                                    </HierarchicalDataTemplate>
-                                </TreeView.Resources>
-                            </TreeView>
-                        </Border>
+                                    </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Border>
+                            </Grid>
+                        </Grid>
 
                         <!-- Empty State 1: 스캔 루트 없음 -->
                         <Border Background="{StaticResource NeutralBackground}"

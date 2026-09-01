@@ -293,6 +293,17 @@ public partial class MainWindow : Window
         }
     }
 
+    // §5.3.1: WPF's TreeView.SelectedItem has no setter to bind two-way, so
+    // clicking a left-tree folder node is picked up here and pushed into the
+    // view model, which drives the right pane (§5.3.2).
+    private void MainTreeView_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        if (DataContext is MainViewModel vm && e.NewValue is FolderTreeNodeViewModel folderVm)
+        {
+            vm.SelectedLeftNode = folderVm;
+        }
+    }
+
     private void MainTreeView_DragEnter(object sender, DragEventArgs e)
     {
         var hasDroppableFolder = e.Data.GetDataPresent(DataFormats.FileDrop) &&

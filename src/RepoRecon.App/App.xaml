@@ -73,6 +73,7 @@
         <conv:FrontEllipsisConverter x:Key="FrontEllipsis" />
         <conv:StateExplanationConverter x:Key="StateExplanation" />
         <conv:BoolToStrikethroughConverter x:Key="BoolToStrikethrough" />
+        <conv:StringNotEmptyToVisibilityConverter x:Key="StringNotEmptyToVis" />
 
         <!-- ================================================================
              공용 스타일

@@ -122,3 +122,14 @@ public class BoolToStrikethroughConverter : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
 }
+
+/// <summary>string -&gt; Visibility, Visible when non-empty. §5.3.1: the left tree's
+/// rollup badge only shows once a folder actually has a ↓/↑/⚠ to report.</summary>
+public class StringNotEmptyToVisibilityConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is string s && !string.IsNullOrEmpty(s) ? Visibility.Visible : Visibility.Collapsed;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
