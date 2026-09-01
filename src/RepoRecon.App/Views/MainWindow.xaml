@@ -2015,6 +2015,13 @@
                            AutomationProperties.AutomationId="TxtStatusMessage"
                            Text="{Binding StatusMessage}" />
             </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right" Margin="0,0,12,0">
+                <Button Content="⚙ 설정"
+                        AutomationProperties.AutomationId="BtnAppSettingsOpen"
+                        Click="BtnAppSettings_Click"
+                        Padding="8,2"
+                        Style="{StaticResource SecondaryButtonStyle}" />
+            </StatusBarItem>
             <StatusBarItem HorizontalAlignment="Right">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="등록된 레포: " Foreground="{StaticResource NeutralForegroundMuted}" />

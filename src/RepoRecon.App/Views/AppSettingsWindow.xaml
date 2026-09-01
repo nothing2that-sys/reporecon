@@ -1,0 +1,55 @@
+<Window x:Class="RepoRecon.App.Views.AppSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="설정"
+        Height="280" Width="440"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        AutomationProperties.AutomationId="DialogAppSettings"
+        Background="{StaticResource NeutralSurface}"
+        FontFamily="{StaticResource FontFamilyDefault}"
+        Foreground="{StaticResource NeutralForeground}">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="일반" FontWeight="Bold" FontSize="{StaticResource FontSizeSubtitle}" Margin="0,0,0,8" />
+
+            <CheckBox x:Name="ChkAutoStart"
+                      AutomationProperties.AutomationId="ChkAutoStartWithWindows"
+                      Content="Windows 시작 시 자동 실행"
+                      Checked="ChkAutoStart_CheckedChanged"
+                      Unchecked="ChkAutoStart_CheckedChanged"
+                      Margin="0,0,0,16" />
+
+            <TextBlock Text="창 닫기 동작" FontWeight="SemiBold" Margin="0,0,0,4" />
+            <RadioButton x:Name="RadioCloseExit"
+                         AutomationProperties.AutomationId="RadioAppSettingsCloseExit"
+                         Content="종료"
+                         GroupName="AppSettingsCloseBehavior"
+                         Margin="0,0,0,4" />
+            <RadioButton x:Name="RadioCloseTray"
+                         AutomationProperties.AutomationId="RadioAppSettingsCloseTray"
+                         Content="트레이로 최소화"
+                         GroupName="AppSettingsCloseBehavior" />
+        </StackPanel>
+
+        <DockPanel Grid.Row="1" LastChildFill="False" Margin="0,16,0,0">
+            <Button DockPanel.Dock="Right"
+                    x:Name="BtnClose"
+                    AutomationProperties.AutomationId="BtnAppSettingsClose"
+                    Content="닫기"
+                    Click="BtnClose_Click"
+                    IsDefault="True"
+                    Padding="16,8"
+                    Style="{StaticResource AccentButtonStyle}" />
+        </DockPanel>
+    </Grid>
+</Window>

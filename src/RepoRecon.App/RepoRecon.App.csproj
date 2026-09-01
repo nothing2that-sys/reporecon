@@ -6,11 +6,22 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <!-- §9.1 트레이 상주: System.Windows.Forms.NotifyIcon만 쓴다. WPF에는 트레이 아이콘 API가 없다. -->
+    <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>RepoRecon.App</RootNamespace>
     <ApplicationIcon>Assets\reporecon.ico</ApplicationIcon>
     <Version>1.0.0</Version>
     <AssemblyInformationalVersion>$(Version)</AssemblyInformationalVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- UseWindowsForms=true는 System.Windows.Forms를 전역 암시적 using으로 넣는데,
+         Application/MessageBox/Clipboard/TextBox/Point/DataFormats 등 WPF와 이름이 겹치는
+         타입이 프로젝트 전체에서 모호해진다. NotifyIcon 하나만 쓰려는 것이므로 전역 using은
+         빼고, 필요한 파일(TrayIconManager.cs)에서만 명시적으로 using한다. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />

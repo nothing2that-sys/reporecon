@@ -26,6 +26,8 @@ public partial class MainWindow : Window
     private long _scrollInputStartTimestamp;
     private double _idleBaselineMaxMsAtScrollStart = double.NaN;
     private double? _firstRenderLatencyMs;
+    private readonly TrayIconManager _trayIconManager;
+    private bool _isExiting;
 
     public MainWindow(MainViewModel viewModel, ILogger<MainWindow> logger)
     {
@@ -35,7 +37,15 @@ public partial class MainWindow : Window
 
         // §5-5: restore remembered window size/position/tab before first paint.
         WindowStateStore.Restore(this, tabIndex => viewModel.SelectedTabIndex = tabIndex);
-        Closing += (_, _) => WindowStateStore.Save(this, viewModel.SelectedTabIndex);
+
+        // §9.1 트레이 상주.
+        _trayIconManager = new TrayIconManager(this);
+        _trayIconManager.ExitRequested += (_, _) =>
+        {
+            _isExiting = true;
+            Close();
+        };
+        Closing += MainWindow_Closing;
 
         _scrollSamplingCompletionTimer = new DispatcherTimer
         {
@@ -51,6 +61,11 @@ public partial class MainWindow : Window
         {
             _scrollSamplingCompletionTimer.Stop();
             CompositionTarget.Rendering -= CompositionTarget_Rendering;
+
+            // ShutdownMode=OnExplicitShutdown이라 Closed까지 도달했다는 것 자체가
+            // "진짜 종료"로 확정됐다는 뜻이다(트레이 최소화는 Closing에서 e.Cancel로 걸러졌다).
+            _trayIconManager.Dispose();
+            Application.Current.Shutdown();
         };
 
         Loaded += async (_, _) =>
@@ -59,6 +74,41 @@ public partial class MainWindow : Window
         };
 
         KeyDown += MainWindow_KeyDown;
+    }
+
+    private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            WindowStateStore.Save(this, viewModel.SelectedTabIndex);
+        }
+
+        if (_isExiting)
+        {
+            return;
+        }
+
+        if (!AppSettingsStore.HasAskedCloseBehavior())
+        {
+            var prompt = new CloseBehaviorPromptWindow { Owner = this };
+            prompt.ShowDialog();
+            AppSettingsStore.SetCloseBehavior(prompt.SelectedBehavior);
+        }
+
+        if (AppSettingsStore.GetCloseBehavior() == CloseBehavior.MinimizeToTray)
+        {
+            e.Cancel = true;
+            _trayIconManager.MinimizeToTray();
+        }
+        else
+        {
+            _isExiting = true;
+        }
+    }
+
+    private void BtnAppSettings_Click(object sender, RoutedEventArgs e)
+    {
+        new AppSettingsWindow { Owner = this }.ShowDialog();
     }
 
     private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
