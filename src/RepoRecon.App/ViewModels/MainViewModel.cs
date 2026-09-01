@@ -42,6 +42,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _pushCts;
 
     private readonly Dictionary<long, RepoTreeNodeViewModel> _repoViewModelMap = new();
+    private List<NamespaceMoveDetector.MoveGroup> _pendingPathMoveGroups = new();
 
     public CloneTabViewModel CloneTab { get; }
     public ProfileManagementViewModel ProfileManagement { get; }
@@ -95,6 +96,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string _residualTempFoldersNotice = string.Empty;
+
+    // §3.5 (b): "경로 이동 감지 N건" banner -- populated right after a catalog
+    // sync (CloneTabViewModel.OnPathMoveCandidatesDetected), re-applied after
+    // every LoadDataAsync reload since it targets fresh RepoTreeNodeViewModel
+    // instances, and self-prunes once a suggestion is applied or the repo
+    // stops being orphaned some other way.
+    [ObservableProperty]
+    private bool _hasPathMoveDetection;
+
+    [ObservableProperty]
+    private string _pathMoveDetectionBannerText = string.Empty;
+
+    [ObservableProperty]
+    private bool _isPathMoveDetailsVisible;
+
+    public ObservableCollection<string> PathMoveDetectionDetails { get; } = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasGitDiagnosticError))]
@@ -466,6 +483,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // (see CloneTabViewModel.SyncCatalogAsync). Re-scan right away so the
         // local tab reflects it without the user having to press F5 themselves.
         CloneTab.OnAliasesInvalidatedFunc = StartScanAsync;
+
+        // §3.5 (b): move-detection results land here right after catalog sync.
+        CloneTab.OnPathMoveCandidatesDetected = groups =>
+        {
+            _pendingPathMoveGroups = groups.ToList();
+            ApplyPathMoveSuggestions();
+        };
     }
 
     private void WireProfileManagementEvents()
@@ -1115,6 +1139,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
                     }
                 }
             }
+
+            // §3.5 (b): reapply against the freshly rebuilt RepoTreeNodeViewModel
+            // instances -- self-prunes groups whose repos are no longer orphaned.
+            ApplyPathMoveSuggestions();
 
             TotalRepoCount = _repoViewModelMap.Count;
             ApplyFilters();
@@ -2018,6 +2046,71 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public void ToggleLegend()
     {
         IsLegendVisible = !IsLegendVisible;
+    }
+
+    [RelayCommand]
+    public void TogglePathMoveDetails()
+    {
+        IsPathMoveDetailsVisible = !IsPathMoveDetailsVisible;
+    }
+
+    // §3.5 (b): unique groups reuse the existing §3.5 (a) suggestion fields
+    // (HasUrlChangeSuggestion / UrlChangeNewHostUrl / ApplyUrlChangeCommand)
+    // so "git remote set-url" still only ever runs per-repo after the same
+    // user confirmation dialog -- no separate auto-apply path. Ambiguous
+    // groups (multiple local orphans or multiple catalog candidates sharing
+    // a project name) are listed only; the user re-points them manually via
+    // the existing "Remote URL 변경..." context menu command.
+    private void ApplyPathMoveSuggestions()
+    {
+        PathMoveDetectionDetails.Clear();
+        var uniqueCount = 0;
+        var ambiguousCount = 0;
+        var stillRelevant = new List<NamespaceMoveDetector.MoveGroup>();
+
+        foreach (var group in _pendingPathMoveGroups)
+        {
+            var stillOrphanedLocals = group.LocalCandidates
+                .Where(l => _repoViewModelMap.TryGetValue(l.Id, out var vm) && vm.IsOrphaned)
+                .ToList();
+
+            if (stillOrphanedLocals.Count == 0)
+            {
+                continue; // resolved (suggestion applied, or repo no longer orphaned some other way)
+            }
+
+            stillRelevant.Add(group);
+
+            if (group.IsUnique)
+            {
+                uniqueCount++;
+                var localRepo = stillOrphanedLocals[0];
+                var serverRepo = group.ServerCandidates[0];
+                if (_repoViewModelMap.TryGetValue(localRepo.Id, out var repoVm))
+                {
+                    repoVm.HasUrlChangeSuggestion = true;
+                    repoVm.UrlChangeOldUrl = $"https://{repoVm.Repo.NormalizedKey}.git";
+                    repoVm.UrlChangeNewHostUrl = serverRepo.CloneUrl;
+                    repoVm.UrlChangeSuggestionText = $"경로 이동 감지: {serverRepo.CloneUrl}";
+                }
+                PathMoveDetectionDetails.Add($"[자동 제안] {localRepo.AbsPath} → {serverRepo.CloneUrl}");
+            }
+            else
+            {
+                ambiguousCount++;
+                var localList = string.Join(", ", stillOrphanedLocals.Select(l => l.AbsPath));
+                var serverList = string.Join(", ", group.ServerCandidates.Select(s => s.CloneUrl));
+                PathMoveDetectionDetails.Add($"[수동 확인 필요] \"{group.ProjectName}\" — 로컬 {stillOrphanedLocals.Count}곳({localList}) / 서버 후보 {group.ServerCandidates.Count}곳({serverList})");
+            }
+        }
+
+        _pendingPathMoveGroups = stillRelevant;
+
+        var total = uniqueCount + ambiguousCount;
+        HasPathMoveDetection = total > 0;
+        PathMoveDetectionBannerText = total > 0
+            ? $"🔀 경로 이동 감지 {total}건 (자동 제안 {uniqueCount}건 · 수동 확인 필요 {ambiguousCount}건)"
+            : string.Empty;
     }
 
     [RelayCommand]

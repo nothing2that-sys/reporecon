@@ -23,31 +23,113 @@ public partial class CatalogRepoItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(SelectionChanged))]
     private bool _isSelected;
 
-    public int ClonedLocalCount { get; set; }
-    public bool IsAlreadyCloned => ClonedLocalCount > 0;
-    public string AlreadyClonedBadgeText => ClonedLocalCount > 0 ? $"이미 있음 ({ClonedLocalCount}곳)" : string.Empty;
+    // §5.4.2: every local instance matching this server repo's normalized_key,
+    // present or is_missing. The old v3 "이미 있음 (N곳)" badge is absorbed
+    // into this column entirely -- no separate badge for it anymore.
+    public List<(string AbsPath, bool IsMissing)> LocalMatches { get; set; } = new();
+
+    public int PresentLocalCount => LocalMatches.Count(m => !m.IsMissing);
+    public bool HasAnyLocalRecord => LocalMatches.Count > 0;
+
+    // §5.4.2 완료 기준 7: is_missing 레포도 "로컬에 없는 것만" 필터에 포함시킨다
+    // -- 실제로 안 지워진 것처럼 영영 안 받아지는 사고를 막는다.
+    public bool HasNoPresentLocalCopy => PresentLocalCount == 0;
+
     public bool IsArchived => Repo.IsArchived;
 
-    // §3.2.2: "빈칸 금지" — a catalog row with no local clone and no archived
-    // flag previously rendered with no badge at all (the 1.0.0 bug this
-    // section calls out by name). NotCloned is the state_code default here;
-    // there's no per-row sync state to show since one server repo can back
-    // multiple local clones in different states (§2.2) — the local path
-    // column (§5.4, task 7) is where that detail actually lives.
-    public bool IsNotCloned => ClonedLocalCount == 0;
+    // §3.2.2: "빈칸 금지". 로컬 기록이 전혀 없으면 "로컬 없음", 있었지만 전부
+    // is_missing이면 "확인 안 됨"(취소선 경로와 함께) -- 둘 다 HasNoPresentLocalCopy
+    // 이지만 배지 문구와 표시할 경로가 다르므로 구분한다.
+    public bool IsNotCloned => LocalMatches.Count == 0;
     public string NotClonedBadgeText => StateBadgeText.NotCloned;
+    public bool IsAllLocalMissing => LocalMatches.Count > 0 && PresentLocalCount == 0;
+    public string MissingBadgeText => StateBadgeText.MissingConfirmation;
+
+    // 1곳이면 경로, 2곳 이상이면 첫 경로 + "외 N곳" (§5.4.2). 존재하는 사본을
+    // 우선 앞세우고, 전부 is_missing이면 그중 하나를 취소선으로 보여준다.
+    private List<(string AbsPath, bool IsMissing)> OrderedMatches =>
+        LocalMatches.OrderBy(m => m.IsMissing).ThenBy(m => m.AbsPath, StringComparer.OrdinalIgnoreCase).ToList();
+
+    public string LocalPathPrimaryDisplay
+    {
+        get
+        {
+            if (LocalMatches.Count == 0) return string.Empty;
+            var ordered = OrderedMatches;
+            return ordered.Count == 1 ? ordered[0].AbsPath : $"{ordered[0].AbsPath}  외 {ordered.Count - 1}곳";
+        }
+    }
+
+    public bool PrimaryPathIsMissing => LocalMatches.Count > 0 && OrderedMatches[0].IsMissing;
+
+    public string LocalPathTooltip => string.Join("\n", OrderedMatches.Select(m => m.IsMissing ? $"{m.AbsPath} (확인 안 됨)" : m.AbsPath));
 
     public Action? SelectionChanged { get; set; }
 
-    public CatalogRepoItemViewModel(ServerRepo repo, int clonedLocalCount = 0)
+    public CatalogRepoItemViewModel(ServerRepo repo, List<(string AbsPath, bool IsMissing)>? localMatches = null)
     {
         Repo = repo;
-        ClonedLocalCount = clonedLocalCount;
+        LocalMatches = localMatches ?? new();
     }
 
     partial void OnIsSelectedChanged(bool value)
     {
         SelectionChanged?.Invoke();
+    }
+}
+
+public partial class NamespaceTreeNodeViewModel : ObservableObject
+{
+    public string Segment { get; }
+    public string FullNamespace { get; }
+    public ObservableCollection<NamespaceTreeNodeViewModel> Children { get; } = new();
+    public List<CatalogRepoItemViewModel> DirectItems { get; } = new();
+
+    [ObservableProperty]
+    private bool _isExpanded = true;
+
+    [ObservableProperty]
+    private int _rollupRepoCount;
+
+    [ObservableProperty]
+    private int _rollupNotClonedCount;
+
+    [ObservableProperty]
+    private string _rollupSummaryText = string.Empty;
+
+    public NamespaceTreeNodeViewModel(string segment, string fullNamespace)
+    {
+        Segment = segment;
+        FullNamespace = fullNamespace;
+    }
+
+    public IEnumerable<CatalogRepoItemViewModel> GetScopedItems()
+    {
+        foreach (var item in DirectItems)
+        {
+            yield return item;
+        }
+
+        foreach (var child in Children)
+        {
+            foreach (var item in child.GetScopedItems())
+            {
+                yield return item;
+            }
+        }
+    }
+
+    public void RecalculateRollup()
+    {
+        foreach (var child in Children)
+        {
+            child.RecalculateRollup();
+        }
+
+        var scoped = GetScopedItems().ToList();
+        RollupRepoCount = scoped.Count;
+        RollupNotClonedCount = scoped.Count(i => i.HasNoPresentLocalCopy);
+        RollupSummaryText = $"레포 {RollupRepoCount} · 로컬 없음 {RollupNotClonedCount}";
     }
 }
 
@@ -65,6 +147,18 @@ public partial class CloneTabViewModel : ObservableObject
     public ObservableCollection<CatalogRepoItemViewModel> AllCatalogItems { get; } = new();
     public ObservableCollection<CatalogRepoItemViewModel> FilteredCatalogItems { get; } = new();
 
+    // §5.4.1: namespace tree, single "전체" virtual root over path_with_namespace
+    // / full_name split by "/" -- no schema change, server_repos.namespace
+    // already has what's needed.
+    public ObservableCollection<NamespaceTreeNodeViewModel> NamespaceTreeRoots { get; } = new();
+
+    [ObservableProperty]
+    private NamespaceTreeNodeViewModel? _selectedNamespaceNode;
+
+    // §3.5 (b): grouped move-detection results from the last sync, for the
+    // Local tab's "경로 이동 감지 N건" banner (SS3.5 감지 시점: 카탈로그 동기화 직후).
+    public Action<IReadOnlyList<NamespaceMoveDetector.MoveGroup>>? OnPathMoveCandidatesDetected { get; set; }
+
     [ObservableProperty]
     private ServerProfile? _selectedProfile;
 
@@ -73,6 +167,10 @@ public partial class CloneTabViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _showArchived;
+
+    // §5.4.2: "로컬에 없는 것만" 필터를 기본 진입점으로 둔다 -- 이 기능의 목적이다.
+    [ObservableProperty]
+    private bool _showNotClonedOnly = true;
 
     [ObservableProperty]
     private string _targetRootDirectory = string.Empty;
@@ -168,50 +266,122 @@ public partial class CloneTabViewModel : ObservableObject
 
     partial void OnFilterTextChanged(string value) => ApplyFilters();
     partial void OnShowArchivedChanged(bool value) => ApplyFilters();
+    partial void OnShowNotClonedOnlyChanged(bool value) => ApplyFilters();
+    partial void OnSelectedNamespaceNodeChanged(NamespaceTreeNodeViewModel? value) => ApplyFilters();
 
     public async Task LoadCatalogForSelectedProfileAsync()
     {
         AllCatalogItems.Clear();
         if (SelectedProfile == null)
         {
+            RebuildNamespaceTree();
             ApplyFilters();
             return;
         }
 
         var repos = await _indexStore.GetServerReposByProfileAsync(SelectedProfile.Id);
         var reposWithStatus = await _indexStore.GetAllLocalReposWithStatusAsync();
-        var localKeyCounts = reposWithStatus
+        var localMatchesByKey = reposWithStatus
             .Where(l => !string.IsNullOrWhiteSpace(l.Repo.NormalizedKey))
             .GroupBy(l => l.Repo.NormalizedKey!, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(l => (l.Repo.AbsPath, l.Repo.IsMissing)).ToList(),
+                StringComparer.OrdinalIgnoreCase);
 
         foreach (var repo in repos)
         {
-            localKeyCounts.TryGetValue(repo.NormalizedKey, out var count);
-            var item = new CatalogRepoItemViewModel(repo, count)
+            localMatchesByKey.TryGetValue(repo.NormalizedKey, out var matches);
+            var item = new CatalogRepoItemViewModel(repo, matches)
             {
                 SelectionChanged = UpdateSelectionSummary
             };
             AllCatalogItems.Add(item);
         }
 
+        RebuildNamespaceTree();
         ApplyFilters();
+    }
+
+    private void RebuildNamespaceTree()
+    {
+        var previousSelectedNamespace = SelectedNamespaceNode?.FullNamespace;
+
+        NamespaceTreeRoots.Clear();
+        var root = new NamespaceTreeNodeViewModel("전체", string.Empty);
+
+        foreach (var item in AllCatalogItems)
+        {
+            var segments = item.Repo.Namespace.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var current = root;
+            var pathSoFar = new List<string>();
+            foreach (var seg in segments)
+            {
+                pathSoFar.Add(seg);
+                var existing = current.Children.FirstOrDefault(c => string.Equals(c.Segment, seg, StringComparison.OrdinalIgnoreCase));
+                if (existing == null)
+                {
+                    existing = new NamespaceTreeNodeViewModel(seg, string.Join("/", pathSoFar));
+                    current.Children.Add(existing);
+                }
+                current = existing;
+            }
+            current.DirectItems.Add(item);
+        }
+
+        root.RecalculateRollup();
+        NamespaceTreeRoots.Add(root);
+
+        SelectedNamespaceNode = FindNamespaceNodeByPath(root, previousSelectedNamespace) ?? root;
+    }
+
+    private static NamespaceTreeNodeViewModel? FindNamespaceNodeByPath(NamespaceTreeNodeViewModel node, string? fullNamespace)
+    {
+        if (fullNamespace == null)
+            return null;
+
+        if (string.Equals(node.FullNamespace, fullNamespace, StringComparison.OrdinalIgnoreCase))
+            return node;
+
+        foreach (var child in node.Children)
+        {
+            var found = FindNamespaceNodeByPath(child, fullNamespace);
+            if (found != null)
+                return found;
+        }
+
+        return null;
     }
 
     public void ApplyFilters()
     {
         FilteredCatalogItems.Clear();
         var query = FilterText.Trim();
+        var scopedItems = SelectedNamespaceNode != null
+            ? new HashSet<CatalogRepoItemViewModel>(SelectedNamespaceNode.GetScopedItems())
+            : null;
 
         foreach (var item in AllCatalogItems)
         {
-            // Filter 1: Archived toggle (hidden by default §7.4, §10 Criterion 25)
+            // Namespace tree scope (§5.4.1)
+            if (scopedItems != null && !scopedItems.Contains(item))
+            {
+                continue;
+            }
+
+            // Archived toggle (hidden by default §7.4, §10 Criterion 25)
             if (item.IsArchived && !ShowArchived)
             {
                 continue;
             }
 
-            // Filter 2: Text search (Namespace / Name)
+            // §5.4.2: "로컬에 없는 것만" -- 기본 진입점. is_missing만 남은 레포도 포함한다.
+            if (ShowNotClonedOnly && !item.HasNoPresentLocalCopy)
+            {
+                continue;
+            }
+
+            // Text search (Namespace / Name)
             if (!string.IsNullOrWhiteSpace(query))
             {
                 var matchesName = item.Repo.Name.Contains(query, StringComparison.OrdinalIgnoreCase);
@@ -322,6 +492,21 @@ public partial class CloneTabViewModel : ObservableObject
             }).ToList();
 
             await _indexStore.ReplaceServerReposAsync(SelectedProfile.Id, serverRepos);
+
+            // §3.5 (b): run right after catalog sync, one shot -- not on every
+            // incidental reload (profile switch, post-clone refresh).
+            var canonicalAuthority = RemoteUrlNormalizer.ExtractAuthority(SelectedProfile.Host);
+            if (canonicalAuthority != null)
+            {
+                var localReposForDetection = (await _indexStore.GetAllLocalReposWithStatusAsync())
+                    .Select(l => l.Repo)
+                    .ToList();
+                var moveGroups = NamespaceMoveDetector.Detect(localReposForDetection, serverRepos, canonicalAuthority);
+                if (moveGroups.Count > 0)
+                {
+                    OnPathMoveCandidatesDetected?.Invoke(moveGroups);
+                }
+            }
 
             StatusMessage = $"카탈로그 동기화 완료: 총 {serverRepos.Count}개 저장소 수집됨";
             await LoadCatalogForSelectedProfileAsync();
@@ -452,7 +637,7 @@ public partial class CloneTabViewModel : ObservableObject
     [RelayCommand]
     public void JumpToLocalRepo(CatalogRepoItemViewModel item)
     {
-        if (item == null || !item.IsAlreadyCloned) return;
+        if (item == null || !item.HasAnyLocalRecord) return;
         OnJumpToLocalRepoRequested?.Invoke(item.Repo.NormalizedKey);
     }
 }

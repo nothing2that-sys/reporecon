@@ -304,6 +304,18 @@ public partial class MainWindow : Window
         }
     }
 
+    // §5.4.1: same WPF SelectedItem-has-no-setter workaround as the local
+    // tab's tree. The clone tab's TabItem overrides DataContext to CloneTab,
+    // so this reads the sender's own DataContext rather than the window's.
+    private void CloneNamespaceTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        if (sender is FrameworkElement { DataContext: CloneTabViewModel cloneTab } &&
+            e.NewValue is NamespaceTreeNodeViewModel namespaceNode)
+        {
+            cloneTab.SelectedNamespaceNode = namespaceNode;
+        }
+    }
+
     private void MainTreeView_DragEnter(object sender, DragEventArgs e)
     {
         var hasDroppableFolder = e.Data.GetDataPresent(DataFormats.FileDrop) &&

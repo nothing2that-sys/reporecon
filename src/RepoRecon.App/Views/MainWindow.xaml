@@ -639,33 +639,75 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Inaccessible Paths Panel -->
-                    <Border Grid.Row="4"
-                            Background="{StaticResource WarningBackground}"
-                            BorderBrush="{StaticResource WarningBorder}"
-                            BorderThickness="1"
-                            CornerRadius="4"
-                            Padding="8,4"
-                            Margin="0,0,0,8"
-                            Visibility="{Binding HasInaccessiblePaths, Converter={StaticResource BoolToVis}}">
-                        <StackPanel>
-                            <DockPanel LastChildFill="True">
-                                <Button DockPanel.Dock="Right"
-                                        Content="{Binding IsInaccessiblePathsExpanded, Converter={StaticResource BoolToLabel}, ConverterParameter='접기|경로 목록 보기'}"
-                                        Command="{Binding ToggleInaccessiblePathsCommand}"
-                                        Padding="8,4"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        Foreground="{StaticResource WarningForeground}"
-                                        FontWeight="Bold"
-                                        Cursor="Hand" />
-                                <TextBlock Text="⚠️ 접근 거부된 경로가 있어 일부 레포를 건너뛰었습니다."
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource WarningForeground}"
-                                           VerticalAlignment="Center" />
-                            </DockPanel>
-                        </StackPanel>
-                    </Border>
+                    <StackPanel Grid.Row="4">
+                        <!-- Path Move Detection Banner (§3.5 (b)) -->
+                        <Border Background="{StaticResource InfoBackground}"
+                                BorderBrush="{StaticResource InfoBorder}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="8,4"
+                                Margin="0,0,0,8"
+                                Visibility="{Binding HasPathMoveDetection, Converter={StaticResource BoolToVis}}">
+                            <StackPanel>
+                                <DockPanel LastChildFill="True">
+                                    <Button DockPanel.Dock="Right"
+                                            Content="{Binding IsPathMoveDetailsVisible, Converter={StaticResource BoolToLabel}, ConverterParameter='접기|상세보기'}"
+                                            Command="{Binding TogglePathMoveDetailsCommand}"
+                                            Padding="8,4"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Foreground="{StaticResource InfoForeground}"
+                                            FontWeight="Bold"
+                                            Cursor="Hand" />
+                                    <TextBlock Text="{Binding PathMoveDetectionBannerText}"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource InfoForeground}"
+                                               VerticalAlignment="Center" />
+                                </DockPanel>
+                                <ItemsControl ItemsSource="{Binding PathMoveDetectionDetails}"
+                                              Margin="0,8,0,0"
+                                              Visibility="{Binding IsPathMoveDetailsVisible, Converter={StaticResource BoolToVis}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}"
+                                                       FontFamily="{StaticResource FontFamilyMono}"
+                                                       FontSize="{StaticResource FontSizeSecondary}"
+                                                       Foreground="{StaticResource NeutralForegroundMuted}"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,2" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Inaccessible Paths Panel -->
+                        <Border Background="{StaticResource WarningBackground}"
+                                BorderBrush="{StaticResource WarningBorder}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="8,4"
+                                Margin="0,0,0,8"
+                                Visibility="{Binding HasInaccessiblePaths, Converter={StaticResource BoolToVis}}">
+                            <StackPanel>
+                                <DockPanel LastChildFill="True">
+                                    <Button DockPanel.Dock="Right"
+                                            Content="{Binding IsInaccessiblePathsExpanded, Converter={StaticResource BoolToLabel}, ConverterParameter='접기|경로 목록 보기'}"
+                                            Command="{Binding ToggleInaccessiblePathsCommand}"
+                                            Padding="8,4"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Foreground="{StaticResource WarningForeground}"
+                                            FontWeight="Bold"
+                                            Cursor="Hand" />
+                                    <TextBlock Text="⚠️ 접근 거부된 경로가 있어 일부 레포를 건너뛰었습니다."
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource WarningForeground}"
+                                               VerticalAlignment="Center" />
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
 
                     <!-- Main Split View (§5.3.1/5.3.2: 좌 디렉토리 트리 / 우 레포 리스트) / Empty States -->
                     <Grid Grid.Row="5">
@@ -1664,6 +1706,15 @@
                                           FontWeight="SemiBold"
                                           Margin="0,0,12,0" />
 
+                                <!-- §5.4.2: 기본 진입점 -->
+                                <ToggleButton x:Name="BtnShowNotClonedOnly"
+                                              AutomationProperties.AutomationId="BtnShowNotClonedOnly"
+                                              Content="로컬에 없는 것만"
+                                              IsChecked="{Binding ShowNotClonedOnly, Mode=TwoWay}"
+                                              Style="{StaticResource FilterToggleButtonStyle}"
+                                              Margin="0,0,12,0"
+                                              ToolTip="확인 안 됨(is_missing)으로 표시된 레포도 여기 포함됩니다." />
+
                                 <Button Content="전체 선택"
                                         x:Name="BtnSelectAllCatalog"
                                         AutomationProperties.AutomationId="BtnSelectAllCatalog"
@@ -1683,109 +1734,201 @@
                         </DockPanel>
                     </Border>
 
-                    <!-- Catalog DataGrid / Empty State 2: 카탈로그 없음 -->
+                    <!-- Namespace Tree / Catalog DataGrid Split (§5.4.1/5.4.2) / Empty State 2 -->
                     <Grid Grid.Row="3">
-                        <Border Background="{StaticResource NeutralBackground}"
-                                BorderBrush="{StaticResource NeutralBorder}"
-                                BorderThickness="1"
-                                CornerRadius="6"
-                                Visibility="{Binding HasNoProfiles, Converter={StaticResource InvertedBoolToVis}}">
-                            <DataGrid x:Name="GridCatalog"
-                                      AutomationProperties.AutomationId="GridCatalog"
-                                      ItemsSource="{Binding FilteredCatalogItems}"
-                                      AutoGenerateColumns="False"
-                                      CanUserAddRows="False"
-                                      GridLinesVisibility="Horizontal"
-                                      HorizontalGridLinesBrush="{StaticResource NeutralSurface}"
-                                      BorderThickness="0">
-                                <DataGrid.Columns>
-                                    <!-- Checkbox Column -->
-                                    <DataGridTemplateColumn Width="40">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
-                                                          HorizontalAlignment="Center"
-                                                          VerticalAlignment="Center" />
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
+                        <Grid Visibility="{Binding HasNoProfiles, Converter={StaticResource InvertedBoolToVis}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="260" MinWidth="160" />
+                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
 
-                                    <!-- Namespace / Name -->
-                                    <DataGridTemplateColumn Header="네임스페이스 / 저장소" Width="260">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Repo.NormalizedKey}" FontWeight="Bold" Foreground="{StaticResource NeutralForeground}" />
-                                                    <TextBlock Text="{Binding Repo.Namespace, StringFormat='네임스페이스: {0}'}" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource NeutralForegroundMuted}" />
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
+                            <!-- LEFT: Namespace Tree (§5.4.1) -->
+                            <Border Grid.Column="0"
+                                    Background="{StaticResource NeutralBackground}"
+                                    BorderBrush="{StaticResource NeutralBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="6">
+                                <TreeView x:Name="CloneNamespaceTree"
+                                          AutomationProperties.AutomationId="TreeNamespace"
+                                          ItemsSource="{Binding NamespaceTreeRoots}"
+                                          BorderThickness="0"
+                                          Padding="4"
+                                          VirtualizingStackPanel.IsVirtualizing="True"
+                                          VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                          SelectedItemChanged="CloneNamespaceTree_SelectedItemChanged">
+                                    <TreeView.Resources>
+                                        <HierarchicalDataTemplate DataType="{x:Type vm:NamespaceTreeNodeViewModel}"
+                                                                  ItemsSource="{Binding Children}">
+                                            <DockPanel Margin="0,4" LastChildFill="True">
+                                                <Border DockPanel.Dock="Right"
+                                                        Background="{StaticResource WarningBackground}"
+                                                        BorderBrush="{StaticResource WarningBorder}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Padding="6,2"
+                                                        Margin="8,0,4,0"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding RollupSummaryText}"
+                                                               FontSize="{StaticResource FontSizeCaption}"
+                                                               FontWeight="Bold"
+                                                               Foreground="{StaticResource WarningForeground}" />
+                                                </Border>
+                                                <TextBlock Text="{Binding Segment}"
+                                                           FontWeight="Bold"
+                                                           FontSize="{StaticResource FontSizeBody}"
+                                                           Foreground="{StaticResource NeutralForeground}"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </DockPanel>
+                                        </HierarchicalDataTemplate>
+                                    </TreeView.Resources>
+                                </TreeView>
+                            </Border>
 
-                                    <!-- Default Branch -->
-                                    <DataGridTextColumn Header="기본 브랜치"
-                                                        Binding="{Binding Repo.DefaultBranch}"
-                                                        Width="110">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
+                            <GridSplitter Grid.Column="1"
+                                          Width="6"
+                                          HorizontalAlignment="Stretch"
+                                          VerticalAlignment="Stretch"
+                                          Background="{StaticResource NeutralBorder}"
+                                          ResizeBehavior="PreviousAndNext" />
 
-                                    <!-- Status / Badges Column -->
-                                    <DataGridTemplateColumn Header="상태 배지" Width="180">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <!-- Archived Badge -->
-                                                    <Border Background="{StaticResource ErrorBackground}" BorderBrush="{StaticResource ErrorBorder}" BorderThickness="1"
-                                                            CornerRadius="3" Padding="4,4" Margin="0,0,4,0"
-                                                            Visibility="{Binding IsArchived, Converter={StaticResource BoolToVis}}">
-                                                        <TextBlock Text="보관됨" FontSize="{StaticResource FontSizeCaption}" FontWeight="Bold" Foreground="{StaticResource ErrorForeground}" />
-                                                    </Border>
+                            <!-- RIGHT: Catalog DataGrid -->
+                            <Border Grid.Column="2"
+                                    Background="{StaticResource NeutralBackground}"
+                                    BorderBrush="{StaticResource NeutralBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="6">
+                                <DataGrid x:Name="GridCatalog"
+                                          AutomationProperties.AutomationId="GridCatalog"
+                                          ItemsSource="{Binding FilteredCatalogItems}"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False"
+                                          GridLinesVisibility="Horizontal"
+                                          HorizontalGridLinesBrush="{StaticResource NeutralSurface}"
+                                          BorderThickness="0">
+                                    <DataGrid.Columns>
+                                        <!-- Checkbox Column -->
+                                        <DataGridTemplateColumn Width="40">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
+                                                              HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
 
-                                                    <!-- Already Cloned Jump Link/Badge (§5.2, §10 Criterion 24) -->
-                                                    <Button Content="{Binding AlreadyClonedBadgeText}"
+                                        <!-- Namespace / Name -->
+                                        <DataGridTemplateColumn Header="네임스페이스 / 저장소" Width="220">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Repo.NormalizedKey}" FontWeight="Bold" Foreground="{StaticResource NeutralForeground}" />
+                                                        <TextBlock Text="{Binding Repo.Namespace, StringFormat='네임스페이스: {0}'}" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource NeutralForegroundMuted}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <!-- Default Branch -->
+                                        <DataGridTextColumn Header="기본 브랜치"
+                                                            Binding="{Binding Repo.DefaultBranch}"
+                                                            Width="100">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+
+                                        <!-- Status / Badges Column (§3.2.2) -->
+                                        <DataGridTemplateColumn Header="상태 배지" Width="120">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <!-- Archived Badge -->
+                                                        <Border Background="{StaticResource ErrorBackground}" BorderBrush="{StaticResource ErrorBorder}" BorderThickness="1"
+                                                                CornerRadius="3" Padding="4,4" Margin="0,0,4,0"
+                                                                Visibility="{Binding IsArchived, Converter={StaticResource BoolToVis}}">
+                                                            <TextBlock Text="보관됨" FontSize="{StaticResource FontSizeCaption}" FontWeight="Bold" Foreground="{StaticResource ErrorForeground}" />
+                                                        </Border>
+
+                                                        <!-- Not Cloned Badge (§3.2.2 — "빈칸 금지"의 대표 사례) -->
+                                                        <Border Background="{StaticResource NeutralSurface}"
+                                                                BorderBrush="{StaticResource NeutralBorder}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="3"
+                                                                Padding="6,4"
+                                                                Margin="0,0,4,0"
+                                                                Visibility="{Binding IsNotCloned, Converter={StaticResource BoolToVis}}">
+                                                            <TextBlock Text="{Binding NotClonedBadgeText}"
+                                                                       FontWeight="SemiBold"
+                                                                       FontSize="{StaticResource FontSizeSecondary}"
+                                                                       Foreground="{StaticResource NeutralForeground}" />
+                                                        </Border>
+
+                                                        <!-- Missing Confirmation Badge (§3.2.2 (b): 로컬 기록은 있으나 전부 is_missing) -->
+                                                        <Border Background="{StaticResource ErrorBackground}"
+                                                                BorderBrush="{StaticResource ErrorBorder}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="3"
+                                                                Padding="6,4"
+                                                                Margin="0,0,4,0"
+                                                                Visibility="{Binding IsAllLocalMissing, Converter={StaticResource BoolToVis}}">
+                                                            <TextBlock Text="{Binding MissingBadgeText}"
+                                                                       FontWeight="Bold"
+                                                                       FontSize="{StaticResource FontSizeSecondary}"
+                                                                       Foreground="{StaticResource ErrorForeground}" />
+                                                        </Border>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <!-- Local Path Column (§5.4.2) -->
+                                        <DataGridTemplateColumn Header="로컬 경로" Width="240">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Button Content="{Binding LocalPathPrimaryDisplay}"
                                                             Command="{Binding DataContext.JumpToLocalRepoCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                             CommandParameter="{Binding}"
-                                                            Background="{StaticResource InfoBackground}" BorderBrush="{StaticResource InfoBorder}"
-                                                            Foreground="{StaticResource InfoForeground}" FontWeight="Bold" FontSize="{StaticResource FontSizeSecondary}"
-                                                            Padding="8,4" Margin="0,0,4,0" Cursor="Hand"
-                                                            Visibility="{Binding IsAlreadyCloned, Converter={StaticResource BoolToVis}}"
-                                                            ToolTip="클릭 시 로컬 탭 해당 레포 노드로 이동합니다" />
+                                                            Visibility="{Binding HasAnyLocalRecord, Converter={StaticResource BoolToVis}}"
+                                                            ToolTip="{Binding LocalPathTooltip}"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            HorizontalContentAlignment="Left"
+                                                            Padding="0"
+                                                            Cursor="Hand">
+                                                        <Button.Resources>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                                                <Setter Property="FontSize" Value="{StaticResource FontSizeSecondary}" />
+                                                                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                                                <Setter Property="TextDecorations" Value="{Binding PrimaryPathIsMissing, Converter={StaticResource BoolToStrikethrough}}" />
+                                                            </Style>
+                                                        </Button.Resources>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
 
-                                                    <!-- Not Cloned Badge (§3.2.2 — "빈칸 금지"의 대표 사례) -->
-                                                    <Border Background="{StaticResource NeutralSurface}"
-                                                            BorderBrush="{StaticResource NeutralBorder}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="3"
-                                                            Padding="8,4"
-                                                            Margin="0,0,4,0"
-                                                            Visibility="{Binding IsNotCloned, Converter={StaticResource BoolToVis}}">
-                                                        <TextBlock Text="{Binding NotClonedBadgeText}"
-                                                                   FontWeight="SemiBold"
-                                                                   FontSize="{StaticResource FontSizeSecondary}"
-                                                                   Foreground="{StaticResource NeutralForeground}" />
-                                                    </Border>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-
-                                    <!-- Clone URL -->
-                                    <DataGridTextColumn Header="Clone URL (토큰 미포함)"
-                                                        Binding="{Binding Repo.CloneUrl}"
-                                                        Width="*">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                        </Border>
+                                        <!-- Clone URL -->
+                                        <DataGridTextColumn Header="Clone URL (토큰 미포함)"
+                                                            Binding="{Binding Repo.CloneUrl}"
+                                                            Width="*">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}" />
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Border>
+                        </Grid>
 
                         <!-- Empty State 3: 서버 프로파일 없음 -->
                         <Border Background="{StaticResource NeutralBackground}"
