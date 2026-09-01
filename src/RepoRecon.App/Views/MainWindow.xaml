@@ -165,6 +165,7 @@
                         <RowDefinition Height="Auto" /> <!-- Pull Execution Panel (6) -->
                         <RowDefinition Height="Auto" /> <!-- Push Execution Panel (7) -->
                         <RowDefinition Height="Auto" /> <!-- Job History Panel (8) -->
+                        <RowDefinition Height="Auto" /> <!-- Selection Basket Panel (9) -->
                     </Grid.RowDefinitions>
 
                     <!-- Scan Roots Management Panel -->
@@ -468,6 +469,20 @@
                                         Foreground="{StaticResource InfoForeground}"
                                         FontWeight="Bold"
                                         TabIndex="12" />
+
+                                <!-- Selection Basket toggle (SS5.3.4) -->
+                                <Button x:Name="BtnToggleSelectionBasket"
+                                        AutomationProperties.AutomationId="BtnToggleSelectionBasket"
+                                        Content="{Binding TotalSelectedCount, StringFormat='🧺 선택 {0}'}"
+                                        Command="{Binding ToggleSelectionBasketCommand}"
+                                        Padding="8,4"
+                                        Margin="4,0"
+                                        Background="{StaticResource InfoBackground}"
+                                        BorderBrush="{StaticResource InfoBorder}"
+                                        Foreground="{StaticResource InfoForeground}"
+                                        FontWeight="Bold"
+                                        TabIndex="13"
+                                        ToolTip="좌측 노드를 옮기거나 필터를 바꿔도 여기 담긴 선택은 유지됩니다(SS5.3.4)." />
                             </WrapPanel>
                         </DockPanel>
                     </Border>
@@ -1303,6 +1318,109 @@
                                     </DataGridTemplateColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
+                        </Grid>
+                    </Border>
+
+                    <!-- Selection Basket Panel (§5.3.4) -->
+                    <Border Grid.Row="9"
+                            x:Name="PanelSelectionBasket"
+                            AutomationProperties.AutomationId="PanelSelectionBasket"
+                            Background="{StaticResource NeutralSurface}"
+                            BorderBrush="{StaticResource NeutralBorder}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12"
+                            Margin="0,8,0,0"
+                            Visibility="{Binding IsSelectionBasketVisible, Converter={StaticResource BoolToVis}}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="200" />
+                            </Grid.RowDefinitions>
+
+                            <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="True">
+                                <Button DockPanel.Dock="Right"
+                                        Content="✕ 닫기"
+                                        Command="{Binding ToggleSelectionBasketCommand}"
+                                        Padding="8,4"
+                                        Style="{StaticResource SecondaryButtonStyle}" />
+                                <Button DockPanel.Dock="Right"
+                                        x:Name="BtnClearSelectionBasket"
+                                        AutomationProperties.AutomationId="BtnClearSelectionBasket"
+                                        Content="전체 해제"
+                                        Command="{Binding DeselectAllCommand}"
+                                        Padding="8,4"
+                                        Margin="0,0,8,0"
+                                        Style="{StaticResource SecondaryButtonStyle}" />
+                                <TextBlock Text="{Binding ExecutionSummaryText}"
+                                           FontWeight="Bold"
+                                           FontSize="{StaticResource FontSizeSubtitle}"
+                                           Foreground="{StaticResource NeutralForeground}"
+                                           VerticalAlignment="Center" />
+                            </DockPanel>
+
+                            <!-- Auto-removal notices: 재스캔에서 is_missing이 된 선택 항목 (§5.3.4) -->
+                            <ItemsControl Grid.Row="1"
+                                          AutomationProperties.AutomationId="ListSelectionRemovalNotices"
+                                          ItemsSource="{Binding SelectionRemovalNotices}"
+                                          Margin="0,0,0,8">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}"
+                                                   Foreground="{StaticResource WarningForeground}"
+                                                   FontSize="{StaticResource FontSizeSecondary}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Border Grid.Row="2"
+                                    Background="{StaticResource NeutralBackground}"
+                                    BorderBrush="{StaticResource NeutralBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="4">
+                                <ListBox x:Name="ListSelectionBasket"
+                                         AutomationProperties.AutomationId="ListSelectionBasket"
+                                         ItemsSource="{Binding SelectionBasket}"
+                                         BorderThickness="0"
+                                         Padding="4"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type tree:RepoTreeNodeViewModel}">
+                                            <DockPanel Margin="0,2" LastChildFill="True">
+                                                <Button DockPanel.Dock="Right"
+                                                        Content="✕"
+                                                        Command="{Binding DataContext.RemoveFromSelectionBasketCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                        CommandParameter="{Binding}"
+                                                        Padding="6,2"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Foreground="{StaticResource NeutralForegroundMuted}"
+                                                        Cursor="Hand"
+                                                        ToolTip="바구니에서 이 레포만 제거" />
+                                                <TextBlock DockPanel.Dock="Right"
+                                                           Text="{Binding ThreeAxisSummary}"
+                                                           Margin="8,0"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{StaticResource NeutralForegroundMuted}"
+                                                           FontSize="{StaticResource FontSizeSecondary}" />
+                                                <TextBlock Text="{Binding FullPath}"
+                                                           FontFamily="{StaticResource FontFamilyMono}"
+                                                           FontSize="{StaticResource FontSizeSecondary}"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding FullPath}" />
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
                         </Grid>
                     </Border>
                 </Grid>

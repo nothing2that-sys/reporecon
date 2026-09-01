@@ -75,6 +75,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isHistoryPanelVisible;
 
+    // §5.3.4: selection basket -- survives left-node navigation, filter
+    // changes, and rescans (except for repos a rescan finds is_missing).
+    [ObservableProperty]
+    private bool _isSelectionBasketVisible;
+
+    public ObservableCollection<RepoTreeNodeViewModel> SelectionBasket { get; } = new();
+    public ObservableCollection<string> SelectionRemovalNotices { get; } = new();
+
     [ObservableProperty]
     private int _selectedTabIndex;
 
@@ -928,6 +936,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
             var serverRepos = await _indexStore.GetAllServerReposAsync();
             queryTimer.Stop();
 
+            // §5.3.4: capture the selection basket before the rebuild replaces
+            // every RepoTreeNodeViewModel with a fresh instance -- restored by
+            // repo id below, once the new instances exist.
+            var previouslySelectedIds = _repoViewModelMap.Values
+                .Where(r => r.IsSelected == true)
+                .Select(r => r.Repo.Id)
+                .ToHashSet();
+
             var treeBuildTimer = Stopwatch.StartNew();
             _repoViewModelMap.Clear();
 
@@ -951,6 +967,30 @@ public partial class MainViewModel : ObservableObject, IDisposable
             // Preserve the left-tree selection across reloads when the same
             // path still exists; default to "전체" otherwise.
             SelectedLeftNode = FindFolderByPath(allReposNode, previousSelectedPath) ?? allReposNode;
+
+            // §5.3.4: restore the selection basket onto the new instances by
+            // repo id. A repo that came back is_missing is dropped from the
+            // basket instead, with a reason left for the bottom panel.
+            SelectionRemovalNotices.Clear();
+            if (previouslySelectedIds.Count > 0)
+            {
+                foreach (var repoId in previouslySelectedIds)
+                {
+                    if (!_repoViewModelMap.TryGetValue(repoId, out var repoVm))
+                    {
+                        continue;
+                    }
+
+                    if (repoVm.IsMissing)
+                    {
+                        SelectionRemovalNotices.Add($"{repoVm.FolderName} ({repoVm.FullPath}) — 재스캔에서 확인되지 않아 선택에서 제외됨");
+                    }
+                    else
+                    {
+                        repoVm.SetSelected(true, updateChildren: false, updateParent: false);
+                    }
+                }
+            }
 
             // Populate AvailableHosts filter
             AvailableHosts.Clear();
@@ -1069,7 +1109,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         return repoVm;
     }
 
-    private void OnTreeNodeSelectionChanged(object? sender, EventArgs e) => UpdateExecutionCounts();
+    private void OnTreeNodeSelectionChanged(object? sender, EventArgs e)
+    {
+        UpdateExecutionCounts();
+        RecomputeSelectionBasket();
+    }
 
     // §5.3.1/5.3.2: repos no longer live in the left tree, so "jump to this
     // repo" means: navigate the left tree to its containing folder (walking
@@ -1888,6 +1932,43 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (IsHistoryPanelVisible)
         {
             _ = LoadJobHistoryAsync();
+        }
+    }
+
+    [RelayCommand]
+    public void ToggleSelectionBasket()
+    {
+        IsSelectionBasketVisible = !IsSelectionBasketVisible;
+    }
+
+    [RelayCommand]
+    public void RemoveFromSelectionBasket(RepoTreeNodeViewModel? item)
+    {
+        item?.SetSelected(false, updateChildren: true, updateParent: true);
+    }
+
+    // §5.3.4: rebuilt on every selection change (OnTreeNodeSelectionChanged)
+    // from _repoViewModelMap, independent of RightPaneRepos scope -- this is
+    // the "바구니 전체" the execution counts (UpdateExecutionCounts) already
+    // read from too.
+    private void RecomputeSelectionBasket()
+    {
+        var selected = _repoViewModelMap.Values.Where(r => r.IsSelected == true).OrderBy(r => r.FullPath, StringComparer.OrdinalIgnoreCase).ToList();
+
+        for (var i = SelectionBasket.Count - 1; i >= 0; i--)
+        {
+            if (!selected.Contains(SelectionBasket[i]))
+            {
+                SelectionBasket.RemoveAt(i);
+            }
+        }
+
+        foreach (var repo in selected)
+        {
+            if (!SelectionBasket.Contains(repo))
+            {
+                SelectionBasket.Add(repo);
+            }
         }
     }
 
