@@ -166,6 +166,7 @@
                         <RowDefinition Height="Auto" /> <!-- Push Execution Panel (7) -->
                         <RowDefinition Height="Auto" /> <!-- Job History Panel (8) -->
                         <RowDefinition Height="Auto" /> <!-- Selection Basket Panel (9) -->
+                        <RowDefinition Height="Auto" /> <!-- Legend Panel (10) -->
                     </Grid.RowDefinitions>
 
                     <!-- Scan Roots Management Panel -->
@@ -366,45 +367,95 @@
                                          TabIndex="0"
                                          ToolTip="폴더명, 브랜치명, 원격 URL 검색" />
 
-                                <ToggleButton Content="Behind만"
-                                              x:Name="BtnFilterBehind"
-                                              AutomationProperties.AutomationId="BtnFilterBehind"
-                                              IsChecked="{Binding FilterBehindOnly, Mode=TwoWay}"
-                                              Style="{StaticResource FilterToggleButtonStyle}"
-                                              TabIndex="1" />
+                                <!-- [동기화] 배타 그룹 (§5.3.3) -->
+                                <Border BorderBrush="{StaticResource NeutralBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="동기화" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource NeutralForegroundMuted}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <RadioButton GroupName="SyncFilter" Content="전체"
+                                                     x:Name="BtnFilterSyncAll"
+                                                     AutomationProperties.AutomationId="BtnFilterSyncAll"
+                                                     IsChecked="{Binding FilterSyncAll, Mode=TwoWay}"
+                                                     Style="{StaticResource FilterRadioButtonStyle}"
+                                                     TabIndex="1" />
+                                        <RadioButton GroupName="SyncFilter" Content="받을 것 있음"
+                                                     x:Name="BtnFilterBehind"
+                                                     AutomationProperties.AutomationId="BtnFilterBehind"
+                                                     IsChecked="{Binding FilterBehindOnly, Mode=TwoWay}"
+                                                     Style="{StaticResource FilterRadioButtonStyle}"
+                                                     TabIndex="2" />
+                                        <RadioButton GroupName="SyncFilter" Content="올릴 것 있음"
+                                                     IsChecked="{Binding FilterAheadOnly, Mode=TwoWay}"
+                                                     Style="{StaticResource FilterRadioButtonStyle}"
+                                                     TabIndex="3" />
+                                        <RadioButton GroupName="SyncFilter" Content="갈라짐"
+                                                     x:Name="BtnFilterDiverged"
+                                                     AutomationProperties.AutomationId="BtnFilterDiverged"
+                                                     IsChecked="{Binding FilterDivergedOnly, Mode=TwoWay}"
+                                                     Style="{StaticResource FilterRadioButtonStyle}"
+                                                     TabIndex="4" />
+                                        <RadioButton GroupName="SyncFilter" Content="추적 브랜치 없음"
+                                                     IsChecked="{Binding FilterNoUpstreamOnly, Mode=TwoWay}"
+                                                     Style="{StaticResource FilterRadioButtonStyle}"
+                                                     TabIndex="5" />
+                                        <RadioButton GroupName="SyncFilter" Content="사라진 브랜치"
+                                                     IsChecked="{Binding FilterUpstreamGoneOnly, Mode=TwoWay}"
+                                                     Style="{StaticResource FilterRadioButtonStyle}"
+                                                     TabIndex="6" />
+                                        <RadioButton GroupName="SyncFilter" Content="미체크아웃"
+                                                     IsChecked="{Binding FilterDetachedHeadOnly, Mode=TwoWay}"
+                                                     Style="{StaticResource FilterRadioButtonStyle}"
+                                                     TabIndex="7" />
+                                    </StackPanel>
+                                </Border>
 
-                                <ToggleButton Content="Ahead만"
-                                              IsChecked="{Binding FilterAheadOnly, Mode=TwoWay}"
-                                              Style="{StaticResource FilterToggleButtonStyle}"
-                                              TabIndex="2" />
+                                <!-- [작업트리] 독립 토글 그룹 (§5.3.3) -->
+                                <Border BorderBrush="{StaticResource NeutralBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="작업트리" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource NeutralForegroundMuted}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <ToggleButton Content="미커밋 변경"
+                                                      x:Name="BtnFilterDirty"
+                                                      AutomationProperties.AutomationId="BtnFilterDirty"
+                                                      IsChecked="{Binding FilterDirtyOnly, Mode=TwoWay}"
+                                                      Style="{StaticResource FilterToggleButtonStyle}"
+                                                      TabIndex="8" />
+                                        <ToggleButton Content="머지 충돌"
+                                                      IsChecked="{Binding FilterConflictedOnly, Mode=TwoWay}"
+                                                      Style="{StaticResource FilterToggleButtonStyle}"
+                                                      TabIndex="9" />
+                                    </StackPanel>
+                                </Border>
 
-                                <ToggleButton Content="Diverged만"
-                                              x:Name="BtnFilterDiverged"
-                                              AutomationProperties.AutomationId="BtnFilterDiverged"
-                                              IsChecked="{Binding FilterDivergedOnly, Mode=TwoWay}"
-                                              Style="{StaticResource FilterToggleButtonStyle}"
-                                              TabIndex="3" />
-
-                                <ToggleButton Content="Dirty만"
-                                              x:Name="BtnFilterDirty"
-                                              AutomationProperties.AutomationId="BtnFilterDirty"
-                                              IsChecked="{Binding FilterDirtyOnly, Mode=TwoWay}"
-                                              Style="{StaticResource FilterToggleButtonStyle}"
-                                              TabIndex="4" />
-
-                                <ToggleButton Content="Conflicted만"
-                                              IsChecked="{Binding FilterConflictedOnly, Mode=TwoWay}"
-                                              Style="{StaticResource FilterToggleButtonStyle}"
-                                              TabIndex="5" />
-
-                                <ComboBox ItemsSource="{Binding AvailableHosts}"
-                                          SelectedItem="{Binding SelectedHostFilter, Mode=TwoWay}"
-                                          Margin="8,0,8,0"
-                                          Padding="8,4"
-                                          FontSize="{StaticResource FontSizeBody}"
-                                          Width="110"
-                                          TabIndex="6"
-                                          AutomationProperties.AutomationId="CmbHostFilter" />
+                                <!-- [기타] 독립 토글 그룹 (§5.3.3) -->
+                                <Border BorderBrush="{StaticResource NeutralBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="기타" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource NeutralForegroundMuted}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <ToggleButton Content="보관됨"
+                                                      IsChecked="{Binding FilterArchivedOnly, Mode=TwoWay}"
+                                                      Style="{StaticResource FilterToggleButtonStyle}"
+                                                      TabIndex="10" />
+                                        <ToggleButton Content="확인 안 됨"
+                                                      IsChecked="{Binding FilterMissingOnly, Mode=TwoWay}"
+                                                      Style="{StaticResource FilterToggleButtonStyle}"
+                                                      TabIndex="11" />
+                                        <ComboBox ItemsSource="{Binding AvailableHosts}"
+                                                  SelectedItem="{Binding SelectedHostFilter, Mode=TwoWay}"
+                                                  Margin="4,0,0,0"
+                                                  Padding="8,4"
+                                                  FontSize="{StaticResource FontSizeBody}"
+                                                  Width="110"
+                                                  TabIndex="12"
+                                                  AutomationProperties.AutomationId="CmbHostFilter" />
+                                        <ComboBox ItemsSource="{Binding AvailablePathPrefixes}"
+                                                  SelectedItem="{Binding SelectedPathPrefixFilter, Mode=TwoWay}"
+                                                  Margin="4,0,0,0"
+                                                  Padding="8,4"
+                                                  FontSize="{StaticResource FontSizeBody}"
+                                                  Width="130"
+                                                  TabIndex="13"
+                                                  AutomationProperties.AutomationId="CmbPathPrefixFilter"
+                                                  ToolTip="스캔 루트 경로 접두사로 필터링합니다." />
+                                    </StackPanel>
+                                </Border>
 
                                 <Button Content="전체 선택"
                                         x:Name="BtnSelectAllVisible"
@@ -413,7 +464,7 @@
                                         Padding="8,4"
                                         Margin="4,0"
                                         Style="{StaticResource SecondaryButtonStyle}"
-                                        TabIndex="7" />
+                                        TabIndex="14" />
 
                                 <Button Content="선택 해제"
                                         AutomationProperties.AutomationId="BtnDeselectAll"
@@ -421,7 +472,7 @@
                                         Padding="8,4"
                                         Margin="4,0"
                                         Style="{StaticResource SecondaryButtonStyle}"
-                                        TabIndex="8" />
+                                        TabIndex="15" />
 
                                 <Button Content="새로고침 (F5)"
                                         x:Name="BtnRefreshAll"
@@ -430,7 +481,7 @@
                                         Padding="8,4"
                                         Margin="4,0"
                                         Style="{StaticResource SecondaryButtonStyle}"
-                                        TabIndex="9" />
+                                        TabIndex="16" />
 
                                 <Separator Margin="4,4" />
 
@@ -443,7 +494,7 @@
                                         Background="{StaticResource NeutralSurface}"
                                         BorderBrush="{StaticResource NeutralBorder}"
                                         FontWeight="SemiBold"
-                                        TabIndex="10"
+                                        TabIndex="17"
                                         ToolTipService.ShowOnDisabled="True"
                                         ToolTip="대상 저장소의 Remote URL을 불러오는 동안 일시적으로 비활성화됩니다." />
 
@@ -456,7 +507,7 @@
                                         Background="{StaticResource NeutralSurface}"
                                         BorderBrush="{StaticResource NeutralBorder}"
                                         FontWeight="SemiBold"
-                                        TabIndex="11" />
+                                        TabIndex="18" />
 
                                 <Button Content="📋 작업 이력"
                                         x:Name="BtnToggleJobHistory"
@@ -468,9 +519,9 @@
                                         BorderBrush="{StaticResource InfoBorder}"
                                         Foreground="{StaticResource InfoForeground}"
                                         FontWeight="Bold"
-                                        TabIndex="12" />
+                                        TabIndex="19" />
 
-                                <!-- Selection Basket toggle (SS5.3.4) -->
+                                <!-- Selection Basket toggle (§5.3.4) -->
                                 <Button x:Name="BtnToggleSelectionBasket"
                                         AutomationProperties.AutomationId="BtnToggleSelectionBasket"
                                         Content="{Binding TotalSelectedCount, StringFormat='🧺 선택 {0}'}"
@@ -481,8 +532,21 @@
                                         BorderBrush="{StaticResource InfoBorder}"
                                         Foreground="{StaticResource InfoForeground}"
                                         FontWeight="Bold"
-                                        TabIndex="13"
-                                        ToolTip="좌측 노드를 옮기거나 필터를 바꿔도 여기 담긴 선택은 유지됩니다(SS5.3.4)." />
+                                        TabIndex="20"
+                                        ToolTip="좌측 노드를 옮기거나 필터를 바꿔도 여기 담긴 선택은 유지됩니다(§5.3.4)." />
+
+                                <!-- Legend toggle (§5.5) -->
+                                <Button Content="❓ 범례"
+                                        x:Name="BtnToggleLegend"
+                                        AutomationProperties.AutomationId="BtnToggleLegend"
+                                        Command="{Binding ToggleLegendCommand}"
+                                        Padding="8,4"
+                                        Margin="4,0"
+                                        Background="{StaticResource InfoBackground}"
+                                        BorderBrush="{StaticResource InfoBorder}"
+                                        Foreground="{StaticResource InfoForeground}"
+                                        FontWeight="Bold"
+                                        TabIndex="21" />
                             </WrapPanel>
                         </DockPanel>
                     </Border>
@@ -1422,6 +1486,66 @@
                                 </ListBox>
                             </Border>
                         </Grid>
+                    </Border>
+
+                    <!-- Legend Panel (§5.5) -->
+                    <Border Grid.Row="10"
+                            x:Name="PanelLegend"
+                            AutomationProperties.AutomationId="PanelLegend"
+                            Background="{StaticResource NeutralSurface}"
+                            BorderBrush="{StaticResource NeutralBorder}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12"
+                            Margin="0,8,0,0"
+                            Visibility="{Binding IsLegendVisible, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,8" LastChildFill="True">
+                                <Button DockPanel.Dock="Right"
+                                        Content="✕ 닫기"
+                                        Command="{Binding ToggleLegendCommand}"
+                                        Padding="8,4"
+                                        Style="{StaticResource SecondaryButtonStyle}" />
+                                <TextBlock Text="❓ 범례" FontWeight="Bold" FontSize="{StaticResource FontSizeSubtitle}" Foreground="{StaticResource NeutralForeground}" VerticalAlignment="Center" />
+                            </DockPanel>
+
+                            <ItemsControl>
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="2" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.Resources>
+                                    <Style TargetType="Border" x:Key="LegendRowStyle">
+                                        <Setter Property="Padding" Value="6,4" />
+                                        <Setter Property="Margin" Value="0,0,8,4" />
+                                    </Style>
+                                </ItemsControl.Resources>
+
+                                <!-- [동기화] -->
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="최신" FontWeight="Bold" Width="190" /><TextBlock Text="로컬이 원격과 같음 — pull 불필요" Foreground="{StaticResource NeutralForegroundMuted}" /></StackPanel></Border>
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="받을 것 있음 ↓N" FontWeight="Bold" Width="190" /><TextBlock Text="원격에 새 커밋 N개 — pull 가능" Foreground="{StaticResource SuccessForeground}" /></StackPanel></Border>
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="올릴 것 있음 ↑N" FontWeight="Bold" Width="190" /><TextBlock Text="로컬에만 커밋 N개 — push 대상, pull 불필요" Foreground="{StaticResource NeutralForegroundMuted}" /></StackPanel></Border>
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="갈라짐 · pull 먼저 필요" FontWeight="Bold" Width="190" /><TextBlock Text="로컬/원격이 각자 다른 커밋 — pull 차단" Foreground="{StaticResource ErrorForeground}" /></StackPanel></Border>
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="추적 브랜치 없음" FontWeight="Bold" Width="190" /><TextBlock Text="upstream 미설정 — pull 차단" Foreground="{StaticResource ErrorForeground}" /></StackPanel></Border>
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="서버에서 사라진 브랜치" FontWeight="Bold" Width="190" /><TextBlock Text="추적하던 원격 브랜치가 삭제됨 — pull 차단" Foreground="{StaticResource ErrorForeground}" /></StackPanel></Border>
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="브랜치 미체크아웃" FontWeight="Bold" Width="190" /><TextBlock Text="detached HEAD — pull 차단" Foreground="{StaticResource ErrorForeground}" /></StackPanel></Border>
+
+                                <!-- 카탈로그 매칭 -->
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="로컬 없음" FontWeight="Bold" Width="190" /><TextBlock Text="서버에는 있으나 로컬에 없음(클론 탭)" Foreground="{StaticResource NeutralForegroundMuted}" /></StackPanel></Border>
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="카탈로그에 없음" FontWeight="Bold" Width="190" /><TextBlock Text="이 호스트 프로파일인데 카탈로그에서 못 찾음 — pull 가능" Foreground="{StaticResource SuccessForeground}" /></StackPanel></Border>
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="미등록 호스트" FontWeight="Bold" Width="190" /><TextBlock Text="등록된 서버 프로파일에 없는 호스트 — pull 가능" Foreground="{StaticResource SuccessForeground}" /></StackPanel></Border>
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="remote 없음" FontWeight="Bold" Width="190" /><TextBlock Text="로컬 전용, remote 자체가 없음" Foreground="{StaticResource NeutralForegroundMuted}" /></StackPanel></Border>
+
+                                <!-- [작업트리] -->
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="미커밋 변경 N" FontWeight="Bold" Width="190" /><TextBlock Text="dirty 파일 N개 — pull 차단(§3.3 push는 미커밋분 제외 후 허용)" Foreground="{StaticResource ErrorForeground}" /></StackPanel></Border>
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="머지 충돌 N" FontWeight="Bold" Width="190" /><TextBlock Text="conflicted 파일 N개 — pull/push 모두 차단" Foreground="{StaticResource ErrorForeground}" /></StackPanel></Border>
+
+                                <!-- 독립 배지 -->
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="보관됨" FontWeight="Bold" Width="190" /><TextBlock Text="서버에서 보관 처리된 레포(3축과 별개의 독립 배지)" Foreground="{StaticResource NeutralForegroundMuted}" /></StackPanel></Border>
+                                <Border Style="{StaticResource LegendRowStyle}"><StackPanel Orientation="Horizontal"><TextBlock Text="확인 안 됨" FontWeight="Bold" Width="190" /><TextBlock Text="스캔에서 안 보였으나 삭제하지 않음(is_missing) — pull 차단" Foreground="{StaticResource ErrorForeground}" /></StackPanel></Border>
+                            </ItemsControl>
+                        </StackPanel>
                     </Border>
                 </Grid>
             </TabItem>

@@ -83,6 +83,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<RepoTreeNodeViewModel> SelectionBasket { get; } = new();
     public ObservableCollection<string> SelectionRemovalNotices { get; } = new();
 
+    // §5.5: 범례 탭 -- 배지 전체에 한 줄 설명 + pull 가능/차단. 접이식.
+    [ObservableProperty]
+    private bool _isLegendVisible;
+
     [ObservableProperty]
     private int _selectedTabIndex;
 
@@ -156,9 +160,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isInaccessiblePathsExpanded;
 
-    // Filters (설계 §5.3-f)
+    // Filters (§5.3.3: [동기화] 배타 / [작업트리] 독립 토글 / [기타] 독립 토글 -- 세 그룹으로 분리)
     [ObservableProperty]
     private string _filterText = string.Empty;
+
+    // [동기화] -- RadioButton GroupName으로 배타 선택. FilterSyncAll이 "전체".
+    [ObservableProperty]
+    private bool _filterSyncAll = true;
 
     [ObservableProperty]
     private bool _filterBehindOnly;
@@ -170,15 +178,36 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private bool _filterDivergedOnly;
 
     [ObservableProperty]
+    private bool _filterNoUpstreamOnly;
+
+    [ObservableProperty]
+    private bool _filterUpstreamGoneOnly;
+
+    [ObservableProperty]
+    private bool _filterDetachedHeadOnly;
+
+    // [작업트리] -- 독립 토글
+    [ObservableProperty]
     private bool _filterDirtyOnly;
 
     [ObservableProperty]
     private bool _filterConflictedOnly;
 
+    // [기타] -- 독립 토글
+    [ObservableProperty]
+    private bool _filterArchivedOnly;
+
+    [ObservableProperty]
+    private bool _filterMissingOnly;
+
     [ObservableProperty]
     private string _selectedHostFilter = "전체 호스트";
 
+    [ObservableProperty]
+    private string _selectedPathPrefixFilter = "전체 경로";
+
     public ObservableCollection<string> AvailableHosts { get; } = new() { "전체 호스트" };
+    public ObservableCollection<string> AvailablePathPrefixes { get; } = new() { "전체 경로" };
 
     // Execution Count and Skip Breakdown (설계 §5.3-h, 지시서 §4-3)
     [ObservableProperty]
@@ -520,12 +549,19 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     partial void OnFilterTextChanged(string value) => ApplyFilters();
+    partial void OnFilterSyncAllChanged(bool value) => ApplyFilters();
     partial void OnFilterBehindOnlyChanged(bool value) => ApplyFilters();
     partial void OnFilterAheadOnlyChanged(bool value) => ApplyFilters();
     partial void OnFilterDivergedOnlyChanged(bool value) => ApplyFilters();
+    partial void OnFilterNoUpstreamOnlyChanged(bool value) => ApplyFilters();
+    partial void OnFilterUpstreamGoneOnlyChanged(bool value) => ApplyFilters();
+    partial void OnFilterDetachedHeadOnlyChanged(bool value) => ApplyFilters();
     partial void OnFilterDirtyOnlyChanged(bool value) => ApplyFilters();
     partial void OnFilterConflictedOnlyChanged(bool value) => ApplyFilters();
+    partial void OnFilterArchivedOnlyChanged(bool value) => ApplyFilters();
+    partial void OnFilterMissingOnlyChanged(bool value) => ApplyFilters();
     partial void OnSelectedHostFilterChanged(string value) => ApplyFilters();
+    partial void OnSelectedPathPrefixFilterChanged(string value) => ApplyFilters();
 
     private void ApplyFilters()
     {
@@ -533,6 +569,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var query = FilterText.Trim();
         var hostFilter = SelectedHostFilter;
         var isAllHosts = string.IsNullOrWhiteSpace(hostFilter) || hostFilter == "전체 호스트";
+        var pathPrefixFilter = SelectedPathPrefixFilter;
+        var isAllPathPrefixes = string.IsNullOrWhiteSpace(pathPrefixFilter) || pathPrefixFilter == "전체 경로";
 
         bool Predicate(RepoTreeNodeViewModel repo)
         {
@@ -549,34 +587,54 @@ public partial class MainViewModel : ObservableObject, IDisposable
                     return false;
             }
 
-            // Host filter
+            // Host filter ([기타])
             if (!isAllHosts && !string.Equals(repo.HostName, hostFilter, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
 
-            // Sync state filter
-            var hasSyncStateFilter = FilterBehindOnly || FilterAheadOnly || FilterDivergedOnly;
-            if (hasSyncStateFilter)
+            // Path prefix filter ([기타])
+            if (!isAllPathPrefixes && !(repo.FullPath?.StartsWith(pathPrefixFilter, StringComparison.OrdinalIgnoreCase) ?? false))
             {
-                var matchesSync = false;
+                return false;
+            }
+
+            // [동기화] -- 배타 선택 (§5.3.3). Behind/Ahead/Diverged는 fetch 확정 전엔
+            // 판정을 신뢰할 수 없어 hasConfirmedFetch로 게이트한다. No Upstream/
+            // Upstream Gone/Detached HEAD는 fetch 없이도 판정 가능하다(§3.4).
+            if (!FilterSyncAll)
+            {
                 var hasConfirmedFetch = repo.LastFetchedAt != null && !repo.HasFetchFailure;
-                if (FilterBehindOnly && hasConfirmedFetch && (repo.Behind > 0 || repo.StateCode == RepoStateCode.Behind)) matchesSync = true;
-                if (FilterAheadOnly && hasConfirmedFetch && (repo.Ahead > 0 || repo.StateCode == RepoStateCode.Ahead)) matchesSync = true;
-                if (FilterDivergedOnly && hasConfirmedFetch && repo.StateCode == RepoStateCode.Diverged) matchesSync = true;
+                var matchesSync =
+                    (FilterBehindOnly && hasConfirmedFetch && (repo.Behind > 0 || repo.StateCode == RepoStateCode.Behind)) ||
+                    (FilterAheadOnly && hasConfirmedFetch && (repo.Ahead > 0 || repo.StateCode == RepoStateCode.Ahead)) ||
+                    (FilterDivergedOnly && hasConfirmedFetch && repo.StateCode == RepoStateCode.Diverged) ||
+                    (FilterNoUpstreamOnly && repo.StateCode == RepoStateCode.NoUpstream) ||
+                    (FilterUpstreamGoneOnly && repo.StateCode == RepoStateCode.UpstreamGone) ||
+                    (FilterDetachedHeadOnly && repo.StateCode == RepoStateCode.DetachedHead);
 
                 if (!matchesSync)
                     return false;
             }
 
-            // Worktree dirty filter (3축 분리)
+            // [작업트리] -- 독립 토글 (3축 분리)
             if (FilterDirtyOnly && repo.DirtyCount == 0)
             {
                 return false;
             }
 
-            // Conflicted filter (3축 분리)
             if (FilterConflictedOnly && repo.ConflictedCount == 0)
+            {
+                return false;
+            }
+
+            // [기타] -- 독립 토글
+            if (FilterArchivedOnly && !repo.IsArchived)
+            {
+                return false;
+            }
+
+            if (FilterMissingOnly && !repo.IsMissing)
             {
                 return false;
             }
@@ -604,8 +662,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         RecomputeRightPane();
 
-        var isAnyFilterActive = hasSearch || !isAllHosts || FilterBehindOnly || FilterAheadOnly ||
-                                 FilterDivergedOnly || FilterDirtyOnly || FilterConflictedOnly;
+        var isAnyFilterActive = hasSearch || !isAllHosts || !isAllPathPrefixes || !FilterSyncAll ||
+                                 FilterDirtyOnly || FilterConflictedOnly || FilterArchivedOnly || FilterMissingOnly;
         var visibleCount = _repoViewModelMap.Values.Count(r => r.IsVisible);
         HasNoFilterResults = isAnyFilterActive && TotalRepoCount > 0 && visibleCount == 0;
 
@@ -624,12 +682,19 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public void ClearFilters()
     {
         FilterText = string.Empty;
+        FilterSyncAll = true;
         FilterBehindOnly = false;
         FilterAheadOnly = false;
         FilterDivergedOnly = false;
+        FilterNoUpstreamOnly = false;
+        FilterUpstreamGoneOnly = false;
+        FilterDetachedHeadOnly = false;
         FilterDirtyOnly = false;
         FilterConflictedOnly = false;
+        FilterArchivedOnly = false;
+        FilterMissingOnly = false;
         SelectedHostFilter = "전체 호스트";
+        SelectedPathPrefixFilter = "전체 경로";
     }
 
     // §5.3.4/§10.4: "보이는 것만" now means the right pane's current rows --
@@ -998,6 +1063,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
             foreach (var host in distinctHosts.OrderBy(x => x))
             {
                 AvailableHosts.Add(host);
+            }
+
+            // Populate AvailablePathPrefixes filter ([기타] 경로 접두사별, §5.3.3)
+            AvailablePathPrefixes.Clear();
+            AvailablePathPrefixes.Add("전체 경로");
+            foreach (var rootPath in roots.Where(r => r.IsActive).Select(r => r.Path).OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+            {
+                AvailablePathPrefixes.Add(rootPath);
             }
 
             treeBuildTimer.Stop();
@@ -1939,6 +2012,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public void ToggleSelectionBasket()
     {
         IsSelectionBasketVisible = !IsSelectionBasketVisible;
+    }
+
+    [RelayCommand]
+    public void ToggleLegend()
+    {
+        IsLegendVisible = !IsLegendVisible;
     }
 
     [RelayCommand]

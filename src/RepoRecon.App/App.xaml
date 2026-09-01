@@ -122,5 +122,38 @@
             </Style.Triggers>
         </Style>
 
+        <!-- §5.3.3 [동기화] 배타 그룹: RadioButton의 기본 불릿을 지우고
+             FilterToggleButtonStyle과 같은 필 모양으로 렌더링한다. -->
+        <Style x:Key="FilterRadioButtonStyle" TargetType="RadioButton">
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Margin" Value="4,0" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Background" Value="{StaticResource NeutralSurface}" />
+            <Setter Property="BorderBrush" Value="{StaticResource NeutralBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="{StaticResource InfoBackground}" />
+                    <Setter Property="BorderBrush" Value="{StaticResource InfoBorder}" />
+                    <Setter Property="Foreground" Value="{StaticResource InfoForeground}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
     </Application.Resources>
 </Application>
