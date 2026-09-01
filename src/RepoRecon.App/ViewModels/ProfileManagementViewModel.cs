@@ -7,6 +7,7 @@ using RepoRecon.Core.Adapters;
 using RepoRecon.Core.Data;
 using RepoRecon.Core.Models;
 using RepoRecon.Core.Security;
+using RepoRecon.Core.Urls;
 
 namespace RepoRecon.App.ViewModels;
 
@@ -15,6 +16,7 @@ public partial class ProfileManagementViewModel : ObservableObject
     private readonly SqliteIndexStore _indexStore;
     private readonly ISecureTokenStore _tokenStore;
     private readonly IServerAdapterFactory _adapterFactory;
+    private readonly HostAliasTable _aliasTable;
     private readonly ILogger<ProfileManagementViewModel> _logger;
 
     public ObservableCollection<ServerProfile> Profiles { get; } = new();
@@ -58,11 +60,13 @@ public partial class ProfileManagementViewModel : ObservableObject
         SqliteIndexStore indexStore,
         ISecureTokenStore tokenStore,
         IServerAdapterFactory adapterFactory,
+        HostAliasTable aliasTable,
         ILogger<ProfileManagementViewModel>? logger = null)
     {
         _indexStore = indexStore;
         _tokenStore = tokenStore;
         _adapterFactory = adapterFactory;
+        _aliasTable = aliasTable;
         _logger = logger ?? NullLogger<ProfileManagementViewModel>.Instance;
     }
 
@@ -80,6 +84,8 @@ public partial class ProfileManagementViewModel : ObservableObject
         {
             Profiles.Add(p);
         }
+
+        _aliasTable.ReloadFromProfiles(list);
     }
 
     partial void OnSelectedProfileChanged(ServerProfile? value)

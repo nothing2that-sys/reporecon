@@ -49,6 +49,7 @@ public partial class CloneTabViewModel : ObservableObject
     private readonly IServerAdapterFactory _adapterFactory;
     private readonly ICloneEngine _cloneEngine;
     private readonly ScanRootManager _scanRootManager;
+    private readonly HostAliasTable _aliasTable;
     private readonly ILogger<CloneTabViewModel> _logger;
 
     public ObservableCollection<ServerProfile> ServerProfiles { get; } = new();
@@ -104,6 +105,7 @@ public partial class CloneTabViewModel : ObservableObject
         IServerAdapterFactory adapterFactory,
         ICloneEngine cloneEngine,
         ScanRootManager scanRootManager,
+        HostAliasTable aliasTable,
         ILogger<CloneTabViewModel>? logger = null)
     {
         _indexStore = indexStore;
@@ -111,6 +113,7 @@ public partial class CloneTabViewModel : ObservableObject
         _adapterFactory = adapterFactory;
         _cloneEngine = cloneEngine;
         _scanRootManager = scanRootManager;
+        _aliasTable = aliasTable;
         _logger = logger ?? NullLogger<CloneTabViewModel>.Instance;
     }
 
@@ -250,11 +253,35 @@ public partial class CloneTabViewModel : ObservableObject
 
             var discoveredRepos = await adapter.FetchCatalogAsync(SelectedProfile, token, progress);
 
+            // clone URL의 authority가 API 접속 authority와 다르면 자동으로 별칭을 등록한다
+            // (§4.2 (4), v4.1) — GitLab 등의 clone URL은 external_url 설정을 반영하므로
+            // 사용자가 접속한 IP:port와 다른 호스트를 가리킬 수 있다.
+            var apiAuthority = RemoteUrlNormalizer.ExtractAuthority(SelectedProfile.Host);
+            var cloneAuthority = discoveredRepos
+                .Select(r => RemoteUrlNormalizer.ExtractAuthority(r.CloneUrl))
+                .FirstOrDefault(a => a != null);
+
+            if (apiAuthority != null && cloneAuthority != null &&
+                !string.Equals(apiAuthority, cloneAuthority, StringComparison.OrdinalIgnoreCase) &&
+                !SelectedProfile.Aliases.Contains(cloneAuthority, StringComparer.OrdinalIgnoreCase))
+            {
+                var updatedAliases = SelectedProfile.Aliases.Append(cloneAuthority)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var updatedProfile = SelectedProfile with { Aliases = updatedAliases };
+                await _indexStore.UpsertServerProfileAsync(updatedProfile);
+                SelectedProfile = updatedProfile;
+                _aliasTable.SetAlias(cloneAuthority, apiAuthority);
+                _logger.LogInformation("Auto-registered host alias {CloneAuthority} -> {ApiAuthority} for profile {Host}",
+                    cloneAuthority, apiAuthority, SelectedProfile.Host);
+                StatusMessage = $"별칭 자동 등록: {cloneAuthority} → {apiAuthority}";
+            }
+
             // Convert to ServerRepo entities
             var now = DateTime.UtcNow;
             var serverRepos = discoveredRepos.Select(r =>
             {
-                var normalizedKey = RemoteUrlNormalizer.Normalize(r.CloneUrl, null) ?? $"{SelectedProfile.Host}/{r.Namespace}/{r.Name}".ToLowerInvariant();
+                var normalizedKey = RemoteUrlNormalizer.Normalize(r.CloneUrl, _aliasTable) ?? $"{SelectedProfile.Host}/{r.Namespace}/{r.Name}".ToLowerInvariant();
                 return new ServerRepo(
                     Id: 0,
                     ProfileId: SelectedProfile.Id,

@@ -64,13 +64,39 @@ public static class RemoteUrlNormalizer
 
         host = host.Trim().ToLowerInvariant();
 
-        // Apply Host Alias Table as the final step
+        // Apply Host Alias Table as the final step (authority 단위, §2.3 v4.1)
         if (aliasTable != null)
         {
-            host = aliasTable.ResolveCanonical(host).ToLowerInvariant();
+            (host, port) = aliasTable.ResolveAuthority(host, port);
+            host = host.ToLowerInvariant();
         }
 
         return $"{host}:{port}/{path}";
+    }
+
+    // profile.Host / clone URL 등에서 authority(host:port)만 뽑는다. 경로가 없어도 동작한다 (§4.2 (4)).
+    public static string? ExtractAuthority(string? rawUrl)
+    {
+        if (string.IsNullOrWhiteSpace(rawUrl))
+            return null;
+
+        var trimmed = rawUrl.Trim();
+
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Host))
+        {
+            var port = uri.Port > 0 ? uri.Port : GetDefaultPortForScheme(uri.Scheme);
+            return $"{uri.Host.Trim().ToLowerInvariant()}:{port}";
+        }
+
+        var match = ScpPattern.Match(trimmed);
+        if (match.Success)
+        {
+            var host = match.Groups["host"].Value;
+            if (!string.IsNullOrWhiteSpace(host))
+                return $"{host.Trim().ToLowerInvariant()}:22";
+        }
+
+        return null;
     }
 
     public static string MaskCredentials(string? input)

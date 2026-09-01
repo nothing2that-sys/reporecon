@@ -114,6 +114,12 @@ public partial class App : Application
 
         await _host.StartAsync();
 
+        // §2.3/§4.2 (4), v4.1: 스캔·카탈로그 동기화가 시작되기 전에
+        // server_profiles.aliases_json을 HostAliasTable에 적재해야 정규화 매칭이 된다.
+        var indexStore = _host.Services.GetRequiredService<SqliteIndexStore>();
+        var aliasTable = _host.Services.GetRequiredService<HostAliasTable>();
+        aliasTable.ReloadFromProfiles(await indexStore.GetServerProfilesAsync());
+
         var viewModel = _host.Services.GetRequiredService<MainViewModel>();
         if (_dbWasRecreated)
         {

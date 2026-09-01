@@ -59,6 +59,44 @@ public class RemoteUrlNormalizerTests
         Assert.Equal("gitlab.test:443/group/project", normalized2);
     }
 
+    [Fact]
+    public void Normalize_WithPortSpecificAlias_ReplacesBothHostAndPort()
+    {
+        // §2.3 v4.1: 실환경에서 로컬은 IP:port로, 서버 clone_url은 다른 host:80으로 왔다.
+        var aliasTable = new HostAliasTable();
+        aliasTable.SetAlias("gitlab:80", "192.0.2.9:10012");
+
+        var fromCloneUrl = RemoteUrlNormalizer.Normalize("http://gitlab/group/project.git", aliasTable);
+
+        Assert.Equal("192.0.2.9:10012/group/project", fromCloneUrl);
+    }
+
+    [Fact]
+    public void Normalize_WithBareHostAlias_IgnoresIncomingPortAndUsesCanonicalPort()
+    {
+        var aliasTable = new HostAliasTable();
+        aliasTable.SetAlias("gitlab", "192.0.2.9:10012");
+
+        // 포트가 다른 두 URL 모두 host만으로 매칭되어 같은 canonical authority로 치환된다
+        var viaHttp = RemoteUrlNormalizer.Normalize("http://gitlab:8080/group/project.git", aliasTable);
+        var viaSsh = RemoteUrlNormalizer.Normalize("git@gitlab:group/project.git", aliasTable);
+
+        Assert.Equal("192.0.2.9:10012/group/project", viaHttp);
+        Assert.Equal("192.0.2.9:10012/group/project", viaSsh);
+    }
+
+    [Theory]
+    [InlineData("http://192.0.2.9:10012/", "192.0.2.9:10012")]
+    [InlineData("http://gitlab/", "gitlab:80")]
+    [InlineData("https://github.com/", "github.com:443")]
+    [InlineData("git@gitlab.test:group/project.git", "gitlab.test:22")]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    public void ExtractAuthority_ReturnsHostAndPortOnly(string? url, string? expected)
+    {
+        Assert.Equal(expected, RemoteUrlNormalizer.ExtractAuthority(url));
+    }
+
     [Theory]
     [InlineData("https://user:secret-token_123@gitlab.test/group/project.git", "https://***:***@gitlab.test/group/project.git")]
     [InlineData("https://onlytoken@gitlab.test/group/project.git", "https://***:***@gitlab.test/group/project.git")]
