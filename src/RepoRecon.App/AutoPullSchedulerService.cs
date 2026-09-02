@@ -14,14 +14,13 @@ namespace RepoRecon.App;
 public sealed class AutoPullSchedulerService : IDisposable
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan PathRetryDelay = TimeSpan.FromMinutes(10);
 
     private readonly SqliteIndexStore _indexStore;
     private readonly IPullEngine _pullEngine;
     private readonly ILogger _logger;
     private readonly DispatcherTimer _timer;
     private readonly HostFailureTracker _hostFailureTracker = new();
-    private readonly List<(long RepoId, DateTime RetryAtUtc)> _pendingPathRetries = new();
+    private readonly PathRetryScheduler _pathRetryScheduler = new();
     private bool _isRunning;
 
     /// <summary>(title, body) — 호출자가 트레이 풍선 알림 등으로 표시한다.</summary>
@@ -133,16 +132,13 @@ public sealed class AutoPullSchedulerService : IDisposable
 
     private async Task CheckPendingPathRetriesAsync()
     {
-        if (_pendingPathRetries.Count == 0 || _isRunning || _pullEngine.IsExecuting) return;
+        if (_pathRetryScheduler.PendingCount == 0 || _isRunning || _pullEngine.IsExecuting) return;
 
-        var now = DateTime.UtcNow;
-        var due = _pendingPathRetries.Where(r => r.RetryAtUtc <= now).ToList();
+        var due = _pathRetryScheduler.ConsumeDue(DateTime.UtcNow);
         if (due.Count == 0) return;
 
-        foreach (var d in due) _pendingPathRetries.Remove(d);
-
         var allRepos = await _indexStore.GetAllLocalReposWithStatusAsync();
-        var dueIds = due.Select(d => d.RepoId).ToHashSet();
+        var dueIds = due.ToHashSet();
         var targets = allRepos.Where(r => dueIds.Contains(r.Repo.Id)).ToList();
         if (targets.Count == 0) return;
 
@@ -256,12 +252,12 @@ public sealed class AutoPullSchedulerService : IDisposable
 
     private void SchedulePathRetries(PullBatchReport report)
     {
-        var retryAt = DateTime.UtcNow.Add(PathRetryDelay);
+        var now = DateTime.UtcNow;
         foreach (var failed in report.Results.Where(r => r.Status == PullJobStatus.Failed))
         {
             if (ErrorClassifier.Classify(failed.ErrorMessage) == ErrorCategory.Path)
             {
-                _pendingPathRetries.Add((failed.RepoId, retryAt));
+                _pathRetryScheduler.Schedule(failed.RepoId, now);
             }
         }
     }

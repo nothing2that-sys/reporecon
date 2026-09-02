@@ -15,10 +15,9 @@
         FontFamily="{StaticResource FontFamilyDefault}"
         Foreground="{StaticResource NeutralForeground}">
 
-    <Window.InputBindings>
-        <KeyBinding Key="F5" Command="{Binding RefreshAllCommand}" />
-        <KeyBinding Key="A" Modifiers="Control" Command="{Binding SelectAllVisibleCommand}" />
-    </Window.InputBindings>
+    <!-- §10.4 키보드 단축키는 전부 code-behind MainWindow_KeyDown 한 곳에만 둔다.
+         여기 Window.InputBindings에도 F5/Ctrl+A를 중복 선언했던 것이 작업 4 감사에서
+         발견된 이중 배선 결함이다 — 한쪽만 고치면 동작이 갈린다. -->
 
     <Window.Resources>
         <!-- Style for TreeViewItem to support custom selection & expansion -->

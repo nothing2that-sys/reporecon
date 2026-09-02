@@ -136,7 +136,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Ctrl + A -> Select all visible items ONLY (Criterion 29)
+        // §10.4: Ctrl+A -> 우측 리스트에 보이는 행을 선택 바구니에 추가(누적).
+        // v3의 "화면 내 전체 선택"과 달리 기존 선택을 교체하지 않는다 — SelectAllVisible()은
+        // RightPaneRepos만 true로 설정할 뿐 다른 항목을 건드리지 않으므로 이미 그렇게 동작한다.
         if (e.Key == System.Windows.Input.Key.A && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) == System.Windows.Input.ModifierKeys.Control)
         {
             if (System.Windows.Input.Keyboard.FocusedElement is TextBox)
@@ -145,6 +147,19 @@ public partial class MainWindow : Window
             }
 
             vm.SelectAllVisible();
+            e.Handled = true;
+            return;
+        }
+
+        // §10.4: Esc -> 선택 바구니 전체 해제
+        if (e.Key == System.Windows.Input.Key.Escape)
+        {
+            if (System.Windows.Input.Keyboard.FocusedElement is TextBox)
+            {
+                return;
+            }
+
+            vm.DeselectAllCommand.Execute(null);
             e.Handled = true;
             return;
         }
