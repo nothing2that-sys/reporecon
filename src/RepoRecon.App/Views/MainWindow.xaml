@@ -1170,9 +1170,9 @@
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
                                         <DockPanel Margin="4,4">
-                                            <TextBlock DockPanel.Dock="Right" Text="{Binding DurationMs, StringFormat='({0}ms)'}" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource NeutralForegroundMuted}" Margin="8,0,0,0" />
-                                            <TextBlock DockPanel.Dock="Right" Text="{Binding StatusText}" FontWeight="Bold" FontSize="{StaticResource FontSizeSecondary}" Foreground="{Binding StatusColor}" />
-                                            <TextBlock Text="{Binding RepoPath, Converter={StaticResource FrontEllipsis}, ConverterParameter=70}" FontFamily="{StaticResource FontFamilyMono}" FontSize="{StaticResource FontSizeSecondary}" ToolTip="{Binding RepoPath}" />
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding StatusBadgeText}" FontWeight="Bold" FontSize="{StaticResource FontSizeSecondary}" Foreground="{Binding StatusBadgeColor}" Margin="8,0,0,0" />
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding Detail}" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource NeutralForegroundMuted}" Margin="8,0,0,0" />
+                                            <TextBlock Text="{Binding AbsPath, Converter={StaticResource FrontEllipsis}, ConverterParameter=70}" FontFamily="{StaticResource FontFamilyMono}" FontSize="{StaticResource FontSizeSecondary}" ToolTip="{Binding AbsPath}" />
                                         </DockPanel>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
