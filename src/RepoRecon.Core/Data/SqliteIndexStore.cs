@@ -351,6 +351,69 @@ SELECT last_insert_rowid();";
 
     #endregion
 
+    #region Auto Pull Targets
+
+    public async Task<IReadOnlyList<AutoPullTarget>> GetAutoPullTargetsAsync(CancellationToken cancellationToken = default)
+    {
+        using var conn = CreateConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT id, folder_path, recurse, is_active, created_at, last_run_at FROM auto_pull_targets ORDER BY id ASC;";
+
+        var list = new List<AutoPullTarget>();
+        using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            var id = reader.GetInt64(0);
+            var folderPath = reader.GetString(1);
+            var recurse = reader.GetInt32(2) != 0;
+            var isActive = reader.GetInt32(3) != 0;
+            var createdAt = DateTime.Parse(reader.GetString(4), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+            var lastRunAt = reader.IsDBNull(5) ? (DateTime?)null : DateTime.Parse(reader.GetString(5), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+
+            list.Add(new AutoPullTarget(id, folderPath, recurse, isActive, createdAt, lastRunAt));
+        }
+
+        return list;
+    }
+
+    public async Task<long> AddAutoPullTargetAsync(string folderPath, bool recurse = true, CancellationToken cancellationToken = default)
+    {
+        using var conn = CreateConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+INSERT INTO auto_pull_targets (folder_path, recurse, is_active, created_at)
+VALUES (@folder_path, @recurse, 1, @created_at)
+ON CONFLICT(folder_path) DO UPDATE SET is_active = 1;
+SELECT id FROM auto_pull_targets WHERE folder_path = @folder_path;";
+        cmd.Parameters.AddWithValue("@folder_path", folderPath);
+        cmd.Parameters.AddWithValue("@recurse", recurse ? 1 : 0);
+        cmd.Parameters.AddWithValue("@created_at", DateTime.UtcNow.ToString("o"));
+
+        var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return Convert.ToInt64(result, CultureInfo.InvariantCulture);
+    }
+
+    public async Task RemoveAutoPullTargetAsync(string folderPath, CancellationToken cancellationToken = default)
+    {
+        using var conn = CreateConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "DELETE FROM auto_pull_targets WHERE folder_path = @folder_path;";
+        cmd.Parameters.AddWithValue("@folder_path", folderPath);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task UpdateAutoPullTargetLastRunAsync(long id, DateTime lastRunUtc, CancellationToken cancellationToken = default)
+    {
+        using var conn = CreateConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE auto_pull_targets SET last_run_at = @last_run_at WHERE id = @id;";
+        cmd.Parameters.AddWithValue("@last_run_at", lastRunUtc.ToString("o"));
+        cmd.Parameters.AddWithValue("@id", id);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    #endregion
+
     #region Server Profiles
 
     public async Task<IReadOnlyList<ServerProfile>> GetServerProfilesAsync(CancellationToken cancellationToken = default)

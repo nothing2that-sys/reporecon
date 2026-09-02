@@ -753,6 +753,10 @@
                                                         <MenuItem Header="여기서 터미널 열기" Command="{Binding OpenTerminalHereCommand}" AutomationProperties.AutomationId="MenuFolderOpenTerminal" />
                                                         <Separator />
                                                         <MenuItem Header="경로 복사" Command="{Binding CopyPathCommand}" AutomationProperties.AutomationId="MenuFolderCopyPath" />
+                                                        <Separator />
+                                                        <MenuItem Header="{Binding IsAutoPullTarget, Converter={StaticResource BoolToLabel}, ConverterParameter='자동 pull 해제|자동 pull 등록'}"
+                                                                  Command="{Binding ToggleAutoPullTargetCommand}"
+                                                                  AutomationProperties.AutomationId="MenuFolderToggleAutoPull" />
                                                     </ContextMenu>
                                                 </DockPanel.ContextMenu>
 
@@ -771,6 +775,23 @@
                                                                FontWeight="Bold"
                                                                FontSize="{StaticResource FontSizeSecondary}"
                                                                Foreground="{StaticResource WarningForeground}" />
+                                                </Border>
+
+                                                <!-- §8.1.1(a): 자동 pull 대상 배지 -->
+                                                <Border DockPanel.Dock="Right"
+                                                        Background="{StaticResource InfoBackground}"
+                                                        BorderBrush="{StaticResource InfoBorder}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Padding="6,2"
+                                                        Margin="4,0"
+                                                        VerticalAlignment="Center"
+                                                        Visibility="{Binding IsAutoPullTarget, Converter={StaticResource BoolToVis}}"
+                                                        ToolTip="예약된 시각에 자동으로 pull됩니다">
+                                                    <TextBlock Text="자동 pull"
+                                                               FontSize="{StaticResource FontSizeCaption}"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{StaticResource InfoForeground}" />
                                                 </Border>
 
                                                 <!-- Folder Path -->
@@ -2014,6 +2035,13 @@
                 <TextBlock x:Name="TxtStatusMessage"
                            AutomationProperties.AutomationId="TxtStatusMessage"
                            Text="{Binding StatusMessage}" />
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right" Margin="0,0,4,0">
+                <Button Content="⏰ 자동 Pull"
+                        AutomationProperties.AutomationId="BtnAutoPullSettingsOpen"
+                        Click="BtnAutoPullSettings_Click"
+                        Padding="8,2"
+                        Style="{StaticResource SecondaryButtonStyle}" />
             </StatusBarItem>
             <StatusBarItem HorizontalAlignment="Right" Margin="0,0,12,0">
                 <Button Content="⚙ 설정"

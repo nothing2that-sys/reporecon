@@ -40,6 +40,15 @@ public sealed class TrayIconManager : IDisposable
         _window.Hide();
     }
 
+    /// <summary>§10.5/§8.1.1(g): 예약 자동 pull 완료 알림. NotifyIcon은 Visible=false면 풍선을
+    /// 띄우지 않으므로, 창이 정상적으로 열려 있어 트레이 아이콘이 원래 숨겨진 상태였더라도
+    /// 알림 표시를 위해 잠깐 보이게 만든다.</summary>
+    public void ShowNotification(string title, string text)
+    {
+        _notifyIcon.Visible = true;
+        _notifyIcon.ShowBalloonTip(10000, title, text, ToolTipIcon.Info);
+    }
+
     private void Restore()
     {
         _notifyIcon.Visible = false;

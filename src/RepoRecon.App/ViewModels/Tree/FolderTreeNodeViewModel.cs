@@ -36,6 +36,13 @@ public partial class FolderTreeNodeViewModel : TreeNodeViewModelBase
     [ObservableProperty]
     private string _rollupSummaryText = string.Empty;
 
+    // §8.1.1(a): 자동 pull 대상으로 등록된 폴더에 붙는 배지. 등록/해제 자체는
+    // MainViewModel이 처리한다(SqliteIndexStore 접근이 필요해 이 ViewModel 혼자로는 불가).
+    [ObservableProperty]
+    private bool _isAutoPullTarget;
+
+    public Action<FolderTreeNodeViewModel>? OnToggleAutoPullTargetRequested { get; set; }
+
     public override bool IsFolder => true;
 
     public FolderTreeNodeViewModel(TreeFolderNode node)
@@ -96,6 +103,12 @@ public partial class FolderTreeNodeViewModel : TreeNodeViewModelBase
             System.Windows.Clipboard.SetText(FullPath);
         }
         catch { }
+    }
+
+    [RelayCommand]
+    private void ToggleAutoPullTarget()
+    {
+        OnToggleAutoPullTargetRequested?.Invoke(this);
     }
 
     public override bool ApplyFilter(Func<RepoTreeNodeViewModel, bool> predicate)

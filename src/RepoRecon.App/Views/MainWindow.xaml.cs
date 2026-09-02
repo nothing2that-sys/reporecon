@@ -47,6 +47,10 @@ public partial class MainWindow : Window
         };
         Closing += MainWindow_Closing;
 
+        // §8.1.1(g)/§10.5: 예약 자동 pull 완료/일시정지 알림을 트레이 풍선으로 내보낸다.
+        viewModel.AutoPullScheduler.NotificationRequested += (title, text) =>
+            _trayIconManager.ShowNotification(title, text);
+
         _scrollSamplingCompletionTimer = new DispatcherTimer
         {
             // Keep the measurement window long enough to collect at least
@@ -109,6 +113,12 @@ public partial class MainWindow : Window
     private void BtnAppSettings_Click(object sender, RoutedEventArgs e)
     {
         new AppSettingsWindow { Owner = this }.ShowDialog();
+    }
+
+    private void BtnAutoPullSettings_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        new AutoPullSettingsWindow(vm) { Owner = this }.ShowDialog();
     }
 
     private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)

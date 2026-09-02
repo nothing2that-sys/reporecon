@@ -1,0 +1,104 @@
+<Window x:Class="RepoRecon.App.Views.AutoPullSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="자동 Pull 설정"
+        Height="520" Width="480"
+        WindowStartupLocation="CenterOwner"
+        AutomationProperties.AutomationId="DialogAutoPullSettings"
+        Background="{StaticResource NeutralSurface}"
+        FontFamily="{StaticResource FontFamilyDefault}"
+        Foreground="{StaticResource NeutralForeground}">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <CheckBox x:Name="ChkEnabled"
+                      AutomationProperties.AutomationId="ChkAutoPullEnabled"
+                      Content="예약 자동 pull 사용"
+                      FontWeight="Bold"
+                      FontSize="{StaticResource FontSizeSubtitle}"
+                      Checked="ChkEnabled_CheckedChanged"
+                      Unchecked="ChkEnabled_CheckedChanged"
+                      Margin="0,0,0,4" />
+
+            <TextBlock x:Name="TxtTrayAutoEnabledNotice"
+                       AutomationProperties.AutomationId="TxtTrayAutoEnabledNotice"
+                       Text="자동 pull은 창을 닫아도 계속 실행돼야 하므로 '창 닫기 동작'이 트레이로 최소화로 자동 변경되었습니다."
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource InfoForeground}"
+                       FontSize="{StaticResource FontSizeSecondary}"
+                       Visibility="Collapsed"
+                       Margin="0,0,0,12" />
+
+            <Separator Margin="0,4,0,12" />
+
+            <TextBlock Text="등록된 폴더" FontWeight="SemiBold" Margin="0,0,0,4" />
+            <TextBlock Text="폴더별 등록/해제는 로컬 탭 좌측 트리의 우클릭 메뉴에서 합니다."
+                       Foreground="{StaticResource NeutralForegroundMuted}"
+                       FontSize="{StaticResource FontSizeSecondary}"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,8" />
+            <ListBox x:Name="TargetsList"
+                     AutomationProperties.AutomationId="ListAutoPullTargets"
+                     Height="90"
+                     Margin="0,0,0,4" />
+            <Button Content="선택한 대상 제거"
+                    AutomationProperties.AutomationId="BtnAutoPullRemoveTarget"
+                    Click="BtnRemoveTarget_Click"
+                    HorizontalAlignment="Left"
+                    Padding="8,4"
+                    Margin="0,0,0,12"
+                    Style="{StaticResource SecondaryButtonStyle}" />
+
+            <Separator Margin="0,0,0,12" />
+
+            <TextBlock Text="실행 시각 (HH:mm)" FontWeight="SemiBold" Margin="0,0,0,4" />
+            <ListBox x:Name="ScheduleTimesList" AutomationProperties.AutomationId="ListAutoPullScheduleTimes" Height="80" Margin="0,0,0,4" />
+            <DockPanel Margin="0,0,0,12">
+                <Button Content="추가"
+                        AutomationProperties.AutomationId="BtnAutoPullAddTime"
+                        Click="BtnAddTime_Click"
+                        DockPanel.Dock="Right"
+                        Padding="12,4"
+                        Margin="8,0,0,0"
+                        Style="{StaticResource SecondaryButtonStyle}" />
+                <Button Content="선택 제거"
+                        AutomationProperties.AutomationId="BtnAutoPullRemoveTime"
+                        Click="BtnRemoveTime_Click"
+                        DockPanel.Dock="Right"
+                        Padding="12,4"
+                        Margin="8,0,0,0"
+                        Style="{StaticResource SecondaryButtonStyle}" />
+                <TextBox x:Name="TxtNewTime"
+                         AutomationProperties.AutomationId="TxtAutoPullNewTime"
+                         Text="09:00"
+                         Padding="4"
+                         VerticalContentAlignment="Center" />
+            </DockPanel>
+
+            <Separator Margin="0,0,0,12" />
+
+            <CheckBox x:Name="ChkCatchUp"
+                      AutomationProperties.AutomationId="ChkAutoPullCatchUp"
+                      Content="앱이 꺼져 있던 동안 놓친 실행을 1회 보충 실행"
+                      Checked="ChkCatchUp_CheckedChanged"
+                      Unchecked="ChkCatchUp_CheckedChanged" />
+        </StackPanel>
+
+        <DockPanel Grid.Row="1" LastChildFill="False" Margin="0,16,0,0">
+            <Button DockPanel.Dock="Right"
+                    Content="닫기"
+                    Click="BtnClose_Click"
+                    IsDefault="True"
+                    Padding="16,8"
+                    Style="{StaticResource AccentButtonStyle}" />
+        </DockPanel>
+    </Grid>
+</Window>

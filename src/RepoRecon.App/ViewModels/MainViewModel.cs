@@ -43,6 +43,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private readonly Dictionary<long, RepoTreeNodeViewModel> _repoViewModelMap = new();
     private List<NamespaceMoveDetector.MoveGroup> _pendingPathMoveGroups = new();
+    private IReadOnlyList<AutoPullTarget> _autoPullTargets = Array.Empty<AutoPullTarget>();
+
+    public AutoPullSchedulerService AutoPullScheduler { get; }
 
     public CloneTabViewModel CloneTab { get; }
     public ProfileManagementViewModel ProfileManagement { get; }
@@ -400,6 +403,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         CloneTab = cloneTab;
         ProfileManagement = profileManagement;
         _logger = logger ?? NullLogger<MainViewModel>.Instance;
+
+        AutoPullScheduler = new AutoPullSchedulerService(
+            _indexStore,
+            _pullEngine,
+            logger ?? (Microsoft.Extensions.Logging.ILogger)NullLogger<MainViewModel>.Instance);
 
         _fetchEngine.RepoFetched += OnRepoFetched;
         _fetchEngine.FetchingStateChanged += OnFetchingStateChanged;
@@ -973,6 +981,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         await LoadDataAsync();
         await CloneTab.InitializeAsync();
+        AutoPullScheduler.Start();
 
         // Check residual temp folders on startup (§7.3, §10 Criterion 21)
         try
@@ -1023,6 +1032,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             var reposWithStatus = await _indexStore.GetAllLocalReposWithStatusAsync();
             var serverProfiles = await _indexStore.GetServerProfilesAsync();
             var serverRepos = await _indexStore.GetAllServerReposAsync();
+            _autoPullTargets = await _indexStore.GetAutoPullTargetsAsync();
             queryTimer.Stop();
 
             // §5.3.4: capture the selection basket before the rebuild replaces
@@ -1162,6 +1172,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         var folderVm = new FolderTreeNodeViewModel(folderNode) { Parent = parent };
         folderVm.SelectionChanged += OnTreeNodeSelectionChanged;
+        folderVm.OnToggleAutoPullTargetRequested = async vm => await HandleToggleAutoPullTargetAsync(vm);
+        folderVm.IsAutoPullTarget = _autoPullTargets.Any(t =>
+            t.IsActive && string.Equals(t.FolderPath, folderNode.FullPath, StringComparison.OrdinalIgnoreCase));
 
         foreach (var sub in folderNode.SubFolders)
         {
@@ -2189,6 +2202,52 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     #region Context Menu Actions & Single Operations (§10.1, §10.4, §10.7)
 
+    // §9.1: 자동 Pull 설정 창(AutoPullSettingsWindow)이 등록된 대상 목록을 보여주고 제거할 때 쓴다.
+    public Task<IReadOnlyList<AutoPullTarget>> GetAutoPullTargetsAsync() => _indexStore.GetAutoPullTargetsAsync();
+
+    public async Task RemoveAutoPullTargetAsync(string folderPath)
+    {
+        await _indexStore.RemoveAutoPullTargetAsync(folderPath);
+        _autoPullTargets = await _indexStore.GetAutoPullTargetsAsync();
+
+        var root = RootTreeNodes.FirstOrDefault() as FolderTreeNodeViewModel;
+        var node = root != null ? FindFolderByPath(root, folderPath) : null;
+        if (node != null) node.IsAutoPullTarget = false;
+    }
+
+    // §8.1.1(a): 로컬 탭 폴더 노드 컨텍스트 메뉴에서 자동 pull 대상 등록/해제.
+    private async Task HandleToggleAutoPullTargetAsync(FolderTreeNodeViewModel vm)
+    {
+        if (string.IsNullOrEmpty(vm.FullPath))
+        {
+            StatusMessage = "'전체' 루트는 자동 pull 대상으로 등록할 수 없습니다.";
+            return;
+        }
+
+        try
+        {
+            if (vm.IsAutoPullTarget)
+            {
+                await _indexStore.RemoveAutoPullTargetAsync(vm.FullPath);
+                vm.IsAutoPullTarget = false;
+                StatusMessage = $"자동 pull 대상에서 제외: {vm.CompressedDisplayPath}";
+            }
+            else
+            {
+                await _indexStore.AddAutoPullTargetAsync(vm.FullPath, recurse: true);
+                vm.IsAutoPullTarget = true;
+                StatusMessage = $"자동 pull 대상으로 등록: {vm.CompressedDisplayPath}";
+            }
+
+            _autoPullTargets = await _indexStore.GetAutoPullTargetsAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "자동 pull 대상 토글 실패: {Path}", vm.FullPath);
+            StatusMessage = $"자동 pull 설정 실패: {ex.Message}";
+        }
+    }
+
     public void HandleChangeRemoteUrl(RepoTreeNodeViewModel repoVm)
     {
         _ = OpenChangeRemoteUrlAsync(repoVm);
@@ -2521,5 +2580,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _fetchEngine.RepoFetched -= OnRepoFetched;
         _fetchEngine.FetchingStateChanged -= OnFetchingStateChanged;
         _fetchEngine.CooldownsChanged -= OnCooldownsChanged;
+        AutoPullScheduler.Dispose();
     }
 }
