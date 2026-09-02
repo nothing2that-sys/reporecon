@@ -46,10 +46,18 @@ public partial class App : Application
         base.OnStartup(e);
 
         var dbPath = DatabasePathResolver.ResolveDatabasePath();
+        string baseDir;
+#if DEBUG
+        // 검증 스크립트 전용 우회 경로 (§9.3 미문서화, §12 기록). DatabasePathResolver와
+        // 같은 조건으로 감싼다 — 그러지 않으면 DB는 정상 경로에, 로그만 이 변수를 따라가는
+        // 불일치가 Release 빌드에서 생긴다.
         var envRoot = Environment.GetEnvironmentVariable("REPORECON_PORTABLE_ROOT");
-        var baseDir = !string.IsNullOrWhiteSpace(envRoot) 
-            ? envRoot 
+        baseDir = !string.IsNullOrWhiteSpace(envRoot)
+            ? envRoot
             : Path.GetDirectoryName(dbPath) ?? AppDomain.CurrentDomain.BaseDirectory;
+#else
+        baseDir = Path.GetDirectoryName(dbPath) ?? AppDomain.CurrentDomain.BaseDirectory;
+#endif
         var logDir = Path.Combine(baseDir, "logs");
         Directory.CreateDirectory(logDir);
 

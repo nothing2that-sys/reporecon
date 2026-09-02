@@ -18,12 +18,17 @@ public class DpapiTokenStore : ISecureTokenStore
         }
         else
         {
+#if DEBUG
+            // 검증 스크립트 전용 우회 경로 (§9.3 미문서화, §12 기록). DatabasePathResolver와
+            // 같은 조건으로 감싼다 — 그러지 않으면 인덱스는 정상 위치에, 자격증명만 이 변수를
+            // 따라가는 불일치가 Release 빌드에서 생긴다.
             var envRoot = Environment.GetEnvironmentVariable("REPORECON_PORTABLE_ROOT");
             if (!string.IsNullOrWhiteSpace(envRoot))
             {
                 _credentialsDirectory = Path.Combine(envRoot, "credentials");
             }
             else
+#endif
             {
                 var baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 var portableMarker = Path.Combine(baseDir, "reporecon.portable");
