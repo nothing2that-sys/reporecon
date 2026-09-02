@@ -64,9 +64,11 @@ public partial class App : Application
             .WriteTo.File(
                 Path.Combine(logDir, "reporecon-.log"),
                 rollingInterval: RollingInterval.Day,
-                // §9.4 [확정]: 보관 기본값 14일. Serilog.Sinks.File의 실제 기본값은 31개 파일이라
-                // 명시하지 않으면 설계 확정값보다 두 배 넘게 오래 남는다.
-                retainedFileCountLimit: 14,
+                // §9.4 [확정]: 보관 기본값 "14일"이지 14개 파일이 아니다. retainedFileCountLimit는
+                // 파일 개수 기준이라 앱을 며칠 안 켜면(파일이 그날그날 생기지 않으므로) 14개가
+                // 14일보다 훨씬 긴 기간을 덮는다. 롤링 구간 종료 시점부터의 경과 시간을 기준으로
+                // 지우는 retainedFileTimeLimit이 실제 "14일" 요구에 맞는 파라미터다.
+                retainedFileTimeLimit: TimeSpan.FromDays(14),
                 outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
 
