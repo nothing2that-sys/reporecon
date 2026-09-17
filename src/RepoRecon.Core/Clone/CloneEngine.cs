@@ -9,6 +9,7 @@ using RepoRecon.Core.Git;
 using RepoRecon.Core.Models;
 using RepoRecon.Core.Pull;
 using RepoRecon.Core.Security;
+using RepoRecon.Core.Urls;
 
 namespace RepoRecon.Core.Clone;
 
@@ -18,6 +19,7 @@ public class CloneEngine : ICloneEngine
     private readonly SqliteIndexStore _indexStore;
     private readonly IRepoLockManager _lockManager;
     private readonly ISecureTokenStore? _tokenStore;
+    private readonly HostAliasTable _aliasTable;
     private readonly ILogger<CloneEngine> _logger;
 
     private readonly SemaphoreSlim _globalNetworkPool;
@@ -30,6 +32,7 @@ public class CloneEngine : ICloneEngine
         IRepoLockManager lockManager,
         ISecureTokenStore? tokenStore = null,
         ILogger<CloneEngine>? logger = null,
+        HostAliasTable? aliasTable = null,
         int maxGlobalConcurrency = 4,
         int maxPerHostConcurrency = 4)
     {
@@ -37,6 +40,7 @@ public class CloneEngine : ICloneEngine
         _indexStore = indexStore;
         _lockManager = lockManager;
         _tokenStore = tokenStore;
+        _aliasTable = aliasTable ?? new HostAliasTable();
         _logger = logger ?? NullLogger<CloneEngine>.Instance;
         _globalNetworkPool = new SemaphoreSlim(maxGlobalConcurrency, maxGlobalConcurrency);
     }
@@ -130,8 +134,10 @@ public class CloneEngine : ICloneEngine
             return new CloneResult(repo, targetPath, false, error, ErrorCategory.Path.ToString(), null);
         }
 
-        // 3. Acquire network concurrency semaphores
-        var host = ExtractHost(repo.CloneUrl);
+        // 3. Acquire network concurrency semaphores. Group by the alias-resolved host so two
+        // profiles whose raw clone URLs point at the same physical server via different
+        // advertised hostnames (§4.2 (4)) still share one per-host throttle, not two.
+        var host = ExtractHost(ApplyHostAlias(repo.CloneUrl, _aliasTable));
         var hostPool = _hostPools.GetOrAdd(host, _ => new SemaphoreSlim(4, 4));
 
         await _globalNetworkPool.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -220,10 +226,21 @@ public class CloneEngine : ICloneEngine
                 _logger.LogInformation("CloneEngine token lookup for {NormalizedKey}: ProfileId={ProfileId}, FoundProfile={ProfileHost}, HasToken={HasToken}", repo.NormalizedKey, repo.ProfileId, profile?.Host, hasToken);
             }
 
+            // §4.2 (4): the catalog's clone URL authority can differ from the authority the user
+            // actually reached the API on (e.g. GitLab external_url set to an internal-only host).
+            // The alias table already resolves this for normalized-key matching; apply the same
+            // resolution here so the literal `git clone` transport also lands on a reachable host.
+            var effectiveCloneUrl = ApplyHostAlias(repo.CloneUrl, _aliasTable);
+            if (!string.Equals(effectiveCloneUrl, repo.CloneUrl, StringComparison.Ordinal))
+            {
+                _logger.LogInformation("Rewrote clone URL for {NormalizedKey} via host alias: {Original} -> {Effective}",
+                    repo.NormalizedKey, repo.CloneUrl, effectiveCloneUrl);
+            }
+
             // Execute git clone with longpaths=true both globally and in the new repository config (§7.10, §10 Criterion 18)
             // Token is NEVER embedded in clone URL (§4.2, §5)
             var cleanTempPath = tempPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var cloneArgs = $"-c core.longpaths=true clone --config core.longpaths=true \"{repo.CloneUrl}\" \"{cleanTempPath}\"";
+            var cloneArgs = $"-c core.longpaths=true clone --config core.longpaths=true \"{effectiveCloneUrl}\" \"{cleanTempPath}\"";
             var workDir = Directory.GetCurrentDirectory();
             var result = await _gitRunner.ExecuteAsync(workDir, cloneArgs, TimeSpan.FromMinutes(3), cancellationToken, envVars).ConfigureAwait(false);
 
@@ -400,6 +417,28 @@ public class CloneEngine : ICloneEngine
         {
             return false;
         }
+    }
+
+    // Rewrites only the authority (host:port) of an absolute clone URL via the alias table,
+    // preserving scheme, credentials, path casing and the .git suffix exactly (§4.2 (4)).
+    // Unlike RemoteUrlNormalizer.Normalize, this returns a usable clone URL, not a matching key.
+    internal static string ApplyHostAlias(string cloneUrl, HostAliasTable aliasTable)
+    {
+        if (string.IsNullOrWhiteSpace(cloneUrl)) return cloneUrl;
+        if (!Uri.TryCreate(cloneUrl, UriKind.Absolute, out var uri)) return cloneUrl;
+
+        var (resolvedHost, resolvedPort) = aliasTable.ResolveAuthority(uri.Host, uri.Port);
+        if (string.Equals(resolvedHost, uri.Host, StringComparison.OrdinalIgnoreCase) && resolvedPort == uri.Port)
+        {
+            return cloneUrl;
+        }
+
+        var builder = new UriBuilder(uri)
+        {
+            Host = resolvedHost,
+            Port = resolvedPort
+        };
+        return builder.Uri.ToString();
     }
 
     private static string ExtractHost(string url)

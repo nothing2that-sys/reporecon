@@ -10,7 +10,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>RepoRecon.App</RootNamespace>
     <ApplicationIcon>Assets\reporecon.ico</ApplicationIcon>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <AssemblyInformationalVersion>$(Version)</AssemblyInformationalVersion>
   </PropertyGroup>
 

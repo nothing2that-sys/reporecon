@@ -207,6 +207,23 @@ public partial class ProfileManagementViewModel : ObservableObject
 
             var previousAliases = SelectedProfile?.Aliases ?? new List<string>();
 
+            // This window is non-modal (MainViewModel opens it with Show(), not ShowDialog()),
+            // so it can sit open while a catalog sync elsewhere auto-registers a new alias on
+            // this same profile (§4.2 (4)). EditAliases only reflects the snapshot taken when
+            // the profile was selected, so saving as-is would silently erase that alias. Fold in
+            // anything that appeared on disk since load; aliases the user actually deleted from
+            // the field (present at load, absent now) are still respected.
+            if (SelectedProfile != null)
+            {
+                var currentOnDisk = (await _indexStore.GetServerProfilesAsync())
+                    .FirstOrDefault(p => p.Id == SelectedProfile.Id);
+                var addedElsewhere = (currentOnDisk?.Aliases ?? new List<string>())
+                    .Except(previousAliases, StringComparer.OrdinalIgnoreCase);
+                aliasesList = aliasesList.Concat(addedElsewhere)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
             var profileToSave = new ServerProfile(
                 Id: SelectedProfile?.Id ?? 0,
                 Host: EditHost.Trim(),

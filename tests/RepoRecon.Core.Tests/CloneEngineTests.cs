@@ -3,6 +3,7 @@ using RepoRecon.Core.Concurrency;
 using RepoRecon.Core.Data;
 using RepoRecon.Core.Git;
 using RepoRecon.Core.Models;
+using RepoRecon.Core.Urls;
 using Xunit;
 
 namespace RepoRecon.Core.Tests;
@@ -177,6 +178,37 @@ public class CloneEngineTests : IDisposable
         Assert.Single(history);
         Assert.Equal("FAILED", history[0].Result);
         Assert.NotNull(history[0].ErrorCategory);
+    }
+
+    // §4.2 (4): GitLab's external_url (e.g. "http://gitlab") can differ from the authority
+    // the user actually reached the API on (e.g. "192.0.2.9:10012"). The alias table
+    // already fixes normalized-key matching for this; ApplyHostAlias must fix the literal
+    // clone transport too, or `git clone` fails with "Could not resolve host" regardless.
+    [Fact]
+    public void ApplyHostAlias_RewritesAuthority_WhenAliasRegistered()
+    {
+        var aliasTable = new HostAliasTable();
+        aliasTable.SetAlias("gitlab:80", "192.0.2.9:10012");
+
+        var rewritten = CloneEngine.ApplyHostAlias(
+            "http://gitlab/sample-workspace/customer/sample-client/Sample-Tool.git",
+            aliasTable);
+
+        Assert.Equal(
+            "http://192.0.2.9:10012/sample-workspace/customer/sample-client/Sample-Tool.git",
+            rewritten);
+    }
+
+    [Fact]
+    public void ApplyHostAlias_LeavesUrlUnchanged_WhenNoAliasMatches()
+    {
+        var aliasTable = new HostAliasTable();
+        aliasTable.SetAlias("gitlab:80", "192.0.2.9:10012");
+
+        const string githubUrl = "https://github.com/enterprise/core-team/super-app.git";
+        var rewritten = CloneEngine.ApplyHostAlias(githubUrl, aliasTable);
+
+        Assert.Equal(githubUrl, rewritten);
     }
 
     [Fact]
