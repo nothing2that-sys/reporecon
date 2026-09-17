@@ -30,6 +30,10 @@ public class FetchEngine : IFetchEngine, IDisposable
     private readonly TimeSpan _authenticationCooldown;
     private readonly object _workerLock = new();
     private readonly List<Task> _activeWorkerTasks = new();
+    // Slots claimed under _workerLock, incremented the instant a worker is spawned and
+    // decremented the instant one exits -- see EnsureWorkersStarted for why this replaced
+    // counting _activeWorkerTasks via Task.IsCompleted.
+    private int _claimedWorkerSlots;
     private readonly object _cooldownLock = new();
     private readonly Dictionary<string, HostFetchCooldown> _cooldowns = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, int> _activeByHost = new(StringComparer.OrdinalIgnoreCase);
@@ -37,11 +41,19 @@ public class FetchEngine : IFetchEngine, IDisposable
     private int _runningWorkerCount;
     private bool _isDisposed;
 
+    // Pause/Resume (별도로 _cts와 분리): _cts는 엔진 종료 전용 1회성 취소이고, 이건
+    // 사용자가 여러 번 눌러도 되는 토글이다. Pause()마다 새 토큰을 취소해 진행 중인
+    // git 프로세스를 즉시 죽이고, Resume()에서 토큰을 새로 발급해 워커를 다시 띄운다.
+    private volatile bool _isPaused;
+    private CancellationTokenSource _pauseCts = new();
+
     public event EventHandler<RepoFetchResult>? RepoFetched;
     public event EventHandler<bool>? FetchingStateChanged;
     public event EventHandler? CooldownsChanged;
+    public event EventHandler<bool>? PausedStateChanged;
 
     public bool IsFetching => _runningWorkerCount > 0 || !_queue.IsEmpty;
+    public bool IsPaused => _isPaused;
     public int PendingCount => _queue.Count;
     public IReadOnlyList<HostFetchCooldown> ActiveCooldowns
     {
@@ -131,8 +143,15 @@ public class FetchEngine : IFetchEngine, IDisposable
         {
             if (_isDisposed) return;
             _activeWorkerTasks.RemoveAll(task => task.IsCompleted);
-            while (_activeWorkerTasks.Count < _maxConcurrency && !_queue.IsEmpty)
+            // _claimedWorkerSlots, not _activeWorkerTasks.Count, gates this loop: a worker
+            // that just exited (e.g. because Pause() flipped _isPaused) decrements the slot
+            // synchronously as the first line of its finally, but its Task doesn't reach
+            // IsCompleted until the rest of that finally block returns. A Resume() racing in
+            // that window would see a stale "still full" _activeWorkerTasks.Count, spawn zero
+            // replacement workers, and leave the queue stalled forever despite pending items.
+            while (_claimedWorkerSlots < _maxConcurrency && !_queue.IsEmpty)
             {
+                _claimedWorkerSlots++;
                 _activeWorkerTasks.Add(Task.Run(WorkerLoopAsync));
             }
         }
@@ -143,12 +162,13 @@ public class FetchEngine : IFetchEngine, IDisposable
         Interlocked.Increment(ref _runningWorkerCount);
         try
         {
-            while (!_cts.IsCancellationRequested && _queue.TryDequeue(out var task))
+            while (!_cts.IsCancellationRequested && !_isPaused && _queue.TryDequeue(out var task))
             {
                 _logger.LogInformation(
                     "FetchDequeued RepoId={RepoId} Path={Path} Host={Host} Priority={Priority}",
                     task.LocalRepoId, task.AbsPath, task.HostKey, task.Priority);
-                await ProcessFetchTaskAsync(task, _cts.Token).ConfigureAwait(false);
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, _pauseCts.Token);
+                await ProcessFetchTaskAsync(task, linkedCts.Token).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException) { }
@@ -158,6 +178,7 @@ public class FetchEngine : IFetchEngine, IDisposable
             Interlocked.Decrement(ref _runningWorkerCount);
             lock (_workerLock)
             {
+                _claimedWorkerSlots--;
                 _activeWorkerTasks.RemoveAll(task => task.IsCompleted);
                 if (_runningWorkerCount == 0 && _queue.IsEmpty)
                     FetchingStateChanged?.Invoke(this, false);
@@ -311,6 +332,28 @@ public class FetchEngine : IFetchEngine, IDisposable
         return host.Trim('[', ']').ToLowerInvariant();
     }
 
+    public void Pause()
+    {
+        if (_isDisposed || _isPaused) return;
+        _isPaused = true;
+        _pauseCts.Cancel(); // interrupts any git process currently in flight
+        _logger.LogInformation("FetchEngine paused. PendingCount={PendingCount}", _queue.Count);
+        PausedStateChanged?.Invoke(this, true);
+    }
+
+    public void Resume()
+    {
+        if (_isDisposed || !_isPaused) return;
+        // The old CTS is left for GC rather than disposed: a worker mid-loop may still
+        // hold a reference to it (read right before this assignment publishes), and
+        // disposing here would risk an ObjectDisposedException on that read.
+        _pauseCts = new CancellationTokenSource();
+        _isPaused = false;
+        _logger.LogInformation("FetchEngine resumed. PendingCount={PendingCount}", _queue.Count);
+        PausedStateChanged?.Invoke(this, false);
+        EnsureWorkersStarted();
+    }
+
     public void Stop() { _queue.Clear(); _cts.Cancel(); }
 
     public void Dispose()
@@ -321,5 +364,6 @@ public class FetchEngine : IFetchEngine, IDisposable
         _networkPool.Dispose();
         foreach (var hostPool in _hostPools.Values) hostPool.Dispose();
         _cts.Dispose();
+        _pauseCts.Dispose();
     }
 }

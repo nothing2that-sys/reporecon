@@ -138,6 +138,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private bool _isFetching;
 
     [ObservableProperty]
+    private bool _isFetchPaused;
+
+    [ObservableProperty]
     private int _pendingFetchCount;
 
     [ObservableProperty]
@@ -412,6 +415,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _fetchEngine.RepoFetched += OnRepoFetched;
         _fetchEngine.FetchingStateChanged += OnFetchingStateChanged;
         _fetchEngine.CooldownsChanged += OnCooldownsChanged;
+        _fetchEngine.PausedStateChanged += OnFetchPausedStateChanged;
 
         _freshnessTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
         _freshnessTimer.Tick += (_, _) =>
@@ -1325,7 +1329,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             IsFetching = isFetching;
             PendingFetchCount = _fetchEngine.PendingCount;
-            if (isFetching)
+            if (IsFetchPaused)
+            {
+                // OnFetchPausedStateChanged owns the status line while paused -- e.g. a new
+                // EnqueueReposAsync can fire FetchingStateChanged(true) mid-pause, and that
+                // must not overwrite "일시정지됨" with "진행 중" while nothing is actually running.
+            }
+            else if (isFetching)
             {
                 StatusMessage = $"백그라운드 Fetch 진행 중 (대기: {PendingFetchCount}개)...";
             }
@@ -1334,6 +1344,33 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 StatusMessage = "Fetch 완료";
             }
         });
+    }
+
+    private void OnFetchPausedStateChanged(object? sender, bool isPaused)
+    {
+        System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
+        {
+            IsFetchPaused = isPaused;
+            PendingFetchCount = _fetchEngine.PendingCount;
+            StatusMessage = isPaused
+                ? $"백그라운드 Fetch 일시정지됨 (대기: {PendingFetchCount}개)"
+                : $"백그라운드 Fetch 재개됨 (대기: {PendingFetchCount}개)...";
+        });
+    }
+
+    [RelayCommand]
+    public void ToggleFetchPause()
+    {
+        if (IsFetchPaused)
+        {
+            _logger.LogInformation("사용자가 백그라운드 Fetch 재개를 요청했습니다.");
+            _fetchEngine.Resume();
+        }
+        else
+        {
+            _logger.LogInformation("사용자가 백그라운드 Fetch 일시정지를 요청했습니다.");
+            _fetchEngine.Pause();
+        }
     }
 
     private void UpdateAllFreshnessLabels()
@@ -2580,6 +2617,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _fetchEngine.RepoFetched -= OnRepoFetched;
         _fetchEngine.FetchingStateChanged -= OnFetchingStateChanged;
         _fetchEngine.CooldownsChanged -= OnCooldownsChanged;
+        _fetchEngine.PausedStateChanged -= OnFetchPausedStateChanged;
         AutoPullScheduler.Dispose();
     }
 }

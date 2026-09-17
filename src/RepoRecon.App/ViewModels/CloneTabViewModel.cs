@@ -142,6 +142,7 @@ public partial class CloneTabViewModel : ObservableObject
     private readonly ScanRootManager _scanRootManager;
     private readonly HostAliasTable _aliasTable;
     private readonly ILogger<CloneTabViewModel> _logger;
+    private CancellationTokenSource? _cloneCts;
 
     public ObservableCollection<ServerProfile> ServerProfiles { get; } = new();
     public ObservableCollection<CatalogRepoItemViewModel> AllCatalogItems { get; } = new();
@@ -186,6 +187,16 @@ public partial class CloneTabViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isCloning;
+
+    // 카탈로그가 오래된 채로 방치되면 §4.2 (4)의 clone URL/API 호스트 불일치가 아무도
+    // 모르게 다시 벌어질 수 있다 — 자동 재동기화 대신 배너로만 알린다(사용자 선택).
+    private const int CatalogStalenessWarningDays = 7;
+
+    [ObservableProperty]
+    private bool _isCatalogStale;
+
+    [ObservableProperty]
+    private string _catalogStalenessBannerText = string.Empty;
 
     [ObservableProperty]
     private string _statusMessage = "준비 완료";
@@ -257,11 +268,42 @@ public partial class CloneTabViewModel : ObservableObject
 
         SelectedProfile = ServerProfiles.FirstOrDefault();
         HasNoProfiles = ServerProfiles.Count == 0;
+        UpdateCatalogStalenessBanner();
     }
 
     partial void OnSelectedProfileChanged(ServerProfile? value)
     {
         _ = LoadCatalogForSelectedProfileAsync();
+        UpdateCatalogStalenessBanner();
+    }
+
+    private void UpdateCatalogStalenessBanner()
+    {
+        if (SelectedProfile == null)
+        {
+            IsCatalogStale = false;
+            CatalogStalenessBannerText = string.Empty;
+            return;
+        }
+
+        if (SelectedProfile.LastSyncedAt is not { } lastSynced)
+        {
+            IsCatalogStale = true;
+            CatalogStalenessBannerText = "⚠️ 이 프로파일은 카탈로그 동기화를 한 번도 실행하지 않았습니다 — 클론 목록이 비어 있거나 오래된 설정을 쓸 수 있습니다. 카탈로그 동기화를 실행하세요.";
+            return;
+        }
+
+        var ageDays = (int)(DateTime.UtcNow - lastSynced).TotalDays;
+        if (ageDays >= CatalogStalenessWarningDays)
+        {
+            IsCatalogStale = true;
+            CatalogStalenessBannerText = $"⚠️ 카탈로그가 {ageDays}일 전 데이터입니다 (마지막 동기화: {lastSynced.ToLocalTime():yyyy-MM-dd}) — 서버 쪽 clone 주소나 레포 목록이 바뀌었을 수 있으니 카탈로그 동기화를 실행하세요.";
+        }
+        else
+        {
+            IsCatalogStale = false;
+            CatalogStalenessBannerText = string.Empty;
+        }
     }
 
     partial void OnFilterTextChanged(string value) => ApplyFilters();
@@ -493,6 +535,12 @@ public partial class CloneTabViewModel : ObservableObject
 
             await _indexStore.ReplaceServerReposAsync(SelectedProfile.Id, serverRepos);
 
+            // ReplaceServerReposAsync just stamped last_synced_at = now on the DB row directly
+            // (raw SQL, bypassing this in-memory ServerProfile), so the banner won't pick that up
+            // on its own until profiles are reloaded -- clear it immediately instead.
+            IsCatalogStale = false;
+            CatalogStalenessBannerText = string.Empty;
+
             // §3.5 (b): run right after catalog sync, one shot -- not on every
             // incidental reload (profile switch, post-clone refresh).
             var canonicalAuthority = RemoteUrlNormalizer.ExtractAuthority(SelectedProfile.Host);
@@ -586,6 +634,7 @@ public partial class CloneTabViewModel : ObservableObject
             }
 
             // 2. Execute
+            _cloneCts = new CancellationTokenSource();
             IsCloning = true;
             StatusMessage = "일괄 클론 실행 중...";
 
@@ -594,7 +643,7 @@ public partial class CloneTabViewModel : ObservableObject
                 StatusMessage = $"클론 진행 중 ({p.Completed}/{p.Total}): {Path.GetFileName(p.CurrentRepoPath)} - {p.Result}";
             });
 
-            var results = await _cloneEngine.ExecuteBatchCloneAsync(selectedRepos, TargetRootDirectory, progress);
+            var results = await _cloneEngine.ExecuteBatchCloneAsync(selectedRepos, TargetRootDirectory, progress, _cloneCts.Token);
 
             var successCount = results.Count(r => r.IsSuccess);
             var failCount = results.Count(r => !r.IsSuccess);
@@ -623,6 +672,15 @@ public partial class CloneTabViewModel : ObservableObject
             // Reload catalog badges
             await LoadCatalogForSelectedProfileAsync();
         }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("사용자가 일괄 클론 취소 요청을 전달했습니다.");
+            StatusMessage = "일괄 클론이 사용자에 의해 취소되었습니다.";
+
+            // Reload so any repos that finished cloning before the cancel took
+            // effect show up immediately instead of waiting for the next scan.
+            await LoadCatalogForSelectedProfileAsync();
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Batch clone execution error");
@@ -631,6 +689,19 @@ public partial class CloneTabViewModel : ObservableObject
         finally
         {
             IsCloning = false;
+            _cloneCts?.Dispose();
+            _cloneCts = null;
+        }
+    }
+
+    [RelayCommand]
+    public void CancelClone()
+    {
+        if (IsCloning && _cloneCts != null)
+        {
+            _logger.LogInformation("사용자가 일괄 클론 취소 요청을 전달했습니다.");
+            StatusMessage = "취소 요청됨 — 진행 중인 클론이 정리될 때까지 잠시 기다려주세요...";
+            _cloneCts.Cancel();
         }
     }
 

@@ -1675,21 +1675,41 @@
                         </DockPanel>
                     </Border>
 
-                    <!-- Permanent Scan Root Banner (§7.5, §10 Criterion 24) -->
-                    <Border Grid.Row="1"
-                            Background="{StaticResource SuccessBackground}"
-                            BorderBrush="{StaticResource SuccessBorder}"
-                            BorderThickness="1"
-                            CornerRadius="6"
-                            Padding="8,4"
-                            Margin="0,0,0,8">
-                        <TextBlock x:Name="TxtScanRootBanner"
-                                   AutomationProperties.AutomationId="TxtScanRootBanner"
-                                   Text="{Binding ScanRootBannerText}"
-                                   FontWeight="SemiBold"
-                                   FontSize="{StaticResource FontSizeBody}"
-                                   Foreground="{StaticResource SuccessForeground}" />
-                    </Border>
+                    <StackPanel Grid.Row="1">
+                        <!-- Catalog Staleness Banner: only shown once the selected profile's
+                             catalog hasn't been synced in a while, so a drifted clone-URL
+                             alias (§4.2 (4)) doesn't sit unnoticed like it did before. -->
+                        <Border Visibility="{Binding IsCatalogStale, Converter={StaticResource BoolToVis}}"
+                                Background="{StaticResource WarningBackground}"
+                                BorderBrush="{StaticResource WarningBorder}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="8,4"
+                                Margin="0,0,0,8">
+                            <TextBlock x:Name="TxtCatalogStalenessBanner"
+                                       AutomationProperties.AutomationId="TxtCatalogStalenessBanner"
+                                       Text="{Binding CatalogStalenessBannerText}"
+                                       FontWeight="SemiBold"
+                                       FontSize="{StaticResource FontSizeBody}"
+                                       Foreground="{StaticResource WarningForeground}"
+                                       TextWrapping="Wrap" />
+                        </Border>
+
+                        <!-- Permanent Scan Root Banner (§7.5, §10 Criterion 24) -->
+                        <Border Background="{StaticResource SuccessBackground}"
+                                BorderBrush="{StaticResource SuccessBorder}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="8,4"
+                                Margin="0,0,0,8">
+                            <TextBlock x:Name="TxtScanRootBanner"
+                                       AutomationProperties.AutomationId="TxtScanRootBanner"
+                                       Text="{Binding ScanRootBannerText}"
+                                       FontWeight="SemiBold"
+                                       FontSize="{StaticResource FontSizeBody}"
+                                       Foreground="{StaticResource SuccessForeground}" />
+                        </Border>
+                    </StackPanel>
 
                     <!-- Filter & Selection Bar -->
                     <Border Grid.Row="2"
@@ -1990,6 +2010,7 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
                             <TextBlock Grid.Column="0"
@@ -2014,9 +2035,21 @@
                                     Command="{Binding PreviewAndExecuteCloneCommand}"
                                     IsEnabled="{Binding IsCloning, Converter={StaticResource InverseBool}}"
                                     Padding="16,8"
+                                    Margin="0,0,8,0"
                                     Style="{StaticResource AccentButtonStyle}"
                                     ToolTipService.ShowOnDisabled="True"
                                     ToolTip="이미 클론이 진행 중일 때는 비활성화됩니다." />
+
+                            <Button Grid.Column="3"
+                                    x:Name="BtnCancelClone"
+                                    AutomationProperties.AutomationId="BtnCancelClone"
+                                    Content="⏹ 취소"
+                                    Command="{Binding CancelCloneCommand}"
+                                    Visibility="{Binding IsCloning, Converter={StaticResource BoolToVis}}"
+                                    Padding="16,8"
+                                    Background="{StaticResource ErrorBackground}"
+                                    BorderBrush="{StaticResource ErrorBorder}"
+                                    ToolTip="진행 중인 클론을 중단합니다. 이미 완료된 항목은 유지되고, 진행 중이던 항목은 임시 폴더째 정리됩니다." />
                         </Grid>
                     </Border>
                 </Grid>
@@ -2055,12 +2088,28 @@
                     <TextBlock Text="{Binding TotalRepoCount}" FontWeight="Bold" Foreground="{StaticResource NeutralForeground}" />
                     <TextBlock Text="개" Margin="0,0,12,0" Foreground="{StaticResource NeutralForegroundMuted}" />
 
-                    <!-- Background Fetch Progress Indicator -->
+                    <!-- Background Fetch Progress Indicator + Pause/Resume Toggle -->
                     <StackPanel Orientation="Horizontal"
                                 Visibility="{Binding IsFetching, Converter={StaticResource BoolToVis}}"
                                 Margin="0,0,8,0">
-                        <TextBlock Text="Fetch 중..." FontSize="{StaticResource FontSizeSecondary}" Foreground="{StaticResource NeutralForegroundMuted}" Margin="0,0,4,0" VerticalAlignment="Center" />
-                        <ProgressBar Width="90" Height="12" IsIndeterminate="True" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding IsFetchPaused, Converter={StaticResource BoolToLabel}, ConverterParameter='Fetch 일시정지됨|Fetch 중...'}"
+                                   FontSize="{StaticResource FontSizeSecondary}"
+                                   Foreground="{StaticResource NeutralForegroundMuted}"
+                                   Margin="0,0,4,0"
+                                   VerticalAlignment="Center" />
+                        <ProgressBar Width="90"
+                                     Height="12"
+                                     IsIndeterminate="{Binding IsFetchPaused, Converter={StaticResource InverseBool}}"
+                                     VerticalAlignment="Center"
+                                     Margin="0,0,6,0" />
+                        <Button Content="{Binding IsFetchPaused, Converter={StaticResource BoolToLabel}, ConverterParameter='▶ 재개|⏸ 일시정지'}"
+                                x:Name="BtnToggleFetchPause"
+                                AutomationProperties.AutomationId="BtnToggleFetchPause"
+                                Command="{Binding ToggleFetchPauseCommand}"
+                                Padding="6,2"
+                                FontSize="{StaticResource FontSizeSecondary}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                ToolTip="진행 중인 fetch를 즉시 중단하고 대기열 처리를 멈춥니다. 다시 누르면 멈췄던 지점부터 재개합니다." />
                     </StackPanel>
 
                     <!-- Scan Progress -->

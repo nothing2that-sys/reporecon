@@ -245,6 +245,176 @@ public class FetchEngineTests
         Assert.True(results.Count >= expected, $"Expected {expected} fetch results, got {results.Count}.");
     }
 
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (!condition() && DateTime.UtcNow < deadline) await Task.Delay(10);
+        Assert.True(condition(), "Condition did not become true within the timeout.");
+    }
+
+    // §"클론이나 fetch 도중 멈추는 기능이 없어" -- Pause must interrupt a fetch that's
+    // already mid-flight (not just stop new dequeues), and Resume must pick the queue
+    // back up rather than requiring re-enqueue.
+    [Fact]
+    public async Task FetchEngine_Pause_CancelsInFlightFetch_AndReportsCanceledResult()
+    {
+        var tempDb = Path.Combine(Path.GetTempPath(), "RepoRecon_PauseInFlight_" + Guid.NewGuid().ToString("N") + ".db");
+        try
+        {
+            new SchemaMigrator().EnsureInitialized(tempDb);
+            var store = new SqliteIndexStore(tempDb);
+            var runner = new DelayedGitRunner(TimeSpan.FromSeconds(10));
+            var repoId = await store.UpsertLocalRepoAsync(new LocalRepo(0, "slow-repo", "host.test:443/g/slow"));
+
+            using var engine = new FetchEngine(runner, store, maxConcurrency: 1);
+            var results = new ConcurrentQueue<RepoFetchResult>();
+            engine.RepoFetched += (_, result) => results.Enqueue(result);
+
+            await engine.EnqueueReposAsync(new[] { (repoId, "slow-repo", "host.test:443/g/slow") });
+            await WaitUntilAsync(() => runner.FetchCallCount > 0, TimeSpan.FromSeconds(2));
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            engine.Pause();
+            Assert.True(engine.IsPaused);
+
+            await WaitForResultCountAsync(results, 1);
+            sw.Stop();
+
+            // Must resolve because Pause() interrupted it, not because the 10s delay elapsed.
+            Assert.True(sw.Elapsed < TimeSpan.FromSeconds(5), $"Expected the paused fetch to resolve quickly, took {sw.Elapsed}.");
+            Assert.False(results.ElementAt(0).IsSuccess);
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            if (File.Exists(tempDb)) try { File.Delete(tempDb); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task FetchEngine_Pause_LeavesQueueIntact_ResumeProcessesRemainingItems()
+    {
+        var tempDb = Path.Combine(Path.GetTempPath(), "RepoRecon_PauseResume_" + Guid.NewGuid().ToString("N") + ".db");
+        try
+        {
+            new SchemaMigrator().EnsureInitialized(tempDb);
+            var store = new SqliteIndexStore(tempDb);
+            var runner = new DelayedGitRunner(TimeSpan.FromMilliseconds(300));
+            var repoA = await store.UpsertLocalRepoAsync(new LocalRepo(0, "repo-a", "host.test:443/g/a"));
+            var repoB = await store.UpsertLocalRepoAsync(new LocalRepo(0, "repo-b", "host.test:443/g/b"));
+
+            using var engine = new FetchEngine(runner, store, maxConcurrency: 1);
+            var results = new ConcurrentQueue<RepoFetchResult>();
+            engine.RepoFetched += (_, result) => results.Enqueue(result);
+
+            await engine.EnqueueReposAsync(new[]
+            {
+                (repoA, "repo-a", "host.test:443/g/a"),
+                (repoB, "repo-b", "host.test:443/g/b"),
+            });
+
+            // Pause while repo-a's fetch is in flight; with maxConcurrency=1, repo-b is
+            // still sitting in the queue and must not be dequeued while paused.
+            await WaitUntilAsync(() => runner.FetchCallCount > 0, TimeSpan.FromSeconds(2));
+            engine.Pause();
+
+            await WaitForResultCountAsync(results, 1); // repo-a's in-flight fetch gets canceled
+            await Task.Delay(200); // give a paused worker a chance to (wrongly) dequeue repo-b
+            Assert.Single(results);
+            Assert.Equal(1, runner.FetchCallCount);
+            Assert.Equal(1, engine.PendingCount);
+
+            engine.Resume();
+            Assert.False(engine.IsPaused);
+
+            await WaitForResultCountAsync(results, 2);
+            Assert.True(results.ElementAt(1).IsSuccess);
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            if (File.Exists(tempDb)) try { File.Delete(tempDb); } catch { }
+        }
+    }
+
+    // Reproduces the race in EnsureWorkersStarted: with several workers alive when Pause()
+    // hits, each one's Task lags behind _runningWorkerCount before reaching IsCompleted.
+    // A Resume() that (incorrectly) gated on _activeWorkerTasks.Count instead of the
+    // synchronously-updated slot counter would see a stale "still full" count, spawn zero
+    // replacement workers, and strand the still-queued items forever.
+    [Fact]
+    public async Task FetchEngine_ResumeAfterPause_WithMultipleConcurrentWorkers_DrainsEntireQueue()
+    {
+        var tempDb = Path.Combine(Path.GetTempPath(), "RepoRecon_PauseResumeMulti_" + Guid.NewGuid().ToString("N") + ".db");
+        try
+        {
+            new SchemaMigrator().EnsureInitialized(tempDb);
+            var store = new SqliteIndexStore(tempDb);
+            var runner = new DelayedGitRunner(TimeSpan.FromMilliseconds(200));
+            const int inFlightCount = 4;
+            const int queuedCount = 4;
+            const int totalCount = inFlightCount + queuedCount;
+
+            var targets = new List<(long RepoId, string AbsPath, string NormalizedKey)>();
+            for (var i = 0; i < totalCount; i++)
+            {
+                var path = $"repo-{i}";
+                var key = $"host.test:443/g/r{i}";
+                var id = await store.UpsertLocalRepoAsync(new LocalRepo(0, path, key));
+                targets.Add((id, path, key));
+            }
+
+            using var engine = new FetchEngine(runner, store, maxConcurrency: inFlightCount);
+            var results = new ConcurrentQueue<RepoFetchResult>();
+            engine.RepoFetched += (_, result) => results.Enqueue(result);
+
+            await engine.EnqueueReposAsync(targets);
+
+            // Let all four workers pick up their first item, then call Resume() immediately
+            // on Pause()'s heels -- no delay in between -- so the still-exiting workers'
+            // Tasks are as likely as possible to not yet be IsCompleted when Resume() runs.
+            // A delay here would let the race window close on its own and defeat the test.
+            await WaitUntilAsync(() => runner.FetchCallCount >= inFlightCount, TimeSpan.FromSeconds(2));
+            engine.Pause();
+            engine.Resume();
+
+            await WaitForResultCountAsync(results, totalCount);
+            Assert.Equal(totalCount, results.Count);
+            Assert.Equal(0, engine.PendingCount);
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            if (File.Exists(tempDb)) try { File.Delete(tempDb); } catch { }
+        }
+    }
+
+    private sealed class DelayedGitRunner : IGitRunner
+    {
+        private readonly TimeSpan _delay;
+        private int _fetchCallCount;
+
+        public DelayedGitRunner(TimeSpan delay) => _delay = delay;
+
+        public int FetchCallCount => _fetchCallCount;
+
+        public async Task<GitCommandResult> ExecuteAsync(string workingDirectory, string arguments, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+        {
+            if (!arguments.StartsWith("fetch", StringComparison.Ordinal))
+                return new GitCommandResult(0,
+                    "# branch.oid 0123456789012345678901234567890123456789\n# branch.head main\n# branch.upstream origin/main\n# branch.ab +0 -0",
+                    string.Empty,
+                    TimeSpan.Zero);
+
+            Interlocked.Increment(ref _fetchCallCount);
+            await Task.Delay(_delay, cancellationToken);
+            return new GitCommandResult(0, string.Empty, string.Empty, _delay);
+        }
+
+        public Task<GitEnvironmentInfo> CheckEnvironmentAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new GitEnvironmentInfo(true, new Version(2, 40), "git version 2.40", "git", null));
+    }
+
     private sealed class ConcurrencyGitRunner : IGitRunner
     {
         private int _global;
