@@ -22,3 +22,11 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# Local profiles, caches and credentials
+data/
+credentials/
+.env
+.env.*
+.sites-runtime/
+.claude/
